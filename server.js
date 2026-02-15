@@ -742,7 +742,7 @@ app.prepare().then(() => {
                 }
                 
                 // Check if agent already exists
-                const existingAgent = currentConfig.parsed.agents.list.find((a: any) => a.id === id);
+                const existingAgent = currentConfig.parsed.agents.list.find((a) => a.id === id);
                 if (existingAgent) {
                   ws.send(JSON.stringify({
                     type: 'error',
@@ -752,7 +752,7 @@ app.prepare().then(() => {
                 }
                 
                 // Build agent configuration
-                const newAgent: any = {
+                const newAgent = {
                   id,
                   name,
                   workspace: workspace || `~/.openclaw/workspace-${id}`,
