@@ -4,12 +4,18 @@ import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface CreateAgentPanelProps {
-  sendMessage: (msg: any) => void;
-  onSuccess?: (agentId: string) => void;
-  onCancel?: () => void;
+  onCreateAgent: (payload: {
+    id?: string;
+    name: string;
+    workspace?: string;
+    model?: string;
+    tools?: { profile: string };
+    sandbox?: { mode: string };
+  }) => Promise<{ agentId: string; agentName: string }>;
+  onClose?: () => void;
 }
 
-export function CreateAgentPanel({ sendMessage, onSuccess, onCancel }: CreateAgentPanelProps) {
+export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelProps) {
   const [formData, setFormData] = useState({
     id: '',
     name: '',
@@ -20,12 +26,24 @@ export function CreateAgentPanel({ sendMessage, onSuccess, onCancel }: CreateAge
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [createdAgent, setCreatedAgent] = useState<{ agentId: string; agentName: string } | null>(null);
+
+  const resetForm = () => {
+    setFormData({
+      id: '',
+      name: '',
+      workspace: '',
+      model: '',
+      toolsProfile: 'coding',
+      sandboxMode: 'on'
+    });
+    setError(null);
+    setCreatedAgent(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccessMessage(null);
     setIsSubmitting(true);
 
     try {
@@ -39,9 +57,7 @@ export function CreateAgentPanel({ sendMessage, onSuccess, onCancel }: CreateAge
         return;
       }
 
-      // Send the agent creation message
-      sendMessage({
-        type: 'agents.add',
+      const created = await onCreateAgent({
         id: agentId,
         name: agentName,
         workspace: formData.workspace.trim() || undefined,
@@ -50,20 +66,46 @@ export function CreateAgentPanel({ sendMessage, onSuccess, onCancel }: CreateAge
         sandbox: { mode: formData.sandboxMode }
       });
 
-      // Show success message - Note: This is optimistic
-      // Agent creation is now atomic and instant (no Gateway restart)
-      setSuccessMessage(`Agent "${agentName}" is being created. The agent will be available immediately without restarting the Gateway.`);
+      setCreatedAgent(created);
       setIsSubmitting(false);
-      
-      // Call onSuccess callback after a brief delay to show the message
-      if (onSuccess) {
-        setTimeout(() => onSuccess(agentId), 2000);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create agent');
       setIsSubmitting(false);
     }
   };
+
+  if (createdAgent) {
+    return (
+      <div className="flex flex-col h-full bg-background">
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6">Agent Created</h2>
+            <div className="p-4 bg-primary/10 border border-primary rounded-lg text-primary text-sm mb-6">
+              Agent "{createdAgent.agentName}" is ready and available immediately without restarting the Gateway.
+            </div>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="w-full px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
+              >
+                Create Another Agent
+              </button>
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full px-6 py-3 bg-secondary text-foreground rounded-lg font-medium hover:bg-muted transition-colors"
+                >
+                  Close Panel
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -160,12 +202,6 @@ export function CreateAgentPanel({ sendMessage, onSuccess, onCancel }: CreateAge
               </select>
             </div>
 
-            {successMessage && (
-              <div className="p-4 bg-primary/10 border border-primary rounded-lg text-primary text-sm">
-                {successMessage}
-              </div>
-            )}
-
             {error && (
               <div className="p-4 bg-destructive/10 border border-destructive rounded-lg text-destructive text-sm">
                 {error}
@@ -181,10 +217,10 @@ export function CreateAgentPanel({ sendMessage, onSuccess, onCancel }: CreateAge
               >
                 {isSubmitting ? 'Creating...' : 'Create Agent'}
               </button>
-              {onCancel && (
+              {onClose && (
                 <button
                   type="button"
-                  onClick={onCancel}
+                  onClick={onClose}
                   disabled={isSubmitting}
                   className="px-6 py-3 bg-secondary text-foreground rounded-lg font-medium hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >

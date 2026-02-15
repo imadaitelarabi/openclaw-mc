@@ -1,4 +1,4 @@
-import { Zap, ChevronDown, Plus } from 'lucide-react';
+import { Zap, ChevronDown, Plus, Pencil, Trash2 } from 'lucide-react';
 import type { Agent } from '@/types';
 
 interface AgentSelectorProps {
@@ -9,6 +9,8 @@ interface AgentSelectorProps {
   onToggle: () => void;
   onSelect: (agentId: string) => void;
   onCreateAgent?: () => void;
+  onEditAgent?: (agentId: string) => void;
+  onDeleteAgent?: (agentId: string) => void;
 }
 
 export function AgentSelector({ 
@@ -18,7 +20,9 @@ export function AgentSelector({
   isOpen, 
   onToggle, 
   onSelect,
-  onCreateAgent
+  onCreateAgent,
+  onEditAgent,
+  onDeleteAgent
 }: AgentSelectorProps) {
   return (
     <div className="relative">
@@ -54,9 +58,39 @@ export function AgentSelector({
                   <span>{agent.emoji || "🤖"}</span>
                   <span>{agent.name}</span>
                 </div>
-                {agent.status === 'active' && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                )}
+                <div className="flex items-center gap-1">
+                  {agent.status === 'active' && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1" />
+                  )}
+                  {onEditAgent && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditAgent(agent.id);
+                        onToggle();
+                      }}
+                      className="p-1 rounded hover:bg-muted"
+                      aria-label={`Edit ${agent.name}`}
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  )}
+                  {onDeleteAgent && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteAgent(agent.id);
+                        onToggle();
+                      }}
+                      className="p-1 rounded hover:bg-muted text-destructive"
+                      aria-label={`Delete ${agent.name}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
               </button>
             ))}
             

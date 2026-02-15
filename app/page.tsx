@@ -8,8 +8,6 @@ import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
 import { PanelProvider, usePanels } from "@/contexts/PanelContext";
 import { PanelContainer } from "@/components/panels";
-import { ChatMessageItem, ChatInput, StreamingIndicator } from "@/components/chat";
-import { getStreamKey } from "@/lib/gateway-utils";
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +29,12 @@ function MissionControlInner() {
   const [isGatewayConnecting, setIsGatewayConnecting] = useState(false);
   
   const { toast } = useToast();
+  const pendingRequestsRef = useRef(new Map<string, {
+    ackType: string;
+    resolve: (message: any) => void;
+    reject: (error: Error) => void;
+    timeoutId: ReturnType<typeof setTimeout>;
+  }>());
 
   // Custom hooks for WebSocket and event handling
   const { 
@@ -69,6 +73,28 @@ function MissionControlInner() {
     setLoading
   } = useSessionSettings(activePanelAgentId || null, sendMessage, connectionStatus);
 
+  const sendRequestWithAck = useCallback((payload: any, ackType: string, timeoutMs = 20000) => {
+    return new Promise<any>((resolve, reject) => {
+      const requestId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+      const timeoutId = setTimeout(() => {
+        pendingRequestsRef.current.delete(requestId);
+        reject(new Error('Request timed out. Please try again.'));
+      }, timeoutMs);
+
+      pendingRequestsRef.current.set(requestId, {
+        ackType,
+        resolve,
+        reject,
+        timeoutId
+      });
+
+      sendMessage({ ...payload, requestId });
+    });
+  }, [sendMessage]);
+
   // Request gateways on connect
   useEffect(() => {
     if (connectionStatus === 'connected') {
@@ -84,6 +110,25 @@ function MissionControlInner() {
 
   useEffect(() => {
     onEventRef.current = (message) => {
+      const requestId = message?.requestId;
+      if (requestId) {
+        const pending = pendingRequestsRef.current.get(requestId);
+        if (pending) {
+          if (message.type === pending.ackType) {
+            clearTimeout(pending.timeoutId);
+            pending.resolve(message);
+            pendingRequestsRef.current.delete(requestId);
+            return;
+          }
+          if (message.type === 'error') {
+            clearTimeout(pending.timeoutId);
+            pending.reject(new Error(message.message || 'Request failed'));
+            pendingRequestsRef.current.delete(requestId);
+            return;
+          }
+        }
+      }
+
       handleAgentEvent(message);
       if (message.type === 'models' && message.data) {
         setModels(message.data.models || []);
@@ -101,6 +146,9 @@ function MissionControlInner() {
         sendMessage({ type: 'gateways.list' });
         setShowSetup(false);
       } else if (message.type === 'error') {
+        if (message.requestId) {
+          return;
+        }
         setIsGatewayConnecting(false);
         toast({
           title: "Gateway Error",
@@ -130,6 +178,15 @@ function MissionControlInner() {
     };
   });
 
+  useEffect(() => {
+    return () => {
+      pendingRequestsRef.current.forEach((pending) => {
+        clearTimeout(pending.timeoutId);
+      });
+      pendingRequestsRef.current.clear();
+    };
+  }, []);
+
   // Calculate active panel agent for UI display
   const activePanelAgent = activePanel?.agentId ? agents.find(a => a.id === activePanel.agentId) : undefined;
 
@@ -143,6 +200,78 @@ function MissionControlInner() {
   const handleCreateAgent = useCallback(() => {
     openPanel('create-agent');
   }, [openPanel]);
+
+  const handleEditAgent = useCallback((agentId: string) => {
+    const agent = agents.find(a => a.id === agentId);
+    openPanel('update-agent', {
+      agentId,
+      agentName: agent?.name || 'Agent'
+    });
+  }, [agents, openPanel]);
+
+  const handleCreateAgentRequest = useCallback(async (payload: {
+    id?: string;
+    name: string;
+    workspace?: string;
+    model?: string;
+    tools?: { profile: string };
+    sandbox?: { mode: string };
+  }) => {
+    const ack = await sendRequestWithAck({ type: 'agents.add', ...payload }, 'agents.add.ack');
+    return {
+      agentId: ack.agentId,
+      agentName: payload.name
+    };
+  }, [sendRequestWithAck]);
+
+  const handleUpdateAgentRequest = useCallback(async (payload: { agentId: string; name: string }) => {
+    const ack = await sendRequestWithAck({ type: 'agents.update', ...payload }, 'agents.update.ack');
+    return {
+      agentId: ack.agentId,
+      name: ack.name
+    };
+  }, [sendRequestWithAck]);
+
+  const handleDeleteAgentRequest = useCallback(async (agentId: string) => {
+    const ack = await sendRequestWithAck({ type: 'agents.delete', agentId }, 'agents.delete.ack');
+    return {
+      agentId: ack.agentId,
+      removed: Boolean(ack.removed)
+    };
+  }, [sendRequestWithAck]);
+
+  const handleDeleteAgent = useCallback(async (agentId: string) => {
+    const agent = agents.find(a => a.id === agentId);
+    const agentName = agent?.name || agentId;
+    const confirmed = window.confirm(`Delete agent \"${agentName}\"?`);
+    if (!confirmed) return;
+
+    try {
+      const result = await handleDeleteAgentRequest(agentId);
+      if (result.removed) {
+        toast({
+          title: 'Agent deleted',
+          description: `${agentName} has been removed.`
+        });
+      } else {
+        toast({
+          title: 'Agent not found',
+          description: `${agentName} was already missing.`
+        });
+      }
+
+      const panelForAgent = layout.panels.find((panel) => panel.agentId === agentId && panel.isActive);
+      if (panelForAgent) {
+        closePanel(panelForAgent.id);
+      }
+    } catch (err) {
+      toast({
+        title: 'Delete failed',
+        description: err instanceof Error ? err.message : 'Failed to delete agent',
+        variant: 'destructive'
+      });
+    }
+  }, [agents, closePanel, handleDeleteAgentRequest, layout.panels, toast]);
 
   // Use the active panel's agent for session key
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
@@ -220,6 +349,8 @@ function MissionControlInner() {
             models={models}
             sessionSettings={sessionSettings}
             updateSetting={updateSetting}
+            onCreateAgent={handleCreateAgentRequest}
+            onUpdateAgent={handleUpdateAgentRequest}
           />
         )}
       </div>
@@ -235,6 +366,8 @@ function MissionControlInner() {
           onToggleAgentMenu={() => setIsAgentMenuOpen(!isAgentMenuOpen)}
           onSelectAgent={handleSelectAgent}
           onCreateAgent={handleCreateAgent}
+          onEditAgent={handleEditAgent}
+          onDeleteAgent={handleDeleteAgent}
           models={models}
           currentModel={sessionSettings.model}
           thinkingMode={sessionSettings.thinking || 'low'}

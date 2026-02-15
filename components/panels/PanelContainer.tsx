@@ -4,6 +4,7 @@ import type { Panel } from '@/types';
 import { PanelHeader } from './PanelHeader';
 import { ChatPanel } from './ChatPanel';
 import { CreateAgentPanel } from './CreateAgentPanel';
+import { UpdateAgentPanel } from './UpdateAgentPanel';
 
 interface PanelContainerProps {
   panels: Panel[];
@@ -23,6 +24,15 @@ interface PanelContainerProps {
   models: any[];
   sessionSettings: Record<string, any>;
   updateSetting: (sessionKey: string, settings: any) => void;
+  onCreateAgent: (payload: {
+    id?: string;
+    name: string;
+    workspace?: string;
+    model?: string;
+    tools?: { profile: string };
+    sandbox?: { mode: string };
+  }) => Promise<{ agentId: string; agentName: string }>;
+  onUpdateAgent: (payload: { agentId: string; name: string }) => Promise<{ agentId: string; name: string }>;
 }
 
 export function PanelContainer({
@@ -40,7 +50,9 @@ export function PanelContainer({
   addUserMessage,
   models,
   sessionSettings,
-  updateSetting
+  updateSetting,
+  onCreateAgent,
+  onUpdateAgent
 }: PanelContainerProps) {
   if (panels.length === 0) {
     return null;
@@ -85,12 +97,17 @@ export function PanelContainer({
             
             {panel.type === 'create-agent' && (
               <CreateAgentPanel
-                sendMessage={sendMessage}
-                onSuccess={(agentId) => {
-                  // Handle success - could open a chat panel with the new agent
-                  console.log('Agent created:', agentId);
-                }}
-                onCancel={() => onPanelClose(panel.id)}
+                onCreateAgent={onCreateAgent}
+                onClose={() => onPanelClose(panel.id)}
+              />
+            )}
+
+            {panel.type === 'update-agent' && panel.agentId && (
+              <UpdateAgentPanel
+                agentId={panel.agentId}
+                initialName={panel.data?.agentName || agents.find(a => a.id === panel.agentId)?.name || panel.agentId}
+                onUpdateAgent={onUpdateAgent}
+                onClose={() => onPanelClose(panel.id)}
               />
             )}
           </div>

@@ -739,7 +739,7 @@ app.prepare().then(() => {
             } else if (msg.type === 'agents.add') {
               // Handle agent creation using atomic Gateway RPCs (restart-free)
               try {
-                const { id, name, workspace, model, tools, sandbox } = msg;
+                const { requestId, id, name, workspace, model, tools, sandbox } = msg;
                 
                 // Validation
                 if (!name) {
@@ -792,6 +792,9 @@ app.prepare().then(() => {
                   });
                 }
                 const agentId = createResult.agentId;
+                if (!agentId) {
+                  throw new Error('Gateway returned an invalid agents.create response (missing agentId).');
+                }
                 
                 console.log(`[Client] Agent created with ID: ${agentId}`);
                 
@@ -859,13 +862,103 @@ app.prepare().then(() => {
                 
                 ws.send(JSON.stringify({
                   type: 'agents.add.ack',
+                  requestId,
                   agentId
                 }));
               } catch (err) {
                 console.error('[Client] Agent creation failed:', err);
                 ws.send(JSON.stringify({ 
                   type: 'error', 
+                  requestId: msg.requestId,
                   message: err instanceof Error ? err.message : 'Failed to create agent'
+                }));
+              }
+            } else if (msg.type === 'agents.update') {
+              try {
+                const { requestId, agentId, name } = msg;
+
+                const trimmedAgentId = typeof agentId === 'string' ? agentId.trim() : '';
+                const trimmedName = typeof name === 'string' ? name.trim() : '';
+
+                if (!trimmedAgentId) {
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    requestId,
+                    message: 'agentId is required'
+                  }));
+                  return;
+                }
+
+                if (!trimmedName) {
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    requestId,
+                    message: 'Agent name is required'
+                  }));
+                  return;
+                }
+
+                await gateway.request('agents.update', {
+                  agentId: trimmedAgentId,
+                  name: trimmedName
+                });
+
+                await gateway.fetchInitialData();
+
+                ws.send(JSON.stringify({
+                  type: 'agents.update.ack',
+                  requestId,
+                  agentId: trimmedAgentId,
+                  name: trimmedName
+                }));
+              } catch (err) {
+                console.error('[Client] Agent update failed:', err);
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  requestId: msg.requestId,
+                  message: err instanceof Error ? err.message : 'Failed to update agent'
+                }));
+              }
+            } else if (msg.type === 'agents.delete') {
+              try {
+                const { requestId, agentId } = msg;
+                const trimmedAgentId = typeof agentId === 'string' ? agentId.trim() : '';
+
+                if (!trimmedAgentId) {
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    requestId,
+                    message: 'agentId is required'
+                  }));
+                  return;
+                }
+
+                let removed = true;
+                try {
+                  await gateway.request('agents.delete', { agentId: trimmedAgentId });
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : String(err);
+                  if (/not found/i.test(message)) {
+                    removed = false;
+                  } else {
+                    throw err;
+                  }
+                }
+
+                await gateway.fetchInitialData();
+
+                ws.send(JSON.stringify({
+                  type: 'agents.delete.ack',
+                  requestId,
+                  agentId: trimmedAgentId,
+                  removed
+                }));
+              } catch (err) {
+                console.error('[Client] Agent delete failed:', err);
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  requestId: msg.requestId,
+                  message: err instanceof Error ? err.message : 'Failed to delete agent'
                 }));
               }
             }
