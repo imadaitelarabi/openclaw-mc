@@ -25,6 +25,7 @@ import type {
   CronJob,
 } from '../types/internal';
 import { ConfigManager } from './ConfigManager';
+import { processEvent } from '../utils/event-processor';
 
 // Use process.cwd() for project root instead of relative paths from __dirname
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -295,16 +296,35 @@ export class GatewayClient {
   }
 
   private async handleGatewayEvent(msg: GatewayEvent): Promise<void> {
-    // Forward raw events to clients for chat UI
+    // Process events through the pipeline
     if (msg.event === 'chat' || msg.event === 'agent') {
       if (msg.event === 'agent' && msg.payload.stream === 'tool') {
         console.log(`[Gateway] TOOL EVENT DETECTED:`, JSON.stringify(msg.payload, null, 2));
       }
+      
+      // Process event through pipeline
+      const processed = processEvent(msg.event, msg.payload);
+      
+      // Forward raw event for backward compatibility
       this.broadcast({
-        type: 'event', // Raw event wrapper
+        type: 'event',
         event: msg.event,
         payload: msg.payload,
       });
+      
+      // Also forward processed event with formatted messages
+      if (processed.formattedMessages.length > 0 || processed.thinkingDelta) {
+        this.broadcast({
+          type: 'event.processed',
+          eventType: processed.type,
+          agentId: processed.agentId,
+          runId: processed.runId,
+          sessionKey: processed.sessionKey,
+          formattedMessages: processed.formattedMessages,
+          thinkingDelta: processed.thinkingDelta,
+          thinkingComplete: processed.thinkingComplete,
+        });
+      }
     }
 
     switch (msg.event) {

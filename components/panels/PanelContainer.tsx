@@ -19,6 +19,7 @@ interface PanelContainerProps {
   chatHistory: Record<string, any[]>;
   chatStreams: Record<string, string>;
   reasoningStreams: Record<string, string>;
+  thinkingTraces: Record<string, string>;
   activeRuns: Record<string, string>;
   addUserMessage: (agentId: string, message: string) => void;
   models: any[];
@@ -46,6 +47,7 @@ export function PanelContainer({
   chatHistory,
   chatStreams,
   reasoningStreams,
+  thinkingTraces,
   activeRuns,
   addUserMessage,
   models,
@@ -87,6 +89,7 @@ export function PanelContainer({
                 chatHistory={chatHistory[panel.agentId] || []}
                 chatStream={chatStreams}
                 reasoningStream={reasoningStreams}
+                thinkingTraces={thinkingTraces}
                 activeRuns={activeRuns}
                 addUserMessage={addUserMessage}
                 models={models}
