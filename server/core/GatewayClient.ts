@@ -26,7 +26,8 @@ import type {
 } from '../types/internal';
 import { ConfigManager } from './ConfigManager';
 
-const DATA_DIR = path.join(__dirname, '../../data');
+// Use process.cwd() for project root instead of relative paths from __dirname
+const DATA_DIR = path.join(process.cwd(), 'data');
 const ACTIVITY_LOG_PATH = path.join(DATA_DIR, 'activity-history.json');
 
 export class GatewayClient {
