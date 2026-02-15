@@ -34,6 +34,11 @@ export interface ProcessedEvent {
 const thinkingBuffers: Map<string, string> = new Map();
 
 /**
+ * Delay before cleaning up deduplication data (in milliseconds)
+ */
+const DEDUPLICATION_CLEANUP_DELAY_MS = 60000; // 1 minute
+
+/**
  * Process an incoming event through the pipeline
  */
 export function processEvent(event: string, payload: any): ProcessedEvent {
@@ -128,7 +133,7 @@ export function processEvent(event: string, payload: any): ProcessedEvent {
       // Clean up deduplication for this run
       setTimeout(() => {
         deduplicationService.clearRun(runId);
-      }, 60000); // Clear after 1 minute
+      }, DEDUPLICATION_CLEANUP_DELAY_MS);
     }
   }
 

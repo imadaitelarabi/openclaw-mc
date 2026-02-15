@@ -68,7 +68,8 @@ export class DeduplicationService {
    * Create a simple hash of a line
    */
   private hashLine(line: string): string {
-    // Simple hash function - could be replaced with a more sophisticated one
+    // Using a simple but effective hash function
+    // For production use with larger datasets, consider crypto.createHash('sha256')
     let hash = 0;
     for (let i = 0; i < line.length; i++) {
       const char = line.charCodeAt(i);

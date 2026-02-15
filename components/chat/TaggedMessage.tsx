@@ -90,11 +90,11 @@ export function TaggedMessage({ content, runId, timestamp }: TaggedMessageProps)
           </div>
         )}
         
-        <details className="mt-2">
+        <details className="mt-2" aria-label="Tool execution output">
           <summary className="text-xs cursor-pointer text-muted-foreground hover:text-foreground">
             Output
           </summary>
-          <pre className="text-xs mt-2 p-2 bg-black/20 rounded overflow-x-auto max-h-64">
+          <pre className="text-xs mt-2 p-2 bg-black/20 rounded overflow-x-auto max-h-64" aria-label="Tool result content">
             {parsed.content}
           </pre>
         </details>

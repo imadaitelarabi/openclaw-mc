@@ -64,21 +64,30 @@ export function parseTaggedMessage(message: string): ParsedMessage {
     // Try to extract metadata from first line
     const lines = fullContent.split('\n');
     const firstLine = lines[0];
-    const metaMatch = firstLine.match(/Exit Code:\s*(\d+)|Duration:\s*(\d+)ms|CWD:\s*(.+)/g);
     
     let toolMeta: any = {};
     let contentStartIdx = 0;
     
-    if (metaMatch) {
-      metaMatch.forEach(match => {
-        if (match.startsWith('Exit Code:')) {
-          toolMeta.exitCode = parseInt(match.split(':')[1].trim());
-        } else if (match.startsWith('Duration:')) {
-          toolMeta.duration = parseInt(match.split(':')[1].trim());
-        } else if (match.startsWith('CWD:')) {
-          toolMeta.cwd = match.split(':')[1].trim();
-        }
-      });
+    // Extract exit code
+    const exitCodeMatch = firstLine.match(/Exit Code:\s*(\d+)/);
+    if (exitCodeMatch) {
+      toolMeta.exitCode = parseInt(exitCodeMatch[1]);
+    }
+    
+    // Extract duration
+    const durationMatch = firstLine.match(/Duration:\s*(\d+)ms/);
+    if (durationMatch) {
+      toolMeta.duration = parseInt(durationMatch[1]);
+    }
+    
+    // Extract CWD (match until the next metadata separator or end of line)
+    const cwdMatch = firstLine.match(/CWD:\s*([^|]+?)(?:\s*\||$)/);
+    if (cwdMatch) {
+      toolMeta.cwd = cwdMatch[1].trim();
+    }
+    
+    // If any metadata was found, skip the first line
+    if (Object.keys(toolMeta).length > 0) {
       contentStartIdx = 1;
     }
     
