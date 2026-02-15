@@ -21,7 +21,10 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 // Cache package version for health checks
-const packageVersion = require('../../package.json').version;
+// In development (tsx), path is ../package.json; in production (compiled), it's ../../package.json
+const packageVersion = dev
+  ? require('../package.json').version
+  : require('../../package.json').version;
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
