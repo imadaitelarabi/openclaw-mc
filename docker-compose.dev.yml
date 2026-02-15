@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  mission-control-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: mission-control-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - OPENCLAW_GATEWAY_URL=${OPENCLAW_GATEWAY_URL:-http://host.docker.internal:18789}
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+    volumes:
+      # Hot reload - mount source code
+      - .:/app
+      - /app/node_modules
+      # Persistent configuration
+      - ~/.oc-mission-control:/root/.oc-mission-control
+      # Activity logs
+      - ./data:/app/data
+    networks:
+      - mission-control-network
+    command: npm run dev
+
+networks:
+  mission-control-network:
+    driver: bridge

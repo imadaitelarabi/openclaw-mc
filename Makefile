@@ -21,7 +21,8 @@ help:
 	@echo ""
 	@echo "$(GREEN)Docker:$(NC)"
 	@echo "  make docker-build   - Build Docker image"
-	@echo "  make docker-up      - Start with docker-compose"
+	@echo "  make docker-up      - Start with docker-compose (production)"
+	@echo "  make docker-dev     - Start with docker-compose (development with hot reload)"
 	@echo "  make docker-down    - Stop docker containers"
 	@echo "  make docker-logs    - View container logs"
 	@echo "  make docker-clean   - Remove containers and images"
@@ -60,13 +61,19 @@ docker-build:
 	docker build -t mission-control:latest .
 	@echo "$(GREEN)Docker image built successfully!$(NC)"
 
-## docker-up: Start with docker-compose
+## docker-up: Start with docker-compose (production)
 docker-up:
-	@echo "$(BLUE)Starting Mission Control with docker-compose...$(NC)"
+	@echo "$(BLUE)Starting Mission Control with docker-compose (production)...$(NC)"
 	docker-compose up -d
 	@echo "$(GREEN)Mission Control is running!$(NC)"
 	@echo "$(YELLOW)Access at: http://localhost:3000$(NC)"
 	@echo "View logs with: make docker-logs"
+
+## docker-dev: Start with docker-compose (development)
+docker-dev:
+	@echo "$(BLUE)Starting Mission Control with docker-compose (development with hot reload)...$(NC)"
+	docker-compose -f docker-compose.dev.yml up
+	@echo "$(GREEN)Development server is running with hot reload!$(NC)"
 
 ## docker-down: Stop docker containers
 docker-down:
