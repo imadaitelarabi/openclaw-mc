@@ -94,8 +94,8 @@ On first run, these settings will be automatically imported to `~/.oc-mission-co
 
 ```bash
 npm run dev
-# or
-node server.js
+# Or using make
+make dev
 ```
 
 Mission Control will be available at:

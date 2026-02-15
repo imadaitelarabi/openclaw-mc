@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
-    "build": "next build",
-    "start": "NODE_ENV=production node server.js",
+    "dev": "tsx watch server/index.ts",
+    "build": "tsc -p tsconfig.server.json && next build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "start": "NODE_ENV=production node dist/server/index.js",
     "lint": "next lint"
   },
   "dependencies": {
@@ -38,6 +39,7 @@
     "@types/react-dom": "^18",
     "postcss": "^8.4.41",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
