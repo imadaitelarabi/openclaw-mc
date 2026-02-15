@@ -12,6 +12,9 @@ interface StatusBarProps {
   isAgentMenuOpen: boolean;
   onToggleAgentMenu: () => void;
   onSelectAgent: (agentId: string) => void;
+  onCreateAgent?: () => void;
+  onEditAgent?: (agentId: string) => void;
+  onDeleteAgent?: (agentId: string) => void;
   models?: any[];
   currentModel?: string;
   thinkingMode?: 'off' | 'low' | 'medium' | 'high';
@@ -38,6 +41,9 @@ export function StatusBar({
   isAgentMenuOpen,
   onToggleAgentMenu,
   onSelectAgent,
+  onCreateAgent,
+  onEditAgent,
+  onDeleteAgent,
   models = [],
   currentModel,
   thinkingMode = 'low',
@@ -63,6 +69,9 @@ export function StatusBar({
         isOpen={isAgentMenuOpen}
         onToggle={onToggleAgentMenu}
         onSelect={onSelectAgent}
+        onCreateAgent={onCreateAgent}
+        onEditAgent={onEditAgent}
+        onDeleteAgent={onDeleteAgent}
       />
 
       {/* Separator */}

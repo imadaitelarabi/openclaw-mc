@@ -3,17 +3,24 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageSquare, LayoutGrid, Wifi, WifiOff } from "lucide-react";
 import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast } from "@/hooks";
-import { ChatMessageItem, ChatInput, StreamingIndicator } from "@/components/chat";
 import { StatusBar } from "@/components/layout";
 import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
-import { getStreamKey } from "@/lib/gateway-utils";
+import { PanelProvider, usePanels } from "@/contexts/PanelContext";
+import { PanelContainer } from "@/components/panels";
 
 export const dynamic = 'force-dynamic';
 
 export default function MissionControl() {
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState("");
+  return (
+    <PanelProvider maxPanels={2}>
+      <MissionControlInner />
+    </PanelProvider>
+  );
+}
+
+function MissionControlInner() {
+  const { layout, openPanel, closePanel, setActivePanel } = usePanels();
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
   const [gateways, setGateways] = useState<any[]>([]);
@@ -21,8 +28,13 @@ export default function MissionControl() {
   const [showSetup, setShowSetup] = useState(false);
   const [isGatewayConnecting, setIsGatewayConnecting] = useState(false);
   
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const pendingRequestsRef = useRef(new Map<string, {
+    ackType: string;
+    resolve: (message: any) => void;
+    reject: (error: Error) => void;
+    timeoutId: ReturnType<typeof setTimeout>;
+  }>());
 
   // Custom hooks for WebSocket and event handling
   const { 
@@ -47,6 +59,10 @@ export default function MissionControl() {
     onEvent: stableOnEvent
   });
 
+  // Get the active panel - needed for session settings
+  const activePanel = layout.panels.find(p => p.id === layout.activePanel);
+  const activePanelAgentId = activePanel?.agentId;
+
   const {
     models,
     sessionSettings,
@@ -55,7 +71,29 @@ export default function MissionControl() {
     setModels,
     setSessionSettings,
     setLoading
-  } = useSessionSettings(selectedAgent, sendMessage, connectionStatus);
+  } = useSessionSettings(activePanelAgentId || null, sendMessage, connectionStatus);
+
+  const sendRequestWithAck = useCallback((payload: any, ackType: string, timeoutMs = 20000) => {
+    return new Promise<any>((resolve, reject) => {
+      const requestId = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+      const timeoutId = setTimeout(() => {
+        pendingRequestsRef.current.delete(requestId);
+        reject(new Error('Request timed out. Please try again.'));
+      }, timeoutMs);
+
+      pendingRequestsRef.current.set(requestId, {
+        ackType,
+        resolve,
+        reject,
+        timeoutId
+      });
+
+      sendMessage({ ...payload, requestId });
+    });
+  }, [sendMessage]);
 
   // Request gateways on connect
   useEffect(() => {
@@ -72,6 +110,25 @@ export default function MissionControl() {
 
   useEffect(() => {
     onEventRef.current = (message) => {
+      const requestId = message?.requestId;
+      if (requestId) {
+        const pending = pendingRequestsRef.current.get(requestId);
+        if (pending) {
+          if (message.type === pending.ackType) {
+            clearTimeout(pending.timeoutId);
+            pending.resolve(message);
+            pendingRequestsRef.current.delete(requestId);
+            return;
+          }
+          if (message.type === 'error') {
+            clearTimeout(pending.timeoutId);
+            pending.reject(new Error(message.message || 'Request failed'));
+            pendingRequestsRef.current.delete(requestId);
+            return;
+          }
+        }
+      }
+
       handleAgentEvent(message);
       if (message.type === 'models' && message.data) {
         setModels(message.data.models || []);
@@ -89,6 +146,9 @@ export default function MissionControl() {
         sendMessage({ type: 'gateways.list' });
         setShowSetup(false);
       } else if (message.type === 'error') {
+        if (message.requestId) {
+          return;
+        }
         setIsGatewayConnecting(false);
         toast({
           title: "Gateway Error",
@@ -98,9 +158,9 @@ export default function MissionControl() {
         setLoading(false);
       } else if (message.type === 'sessions' && message.data) {
         const sessions = message.data.sessions || [];
-        if (selectedAgent) {
+        if (activePanelAgentId) {
           const agentSession = sessions.find((s: any) => 
-            s.key?.includes(`agent:${selectedAgent}`)
+            s.key?.includes(`agent:${activePanelAgentId}`)
           );
           if (agentSession) {
             setSessionSettings({
@@ -118,30 +178,103 @@ export default function MissionControl() {
     };
   });
 
-  const activeAgent = agents.find(a => a.id === selectedAgent);
-
-  const sendChatMessage = () => {
-    if (!selectedAgent || !chatInput.trim()) return;
-    addUserMessage(selectedAgent, chatInput);
-    sendMessage({ 
-      type: 'chat.send', 
-      agentId: selectedAgent, 
-      message: chatInput 
-    });
-    setChatInput("");
-  };
-
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, chatStreams, selectedAgent]);
+    return () => {
+      pendingRequestsRef.current.forEach((pending) => {
+        clearTimeout(pending.timeoutId);
+      });
+      pendingRequestsRef.current.clear();
+    };
+  }, []);
 
-  const currentStreamKey = selectedAgent && activeRuns[selectedAgent] 
-    ? getStreamKey(selectedAgent, activeRuns[selectedAgent])
-    : null;
+  // Calculate active panel agent for UI display
+  const activePanelAgent = activePanel?.agentId ? agents.find(a => a.id === activePanel.agentId) : undefined;
+
+  // Handler to open chat panel for an agent
+  const handleSelectAgent = useCallback((agentId: string) => {
+    const agent = agents.find(a => a.id === agentId);
+    openPanel('chat', { agentId, agentName: agent?.name || 'Chat' });
+  }, [agents, openPanel]);
   
-  const assistantStream = currentStreamKey ? chatStreams[currentStreamKey] : undefined;
-  const reasoningStream = currentStreamKey ? reasoningStreams[currentStreamKey] : undefined;
-  const sessionKey = selectedAgent ? `agent:${selectedAgent}:main` : null;
+  // Handler to open create agent panel
+  const handleCreateAgent = useCallback(() => {
+    openPanel('create-agent');
+  }, [openPanel]);
+
+  const handleEditAgent = useCallback((agentId: string) => {
+    const agent = agents.find(a => a.id === agentId);
+    openPanel('update-agent', {
+      agentId,
+      agentName: agent?.name || 'Agent'
+    });
+  }, [agents, openPanel]);
+
+  const handleCreateAgentRequest = useCallback(async (payload: {
+    id?: string;
+    name: string;
+    workspace?: string;
+    model?: string;
+    tools?: { profile: string };
+    sandbox?: { mode: string };
+  }) => {
+    const ack = await sendRequestWithAck({ type: 'agents.add', ...payload }, 'agents.add.ack');
+    return {
+      agentId: ack.agentId,
+      agentName: payload.name
+    };
+  }, [sendRequestWithAck]);
+
+  const handleUpdateAgentRequest = useCallback(async (payload: { agentId: string; name: string }) => {
+    const ack = await sendRequestWithAck({ type: 'agents.update', ...payload }, 'agents.update.ack');
+    return {
+      agentId: ack.agentId,
+      name: ack.name
+    };
+  }, [sendRequestWithAck]);
+
+  const handleDeleteAgentRequest = useCallback(async (agentId: string) => {
+    const ack = await sendRequestWithAck({ type: 'agents.delete', agentId }, 'agents.delete.ack');
+    return {
+      agentId: ack.agentId,
+      removed: Boolean(ack.removed)
+    };
+  }, [sendRequestWithAck]);
+
+  const handleDeleteAgent = useCallback(async (agentId: string) => {
+    const agent = agents.find(a => a.id === agentId);
+    const agentName = agent?.name || agentId;
+    const confirmed = window.confirm(`Delete agent \"${agentName}\"?`);
+    if (!confirmed) return;
+
+    try {
+      const result = await handleDeleteAgentRequest(agentId);
+      if (result.removed) {
+        toast({
+          title: 'Agent deleted',
+          description: `${agentName} has been removed.`
+        });
+      } else {
+        toast({
+          title: 'Agent not found',
+          description: `${agentName} was already missing.`
+        });
+      }
+
+      const panelForAgent = layout.panels.find((panel) => panel.agentId === agentId && panel.isActive);
+      if (panelForAgent) {
+        closePanel(panelForAgent.id);
+      }
+    } catch (err) {
+      toast({
+        title: 'Delete failed',
+        description: err instanceof Error ? err.message : 'Failed to delete agent',
+        variant: 'destructive'
+      });
+    }
+  }, [agents, closePanel, handleDeleteAgentRequest, layout.panels, toast]);
+
+  // Use the active panel's agent for session key
+  const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
 
   if (connectionStatus === 'no-config' || showSetup) {
     return (
@@ -166,7 +299,7 @@ export default function MissionControl() {
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
           <span className="font-bold text-sm tracking-tight truncate max-w-[150px]">
-            {activeAgent?.name || "Mission Control"}
+            {activePanelAgent?.name || "Mission Control"}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -182,9 +315,9 @@ export default function MissionControl() {
         </div>
       </header>
 
-      {/* Main Chat Area */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
-        {!selectedAgent ? (
+        {layout.panels.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
             <div className="relative mb-6">
               <MessageSquare className="w-20 h-20 opacity-10" />
@@ -200,33 +333,25 @@ export default function MissionControl() {
             </button>
           </div>
         ) : (
-          <>
-            {/* Chat History */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 overscroll-contain">
-              <div className="max-w-4xl mx-auto space-y-6 pb-4">
-                {(chatHistory[selectedAgent] || []).map((msg) => (
-                  <ChatMessageItem key={msg.id} message={msg} />
-                ))}
-                
-                <StreamingIndicator 
-                  assistantStream={assistantStream}
-                  reasoningStream={reasoningStream}
-                  isTyping={!!(selectedAgent && activeRuns[selectedAgent])}
-                />
-                
-                <div ref={chatEndRef} />
-              </div>
-            </div>
-
-            {/* Input Area */}
-            <ChatInput
-              value={chatInput}
-              onChange={setChatInput}
-              onSend={sendChatMessage}
-              activeAgent={activeAgent}
-              disabled={connectionStatus !== 'connected'}
-            />
-          </>
+          <PanelContainer
+            panels={layout.panels}
+            activePanel={layout.activePanel}
+            onPanelActivate={setActivePanel}
+            onPanelClose={closePanel}
+            agents={agents}
+            sendMessage={sendMessage}
+            connectionStatus={connectionStatus}
+            chatHistory={chatHistory}
+            chatStreams={chatStreams}
+            reasoningStreams={reasoningStreams}
+            activeRuns={activeRuns}
+            addUserMessage={addUserMessage}
+            models={models}
+            sessionSettings={sessionSettings}
+            updateSetting={updateSetting}
+            onCreateAgent={handleCreateAgentRequest}
+            onUpdateAgent={handleUpdateAgentRequest}
+          />
         )}
       </div>
 
@@ -234,12 +359,15 @@ export default function MissionControl() {
       <div className="hidden md:block">
         <StatusBar
           agents={agents}
-          selectedAgent={selectedAgent}
-          activeAgent={activeAgent}
+          selectedAgent={activePanel?.agentId || null}
+          activeAgent={activePanelAgent}
           connectionStatus={connectionStatus}
           isAgentMenuOpen={isAgentMenuOpen}
           onToggleAgentMenu={() => setIsAgentMenuOpen(!isAgentMenuOpen)}
-          onSelectAgent={setSelectedAgent}
+          onSelectAgent={handleSelectAgent}
+          onCreateAgent={handleCreateAgent}
+          onEditAgent={handleEditAgent}
+          onDeleteAgent={handleDeleteAgent}
           models={models}
           currentModel={sessionSettings.model}
           thinkingMode={sessionSettings.thinking || 'low'}
@@ -263,10 +391,10 @@ export default function MissionControl() {
         isOpen={isMobilePanelOpen}
         onClose={() => setIsMobilePanelOpen(false)}
         agents={agents}
-        selectedAgent={selectedAgent}
-        activeAgent={activeAgent}
+        selectedAgent={activePanel?.agentId || null}
+        activeAgent={activePanelAgent}
         onSelectAgent={(id) => {
-          setSelectedAgent(id);
+          handleSelectAgent(id);
           setIsMobilePanelOpen(false);
         }}
         models={models}
