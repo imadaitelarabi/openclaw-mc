@@ -16,6 +16,9 @@ const port = parseInt(process.env.PORT || '3000', 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+// Cache package version for health checks
+const packageVersion = require('./package.json').version;
+
 // Data persistence paths
 const DATA_DIR = path.join(__dirname, 'data');
 const ACTIVITY_LOG_PATH = path.join(DATA_DIR, 'activity-history.json');
@@ -120,9 +123,51 @@ class GatewayConnection {
     this.agentsList = [];
     this.activityLog = []; // In-memory activity log
     this.saveTimer = null; // Debounce timer for saving
+    this.connectWaiters = [];
 
     this.loadActivityLog();
     this.updateFromConfig();
+  }
+
+  resolveConnectWaiters(error = null) {
+    if (this.connectWaiters.length === 0) return;
+
+    const waiters = [...this.connectWaiters];
+    this.connectWaiters = [];
+
+    waiters.forEach(({ resolve, reject }) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  }
+
+  waitForAuthenticated(timeoutMs = 15000) {
+    if (this.authenticated && this.ws?.readyState === WebSocket.OPEN) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.connectWaiters = this.connectWaiters.filter((w) => w !== waiter);
+        reject(new Error('Gateway connection timeout'));
+      }, timeoutMs);
+
+      const waiter = {
+        resolve: () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        }
+      };
+
+      this.connectWaiters.push(waiter);
+    });
   }
 
   updateFromConfig() {
@@ -178,6 +223,7 @@ class GatewayConnection {
     if (!this.url) {
       console.log('[Gateway] No gateway configured');
       this.broadcast({ type: 'status', status: 'no-config' });
+      this.resolveConnectWaiters(new Error('No gateway configured'));
       return;
     }
     if (this.ws?.readyState === WebSocket.OPEN) return;
@@ -211,6 +257,7 @@ class GatewayConnection {
       console.log(`[Gateway] Closed: ${code} - ${reason}`);
       this.authenticated = false;
       this.ws = null;
+      this.resolveConnectWaiters(new Error(`Gateway connection closed (${code})`));
       
       this.broadcast({ type: 'status', status: 'disconnected' });
       
@@ -220,6 +267,7 @@ class GatewayConnection {
 
     this.ws.on('error', (err) => {
       console.error('[Gateway] Error:', err.message);
+      this.resolveConnectWaiters(new Error(err.message || 'Gateway connection error'));
     });
   }
 
@@ -275,11 +323,13 @@ class GatewayConnection {
 
       this.authenticated = true;
       console.log('[Gateway] Authenticated successfully');
+      this.resolveConnectWaiters();
       
       this.broadcast({ type: 'status', status: 'connected' });
       await this.fetchInitialData();
     } catch (err) {
       console.error('[Gateway] Authentication failed:', err);
+      this.resolveConnectWaiters(new Error(err.message || 'Authentication failed'));
       this.ws?.close(4008, 'Authentication failed');
     }
   }
@@ -501,7 +551,30 @@ class GatewayConnection {
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
-    handle(req, res, parse(req.url, true));
+    const parsedUrl = parse(req.url, true);
+    
+    // Health check endpoint
+    if (parsedUrl.pathname === '/health' || parsedUrl.pathname === '/api/health') {
+      const gateway = configManager.getActiveGateway();
+      const healthStatus = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        service: 'mission-control',
+        version: packageVersion,
+        gateway: gateway ? {
+          connected: true,
+          name: gateway.name,
+          url: gateway.url
+        } : {
+          connected: false
+        }
+      };
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(healthStatus, null, 2));
+      return;
+    }
+    
+    handle(req, res, parsedUrl);
   });
 
   // WebSocket server
@@ -544,7 +617,15 @@ app.prepare().then(() => {
               gateway.ws?.close();
               gateway.updateFromConfig();
               gateway.connect();
-              ws.send(JSON.stringify({ type: 'gateways.add.ack' }));
+              try {
+                await gateway.waitForAuthenticated(15000);
+                ws.send(JSON.stringify({ type: 'gateways.add.ack' }));
+              } catch (err) {
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  message: err.message || 'Failed to connect to gateway'
+                }));
+              }
             } else if (msg.type === 'gateways.switch') {
               gateway.switch(msg.id);
               ws.send(JSON.stringify({ type: 'gateways.switch.ack' }));

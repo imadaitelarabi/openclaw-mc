@@ -19,6 +19,7 @@ export default function MissionControl() {
   const [gateways, setGateways] = useState<any[]>([]);
   const [activeGatewayId, setActiveGatewayId] = useState<string | null>(null);
   const [showSetup, setShowSetup] = useState(false);
+  const [isGatewayConnecting, setIsGatewayConnecting] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -64,6 +65,12 @@ export default function MissionControl() {
   }, [connectionStatus, sendMessage]);
 
   useEffect(() => {
+    if (connectionStatus !== 'connected') {
+      setIsGatewayConnecting(false);
+    }
+  }, [connectionStatus]);
+
+  useEffect(() => {
     onEventRef.current = (message) => {
       handleAgentEvent(message);
       if (message.type === 'models' && message.data) {
@@ -74,10 +81,15 @@ export default function MissionControl() {
         if (message.data.length === 0) {
           setShowSetup(true);
         }
-      } else if (message.type === 'gateways.add.ack' || message.type === 'gateways.switch.ack' || message.type === 'gateways.remove.ack') {
+      } else if (message.type === 'gateways.add.ack') {
+        setIsGatewayConnecting(false);
+        sendMessage({ type: 'gateways.list' });
+        setShowSetup(false);
+      } else if (message.type === 'gateways.switch.ack' || message.type === 'gateways.remove.ack') {
         sendMessage({ type: 'gateways.list' });
         setShowSetup(false);
       } else if (message.type === 'error') {
+        setIsGatewayConnecting(false);
         toast({
           title: "Gateway Error",
           description: message.message,
@@ -134,11 +146,15 @@ export default function MissionControl() {
   if (connectionStatus === 'no-config' || showSetup) {
     return (
       <GatewaySetup 
-        isLoading={connectionStatus === 'connecting'} 
+        isLoading={isGatewayConnecting}
         onConnect={(name, url, token) => {
+          setIsGatewayConnecting(true);
           sendMessage({ type: 'gateways.add', name, url, token });
         }}
-        onCancel={gateways.length > 0 ? () => setShowSetup(false) : undefined}
+        onCancel={gateways.length > 0 ? () => {
+          setIsGatewayConnecting(false);
+          setShowSetup(false);
+        } : undefined}
       />
     );
   }

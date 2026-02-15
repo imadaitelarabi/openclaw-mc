@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  mission-control:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mission-control
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Note: host.docker.internal works on Docker Desktop (Windows/Mac)
+      # On Linux, use the gateway IP directly (e.g., http://172.17.0.1:18789) or set OPENCLAW_GATEWAY_URL in .env
+      - OPENCLAW_GATEWAY_URL=${OPENCLAW_GATEWAY_URL:-http://host.docker.internal:18789}
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+    volumes:
+      # Persistent configuration
+      - ~/.oc-mission-control:/root/.oc-mission-control
+      # Activity logs (optional)
+      - ./data:/app/data
+    networks:
+      - mission-control-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  mission-control-network:
+    driver: bridge
