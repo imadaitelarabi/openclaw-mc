@@ -25,6 +25,33 @@ const ACTIVITY_LOG_PATH = path.join(DATA_DIR, 'activity-history.json');
 const CONFIG_DIR = path.join(process.env.HOME || '/root', '.oc-mission-control');
 const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
 
+function slugifyAgentName(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function dirnameLike(value) {
+  const normalized = String(value || '');
+  const lastSlash = normalized.lastIndexOf('/');
+  const lastBackslash = normalized.lastIndexOf('\\');
+  const idx = Math.max(lastSlash, lastBackslash);
+  if (idx < 0) return '';
+  return normalized.slice(0, idx);
+}
+
+function joinPathLike(dir, leaf) {
+  const normalizedDir = String(dir || '');
+  const normalizedLeaf = String(leaf || '');
+  const sep = normalizedDir.includes('\\') ? '\\' : '/';
+  const trimmedDir = normalizedDir.endsWith('/') || normalizedDir.endsWith('\\')
+    ? normalizedDir.slice(0, -1)
+    : normalizedDir;
+  return `${trimmedDir}${sep}${normalizedLeaf}`;
+}
+
 // Ensure directories exist
 [DATA_DIR, CONFIG_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) {
@@ -724,19 +751,46 @@ app.prepare().then(() => {
                 }
                 
                 console.log(`[Client] Creating agent: ${name} (id: ${id || 'auto-generated'})`);
-                
-                // Use agents.create for atomic, restart-free agent creation
-                const createParams = {
-                  name,
-                  workspace: workspace || undefined
-                };
-                
-                // If user specified an ID, include it
-                if (id) {
-                  createParams.id = id;
+
+                // Resolve workspace similarly to OpenClaw Studio when not explicitly provided
+                let resolvedWorkspace = workspace || undefined;
+                if (!resolvedWorkspace) {
+                  const configSnapshot = await gateway.request('config.get', {});
+                  const configPath = typeof configSnapshot?.path === 'string' ? configSnapshot.path.trim() : '';
+                  const stateDir = dirnameLike(configPath);
+                  const slug = slugifyAgentName(name);
+                  if (stateDir && slug) {
+                    resolvedWorkspace = joinPathLike(stateDir, `workspace-${slug}`);
+                  }
                 }
-                
-                const createResult = await gateway.request('agents.create', createParams);
+
+                // Create agent. Some gateway versions reject custom id; retry without it.
+                let createResult;
+                if (id) {
+                  try {
+                    createResult = await gateway.request('agents.create', {
+                      id,
+                      name,
+                      workspace: resolvedWorkspace
+                    });
+                  } catch (err) {
+                    const message = err instanceof Error ? err.message : String(err);
+                    if (/\bid\b|unknown|invalid/i.test(message)) {
+                      console.warn('[Client] agents.create rejected custom id, retrying without id');
+                      createResult = await gateway.request('agents.create', {
+                        name,
+                        workspace: resolvedWorkspace
+                      });
+                    } else {
+                      throw err;
+                    }
+                  }
+                } else {
+                  createResult = await gateway.request('agents.create', {
+                    name,
+                    workspace: resolvedWorkspace
+                  });
+                }
                 const agentId = createResult.agentId;
                 
                 console.log(`[Client] Agent created with ID: ${agentId}`);
@@ -760,19 +814,48 @@ app.prepare().then(() => {
                 
                 // If there are config overrides (model, tools, sandbox), use config.patch
                 if (model || tools || sandbox) {
-                  const patchData = {};
-                  if (model) patchData.model = model;
-                  if (tools) patchData.tools = tools;
-                  if (sandbox) patchData.sandbox = sandbox;
-                  
-                  await gateway.request('config.patch', {
-                    path: `agents.list[?(@.id=='${agentId}')]`,
-                    value: patchData,
-                    reason: `Configure agent: ${name}`
-                  });
+                  const configSnapshot = await gateway.request('config.get', {});
+                  const baseConfig = (configSnapshot && typeof configSnapshot.config === 'object' && configSnapshot.config)
+                    ? { ...configSnapshot.config }
+                    : {};
+
+                  const agents = (baseConfig.agents && typeof baseConfig.agents === 'object')
+                    ? { ...baseConfig.agents }
+                    : {};
+                  const list = Array.isArray(agents.list) ? [...agents.list] : [];
+
+                  const index = list.findIndex(
+                    (entry) => entry && typeof entry === 'object' && entry.id === agentId
+                  );
+                  const current = index >= 0 && list[index] && typeof list[index] === 'object'
+                    ? { ...list[index] }
+                    : { id: agentId, name };
+
+                  if (model) current.model = model;
+                  if (tools) current.tools = tools;
+                  if (sandbox) current.sandbox = sandbox;
+
+                  if (index >= 0) {
+                    list[index] = current;
+                  } else {
+                    list.push(current);
+                  }
+
+                  const patch = { agents: { list } };
+                  const patchPayload = {
+                    raw: JSON.stringify(patch, null, 2)
+                  };
+                  if (configSnapshot?.exists !== false && configSnapshot?.hash) {
+                    patchPayload.baseHash = configSnapshot.hash;
+                  }
+
+                  await gateway.request('config.patch', patchPayload);
                   
                   console.log(`[Client] Applied configuration overrides for agent: ${agentId}`);
                 }
+
+                // Immediately refresh and broadcast updated agents/sessions
+                await gateway.fetchInitialData();
                 
                 ws.send(JSON.stringify({
                   type: 'agents.add.ack',
