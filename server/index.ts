@@ -21,7 +21,7 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 // Cache package version for health checks
-const packageVersion = require('../package.json').version;
+const packageVersion = require('../../package.json').version;
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
