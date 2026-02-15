@@ -14,7 +14,8 @@ import {
   extractThinking,
   extractTool,
   extractSessionInfo,
-  extractLifecycle
+  extractLifecycle,
+  extractFromMessage
 } from './message-extractor';
 
 export interface ProcessedEvent {
@@ -29,14 +30,46 @@ export interface ProcessedEvent {
 }
 
 /**
- * Thinking buffer per run
+ * Thinking buffer per run with timestamp
  */
-const thinkingBuffers: Map<string, string> = new Map();
+interface ThinkingBuffer {
+  content: string;
+  timestamp: number;
+}
+
+const thinkingBuffers: Map<string, ThinkingBuffer> = new Map();
 
 /**
  * Delay before cleaning up deduplication data (in milliseconds)
  */
 const DEDUPLICATION_CLEANUP_DELAY_MS = 60000; // 1 minute
+
+/**
+ * TTL for thinking buffers (5 minutes)
+ */
+const THINKING_BUFFER_TTL_MS = 300000; // 5 minutes
+
+/**
+ * Clean up stale thinking buffers
+ */
+function cleanupStaleBuffers() {
+  const now = Date.now();
+  const staleKeys: string[] = [];
+  
+  thinkingBuffers.forEach((buffer, runId) => {
+    if (now - buffer.timestamp > THINKING_BUFFER_TTL_MS) {
+      staleKeys.push(runId);
+    }
+  });
+  
+  staleKeys.forEach(key => {
+    console.log(`[EventProcessor] Cleaning up stale thinking buffer for run: ${key}`);
+    thinkingBuffers.delete(key);
+  });
+}
+
+// Run cleanup every minute
+setInterval(cleanupStaleBuffers, 60000);
 
 /**
  * Process an incoming event through the pipeline
@@ -63,16 +96,20 @@ export function processEvent(event: string, payload: any): ProcessedEvent {
     const thinking = extractThinking(payload);
     if (thinking) {
       if (thinking.delta) {
-        // Accumulate in buffer
-        const currentBuffer = thinkingBuffers.get(runId) || '';
-        thinkingBuffers.set(runId, currentBuffer + thinking.delta);
+        // Accumulate in buffer with timestamp
+        const currentBuffer = thinkingBuffers.get(runId);
+        const newContent = (currentBuffer?.content || '') + thinking.delta;
+        thinkingBuffers.set(runId, {
+          content: newContent,
+          timestamp: Date.now()
+        });
         thinkingDelta = thinking.delta;
       }
       
       if (thinking.complete && thinking.text) {
         // Commit buffered thinking to formatted message
         const buffered = thinkingBuffers.get(runId);
-        const finalText = buffered || thinking.text;
+        const finalText = buffered?.content || thinking.text;
         const formatted = formatTrace(finalText);
         
         if (deduplicationService.checkAndMark(runId, formatted)) {
@@ -111,11 +148,11 @@ export function processEvent(event: string, payload: any): ProcessedEvent {
       // Commit any buffered thinking on lifecycle end
       const buffered = thinkingBuffers.get(runId);
       if (buffered) {
-        const formatted = formatTrace(buffered);
+        const formatted = formatTrace(buffered.content);
         if (deduplicationService.checkAndMark(runId, formatted)) {
           formattedMessages.push(formatted);
         }
-        thinkingComplete = buffered;
+        thinkingComplete = buffered.content;
         thinkingBuffers.delete(runId);
       }
 
@@ -131,6 +168,53 @@ export function processEvent(event: string, payload: any): ProcessedEvent {
       }
 
       // Clean up deduplication for this run
+      setTimeout(() => {
+        deduplicationService.clearRun(runId);
+      }, DEDUPLICATION_CLEANUP_DELAY_MS);
+    }
+  }
+
+  // Process chat events (final state as source of truth)
+  if (type === 'runtime-chat' && runId && payload.state === 'final') {
+    const message = payload.message;
+    if (message) {
+      const extracted = extractFromMessage(message);
+      
+      // Process thinking/trace from final message
+      if (extracted.thinking) {
+        const formatted = formatTrace(extracted.thinking);
+        if (deduplicationService.checkAndMark(runId, formatted)) {
+          formattedMessages.push(formatted);
+          thinkingComplete = extracted.thinking;
+        }
+      }
+      
+      // Process tools from final message (chronological order)
+      extracted.tools.forEach((tool, idx) => {
+        // Tool call
+        const callFormatted = formatToolCall(tool.name, tool.args);
+        if (deduplicationService.checkAndMark(runId, callFormatted)) {
+          formattedMessages.push(callFormatted);
+        }
+        
+        // Tool result (separate from call)
+        if (tool.result !== undefined) {
+          const resultFormatted = formatToolResult({
+            result: tool.result,
+            exitCode: tool.meta?.exitCode,
+            duration: tool.meta?.duration,
+            cwd: tool.meta?.cwd
+          });
+          if (deduplicationService.checkAndMark(runId, resultFormatted)) {
+            formattedMessages.push(resultFormatted);
+          }
+        }
+      });
+      
+      // Clean up buffer for this run
+      thinkingBuffers.delete(runId);
+      
+      // Clean up deduplication after a delay
       setTimeout(() => {
         deduplicationService.clearRun(runId);
       }, DEDUPLICATION_CLEANUP_DELAY_MS);
@@ -153,7 +237,7 @@ export function processEvent(event: string, payload: any): ProcessedEvent {
  * Get current thinking buffer for a run
  */
 export function getThinkingBuffer(runId: string): string | undefined {
-  return thinkingBuffers.get(runId);
+  return thinkingBuffers.get(runId)?.content;
 }
 
 /**

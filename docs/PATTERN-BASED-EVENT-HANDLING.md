@@ -286,3 +286,76 @@ if (message.type === 'event.processed') {
 - [ ] Add trace collapsing/expansion controls
 - [ ] Implement trace search and filtering
 - [ ] Add trace export functionality
+
+## Studio Pattern Enhancements
+
+### Chat Events as Source of Truth
+
+Chat events with `state === 'final'` serve as the definitive version of a conversation turn. The event processor handles these specially:
+
+```typescript
+if (type === 'runtime-chat' && runId && payload.state === 'final') {
+  const message = payload.message;
+  const extracted = extractFromMessage(message);
+  
+  // Process thinking and tools from final message
+  // These go through deduplication to avoid double-rendering
+}
+```
+
+This ensures that anything missed during live streaming (due to network issues or timing) is captured from the final authoritative message.
+
+### Separate Tool Results
+
+Following the Studio pattern, tool results are separate transcript items rather than updates to tool calls:
+
+```typescript
+// Tool call
+[[tool]] bash
+Arguments: {"command": "ls"}
+
+// ... other events may occur here ...
+
+// Tool result (separate, chronological)
+[[tool-result]]
+Exit Code: 0 | Duration: 150ms
+total 48
+```
+
+This maintains chronological order and allows for thinking or other actions between call and result.
+
+### Buffer Memory Management
+
+Thinking buffers now include timestamps and automatic cleanup:
+
+```typescript
+interface ThinkingBuffer {
+  content: string;
+  timestamp: number;
+}
+
+const THINKING_BUFFER_TTL_MS = 300000; // 5 minutes
+```
+
+A background cleanup task runs every minute to remove stale buffers from runs that crashed or never sent terminal events.
+
+### TranscriptItem Component
+
+The new `TranscriptItem` component enables a simplified data model:
+
+```typescript
+// Future: simplify from complex objects to clean strings
+const transcript: string[] = [
+  "[[trace]]\nAgent reasoning...",
+  "[[tool]] bash\nArguments: {...}",
+  "[[tool-result]]\nExit: 0\noutput..."
+];
+
+// Render with TranscriptItem
+{transcript.map((line, i) => (
+  <TranscriptItem key={i} line={line} />
+))}
+```
+
+This component parses the `[[tag]]` prefixes and renders appropriate UI elements.
+

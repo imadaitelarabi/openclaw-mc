@@ -113,3 +113,46 @@ export function extractLifecycle(payload: any): {
   }
   return { phase: null };
 }
+
+/**
+ * Extract thinking and tools from final chat message (role-based JSON format)
+ * Used for processing chat events with state === 'final'
+ */
+export function extractFromMessage(message: any): {
+  thinking?: string;
+  tools: Array<{ name: string; args?: any; result?: any; meta?: any }>;
+} {
+  const result: {
+    thinking?: string;
+    tools: Array<{ name: string; args?: any; result?: any; meta?: any }>;
+  } = {
+    tools: []
+  };
+
+  if (!message) return result;
+
+  // Extract thinking from message content
+  if (message.thinking) {
+    result.thinking = message.thinking;
+  } else if (message.content) {
+    // Try to extract from <think> tags in content
+    const thinkMatch = message.content.match(/<think>([\s\S]*?)<\/think>/);
+    if (thinkMatch) {
+      result.thinking = thinkMatch[1].trim();
+    }
+  }
+
+  // Extract tools from toolCalls array
+  if (Array.isArray(message.toolCalls)) {
+    message.toolCalls.forEach((toolCall: any) => {
+      result.tools.push({
+        name: toolCall.name || toolCall.tool || 'unknown',
+        args: toolCall.args || toolCall.arguments,
+        result: toolCall.result,
+        meta: toolCall.meta
+      });
+    });
+  }
+
+  return result;
+}

@@ -12,9 +12,6 @@ export function useAgentEvents() {
   
   // Refs to store latest accumulated text (synchronous, no state timing issues)
   const latestTextRef = useRef<Record<string, string>>({});
-  
-  // Track last tool message ID per run for efficient updates
-  const lastToolMessageIdRef = useRef<Record<string, string>>({});
 
   const handleAgentEvent = useCallback((message: any) => {
     // Handle new processed events format
@@ -272,7 +269,7 @@ export function useAgentEvents() {
         
         if (parsed.type === 'tool') {
           const toolMsg: ChatMessage = {
-            id: `${runId}-tool-${idx}`,
+            id: `${runId}-tool-${idx}-${Date.now()}`,
             role: 'tool',
             content: parsed.toolName || 'unknown',
             tool: {
@@ -284,62 +281,32 @@ export function useAgentEvents() {
             runId
           };
           
-          // Track this tool message ID for efficient result updates
-          lastToolMessageIdRef.current[runId] = toolMsg.id;
-          
           setChatHistory(prev => {
             const currentHistory = prev[agentId] || [];
             if (currentHistory.some(m => m.id === toolMsg.id)) return prev;
             return { ...prev, [agentId]: [...currentHistory, toolMsg] };
           });
         } else if (parsed.type === 'tool-result') {
-          // Use tracked ID for O(1) lookup instead of O(n) iteration
-          const targetToolId = lastToolMessageIdRef.current[runId];
+          // Tool result is a separate transcript item (Studio pattern)
+          const toolResultMsg: ChatMessage = {
+            id: `${runId}-tool-result-${idx}-${Date.now()}`,
+            role: 'tool',
+            content: parsed.content,
+            tool: {
+              name: 'Result',
+              result: parsed.content,
+              status: 'end',
+              ...(parsed.toolMeta && { meta: parsed.toolMeta })
+            },
+            timestamp: Date.now(),
+            runId
+          };
           
           setChatHistory(prev => {
             const currentHistory = prev[agentId] || [];
-            
-            if (!targetToolId) {
-              // Fallback: find last tool message for this run
-              const updated = [...currentHistory];
-              for (let i = updated.length - 1; i >= 0; i--) {
-                if (updated[i].role === 'tool' && updated[i].runId === runId) {
-                  updated[i] = {
-                    ...updated[i],
-                    tool: {
-                      ...updated[i].tool!,
-                      result: parsed.content,
-                      status: 'end',
-                      ...(parsed.toolMeta && { meta: parsed.toolMeta })
-                    }
-                  };
-                  break;
-                }
-              }
-              return { ...prev, [agentId]: updated };
-            }
-            
-            // Fast path: use tracked ID
-            const updated = currentHistory.map(msg => {
-              if (msg.id === targetToolId) {
-                return {
-                  ...msg,
-                  tool: {
-                    ...msg.tool!,
-                    result: parsed.content,
-                    status: 'end',
-                    ...(parsed.toolMeta && { meta: parsed.toolMeta })
-                  }
-                };
-              }
-              return msg;
-            });
-            
-            return { ...prev, [agentId]: updated };
+            if (currentHistory.some(m => m.id === toolResultMsg.id)) return prev;
+            return { ...prev, [agentId]: [...currentHistory, toolResultMsg] };
           });
-          
-          // Clean up tracked ID
-          delete lastToolMessageIdRef.current[runId];
         } else if (parsed.type === 'trace') {
           // This is handled by thinkingComplete above
           // But if it comes through formattedMessages, add it

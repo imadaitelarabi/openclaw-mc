@@ -15,7 +15,8 @@ import {
   extractThinking, 
   extractTool, 
   extractSessionInfo,
-  extractLifecycle 
+  extractLifecycle,
+  extractFromMessage
 } from './message-extractor.js';
 import { processEvent } from './event-processor.js';
 
@@ -98,6 +99,21 @@ const lifecyclePayload = {
 };
 const lifecycle = extractLifecycle(lifecyclePayload);
 console.log('Lifecycle:', lifecycle);
+
+// Test extractFromMessage
+const chatMessage = {
+  thinking: 'I need to list the files in the directory',
+  toolCalls: [
+    {
+      name: 'bash',
+      args: { command: 'ls -la' },
+      result: 'total 48\ndrwxr-xr-x  4 user',
+      meta: { exitCode: 0, duration: 150 }
+    }
+  ]
+};
+const extracted = extractFromMessage(chatMessage);
+console.log('Extracted from message:', extracted);
 console.log('\n');
 
 // Test 4: Event Processing
@@ -118,6 +134,27 @@ const toolEventPayload = {
 
 const processed = processEvent('agent', toolEventPayload);
 console.log('Processed event:', JSON.stringify(processed, null, 2));
+
+// Test chat event processing
+console.log('\nTesting chat event (final state):');
+const chatEventPayload = {
+  state: 'final',
+  message: {
+    thinking: 'Analyzing the request...',
+    toolCalls: [
+      {
+        name: 'bash',
+        args: { command: 'pwd' },
+        result: '/workspace',
+        meta: { exitCode: 0, duration: 50 }
+      }
+    ]
+  },
+  sessionKey: 'agent:test-agent:main',
+  runId: 'run-test-2'
+};
+const processedChat = processEvent('chat', chatEventPayload);
+console.log('Processed chat event:', JSON.stringify(processedChat, null, 2));
 console.log('\n');
 
 // Test 5: Parsing (Frontend)
