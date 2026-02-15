@@ -44,15 +44,15 @@ export function CreateAgentPanel({ sendMessage, onSuccess, onCancel }: CreateAge
         type: 'agents.add',
         id: agentId,
         name: agentName,
-        workspace: formData.workspace.trim() || `~/.openclaw/workspace-${agentId}`,
+        workspace: formData.workspace.trim() || undefined,
         model: formData.model || undefined,
         tools: { profile: formData.toolsProfile },
         sandbox: { mode: formData.sandboxMode }
       });
 
       // Show success message - Note: This is optimistic
-      // In a production system, we would wait for 'agents.add.ack' from the server
-      setSuccessMessage(`Agent "${agentName}" creation request sent. The Gateway will restart to apply changes.`);
+      // Agent creation is now atomic and instant (no Gateway restart)
+      setSuccessMessage(`Agent "${agentName}" is being created. The agent will be available immediately without restarting the Gateway.`);
       setIsSubmitting(false);
       
       // Call onSuccess callback after a brief delay to show the message

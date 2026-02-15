@@ -710,73 +710,73 @@ app.prepare().then(() => {
                 ws.send(JSON.stringify({ type: 'error', message: err.message }));
               }
             } else if (msg.type === 'agents.add') {
-              // Handle agent creation
+              // Handle agent creation using atomic Gateway RPCs (restart-free)
               try {
                 const { id, name, workspace, model, tools, sandbox } = msg;
                 
                 // Validation
-                if (!id || !name) {
+                if (!name) {
                   ws.send(JSON.stringify({
                     type: 'error',
-                    message: 'Agent ID and name are required'
+                    message: 'Agent name is required'
                   }));
                   return;
                 }
                 
-                // Get current config
-                const currentConfig = await gateway.request('config.get', {});
+                console.log(`[Client] Creating agent: ${name} (id: ${id || 'auto-generated'})`);
                 
-                if (!currentConfig || !currentConfig.parsed) {
-                  ws.send(JSON.stringify({
-                    type: 'error',
-                    message: 'Failed to retrieve current configuration'
-                  }));
-                  return;
-                }
-                
-                // Initialize agents list if it doesn't exist
-                if (!currentConfig.parsed.agents) {
-                  currentConfig.parsed.agents = { list: [] };
-                } else if (!currentConfig.parsed.agents.list) {
-                  currentConfig.parsed.agents.list = [];
-                }
-                
-                // Check if agent already exists
-                const existingAgent = currentConfig.parsed.agents.list.find((a) => a.id === id);
-                if (existingAgent) {
-                  ws.send(JSON.stringify({
-                    type: 'error',
-                    message: `Agent with ID "${id}" already exists`
-                  }));
-                  return;
-                }
-                
-                // Build agent configuration
-                // Note: Tilde (~) paths are expected to be expanded by the OpenClaw Gateway
-                const newAgent = {
-                  id,
+                // Use agents.create for atomic, restart-free agent creation
+                const createParams = {
                   name,
-                  workspace: workspace || `~/.openclaw/workspace-${id}`,
-                  agentDir: `~/.openclaw/agents/${id}/agent`
+                  workspace: workspace || undefined
                 };
                 
-                if (model) newAgent.model = model;
-                if (tools) newAgent.tools = tools;
-                if (sandbox) newAgent.sandbox = sandbox;
+                // If user specified an ID, include it
+                if (id) {
+                  createParams.id = id;
+                }
                 
-                // Add to agents.list
-                currentConfig.parsed.agents.list.push(newAgent);
+                const createResult = await gateway.request('agents.create', createParams);
+                const agentId = createResult.agentId;
                 
-                // Apply config (triggers restart)
-                await gateway.request('config.apply', {
-                  raw: JSON.stringify(currentConfig.parsed, null, 2),
-                  reason: `Added agent: ${name}`,
-                  note: `Agent "${name}" created successfully`
+                console.log(`[Client] Agent created with ID: ${agentId}`);
+                
+                // Initialize workspace files atomically
+                // Create default AGENTS.md
+                await gateway.request('agents.files.set', {
+                  agentId,
+                  name: 'AGENTS.md',
+                  content: `# ${name}\n\nYou are ${name}, an AI assistant powered by OpenClaw.\n\n## Instructions\n\nProvide helpful, accurate, and thoughtful responses to user queries.\n`
                 });
+                
+                // Create default SOUL.md
+                await gateway.request('agents.files.set', {
+                  agentId,
+                  name: 'SOUL.md',
+                  content: `# ${name}'s Persona\n\nI am ${name}, ready to assist with your tasks.\n`
+                });
+                
+                console.log(`[Client] Workspace files initialized for agent: ${agentId}`);
+                
+                // If there are config overrides (model, tools, sandbox), use config.patch
+                if (model || tools || sandbox) {
+                  const patchData = {};
+                  if (model) patchData.model = model;
+                  if (tools) patchData.tools = tools;
+                  if (sandbox) patchData.sandbox = sandbox;
+                  
+                  await gateway.request('config.patch', {
+                    path: `agents.list[?(@.id=='${agentId}')]`,
+                    value: patchData,
+                    reason: `Configure agent: ${name}`
+                  });
+                  
+                  console.log(`[Client] Applied configuration overrides for agent: ${agentId}`);
+                }
                 
                 ws.send(JSON.stringify({
                   type: 'agents.add.ack',
-                  agentId: id
+                  agentId
                 }));
               } catch (err) {
                 console.error('[Client] Agent creation failed:', err);
