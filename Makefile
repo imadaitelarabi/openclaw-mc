@@ -84,7 +84,13 @@ docker-down:
 ## docker-logs: View container logs
 docker-logs:
 	@echo "$(BLUE)Viewing container logs (Ctrl+C to exit)...$(NC)"
-	docker-compose logs -f mission-control
+	@if docker-compose ps -q mission-control 2>/dev/null | grep -q .; then \
+		docker-compose logs -f mission-control; \
+	elif docker-compose -f docker-compose.dev.yml ps -q mission-control-dev 2>/dev/null | grep -q .; then \
+		docker-compose -f docker-compose.dev.yml logs -f mission-control-dev; \
+	else \
+		echo "$(YELLOW)No running containers found$(NC)"; \
+	fi
 
 ## docker-clean: Remove containers and images
 docker-clean:

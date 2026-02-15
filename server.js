@@ -16,6 +16,9 @@ const port = parseInt(process.env.PORT || '3000', 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+// Cache package version for health checks
+const packageVersion = require('./package.json').version;
+
 // Data persistence paths
 const DATA_DIR = path.join(__dirname, 'data');
 const ACTIVITY_LOG_PATH = path.join(DATA_DIR, 'activity-history.json');
@@ -510,7 +513,7 @@ app.prepare().then(() => {
         status: 'ok',
         timestamp: new Date().toISOString(),
         service: 'mission-control',
-        version: require('./package.json').version,
+        version: packageVersion,
         gateway: gateway ? {
           connected: true,
           name: gateway.name,

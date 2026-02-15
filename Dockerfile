@@ -49,9 +49,8 @@ COPY --from=builder /app/public ./public
 # Copy production dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 
-# Create data directory and config directory
-RUN mkdir -p /app/data /root/.oc-mission-control && \
-    chown -R nextjs:nodejs /app/data
+# Create data directory with proper permissions
+RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
 
 # Switch to non-root user
 USER nextjs
