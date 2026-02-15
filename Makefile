@@ -36,7 +36,7 @@ help:
 ## install: Install dependencies
 install:
 	@echo "$(BLUE)Installing dependencies...$(NC)"
-	npm install
+	npm install --legacy-peer-deps
 	@echo "$(GREEN)Dependencies installed!$(NC)"
 
 ## dev: Start development server
