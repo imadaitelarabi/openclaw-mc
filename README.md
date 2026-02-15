@@ -383,6 +383,67 @@ MIT License - see LICENSE file for details.
 
 ---
 
+## 📚 Documentation
+
+Additional documentation is available in the [`docs/`](./docs) folder:
+
+- [**STREAMING-GUIDE.md**](./docs/STREAMING-GUIDE.md) - WebSocket streaming implementation details
+- [**WEBSOCKET.md**](./docs/WEBSOCKET.md) - WebSocket architecture and message protocol
+- [**STATUS-BAR-ENHANCEMENTS.md**](./docs/STATUS-BAR-ENHANCEMENTS.md) - Status bar features and controls
+- [**IMPLEMENTATION-COMPLETE.md**](./docs/IMPLEMENTATION-COMPLETE.md) - Implementation notes
+- [**REFACTOR-SUMMARY.md**](./docs/REFACTOR-SUMMARY.md) - Code refactoring summary
+- [**FIXES-APPLIED.md**](./docs/FIXES-APPLIED.md) - Bug fixes and improvements
+- [**STATUS-BAR-COMPLETE.md**](./docs/STATUS-BAR-COMPLETE.md) - Status bar completion notes
+
+---
+
+## 🐳 Docker Deployment
+
+Mission Control can be deployed using Docker for easy setup and portability.
+
+### Quick Start with Docker
+
+```bash
+# Build the Docker image
+make docker-build
+
+# Start with docker-compose
+make docker-up
+
+# View logs
+make docker-logs
+
+# Stop containers
+make docker-down
+```
+
+### Manual Docker Commands
+
+```bash
+# Build the image
+docker build -t mission-control:latest .
+
+# Run the container
+docker run -d \
+  -p 3000:3000 \
+  -v ~/.oc-mission-control:/root/.oc-mission-control \
+  -e OPENCLAW_GATEWAY_URL=http://host.docker.internal:18789 \
+  -e OPENCLAW_GATEWAY_TOKEN=your_token_here \
+  --name mission-control \
+  mission-control:latest
+
+# Or use docker-compose
+docker-compose up -d
+```
+
+### Configuration for Docker
+
+Create a `.env.local` file or use the mounted config volume at `~/.oc-mission-control`.
+
+See `.env.local.example` for available environment variables.
+
+---
+
 ## 🔗 Links
 
 - **OpenClaw Docs**: https://docs.openclaw.ai

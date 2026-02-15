@@ -501,7 +501,30 @@ class GatewayConnection {
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
-    handle(req, res, parse(req.url, true));
+    const parsedUrl = parse(req.url, true);
+    
+    // Health check endpoint
+    if (parsedUrl.pathname === '/health' || parsedUrl.pathname === '/api/health') {
+      const gateway = configManager.getActiveGateway();
+      const healthStatus = {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        service: 'mission-control',
+        version: require('./package.json').version,
+        gateway: gateway ? {
+          connected: true,
+          name: gateway.name,
+          url: gateway.url
+        } : {
+          connected: false
+        }
+      };
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(healthStatus, null, 2));
+      return;
+    }
+    
+    handle(req, res, parsedUrl);
   });
 
   // WebSocket server
