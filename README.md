@@ -387,6 +387,7 @@ MIT License - see LICENSE file for details.
 
 Additional documentation is available in the [`docs/`](./docs) folder:
 
+- [**DOCKER-MAKEFILE-GUIDE.md**](./docs/DOCKER-MAKEFILE-GUIDE.md) - Complete Docker and Makefile usage guide
 - [**STREAMING-GUIDE.md**](./docs/STREAMING-GUIDE.md) - WebSocket streaming implementation details
 - [**WEBSOCKET.md**](./docs/WEBSOCKET.md) - WebSocket architecture and message protocol
 - [**STATUS-BAR-ENHANCEMENTS.md**](./docs/STATUS-BAR-ENHANCEMENTS.md) - Status bar features and controls
@@ -416,6 +417,8 @@ make docker-logs
 # Stop containers
 make docker-down
 ```
+
+For detailed Docker and Makefile documentation, see [DOCKER-MAKEFILE-GUIDE.md](./docs/DOCKER-MAKEFILE-GUIDE.md).
 
 ### Manual Docker Commands
 
