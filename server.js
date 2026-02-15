@@ -709,6 +709,81 @@ app.prepare().then(() => {
                 console.error('[Client] Patch failed:', err);
                 ws.send(JSON.stringify({ type: 'error', message: err.message }));
               }
+            } else if (msg.type === 'agents.add') {
+              // Handle agent creation
+              try {
+                const { id, name, workspace, model, tools, sandbox } = msg;
+                
+                // Validation
+                if (!id || !name) {
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    message: 'Agent ID and name are required'
+                  }));
+                  return;
+                }
+                
+                // Get current config
+                const currentConfig = await gateway.request('config.get', {});
+                
+                if (!currentConfig || !currentConfig.parsed) {
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    message: 'Failed to retrieve current configuration'
+                  }));
+                  return;
+                }
+                
+                // Initialize agents list if it doesn't exist
+                if (!currentConfig.parsed.agents) {
+                  currentConfig.parsed.agents = { list: [] };
+                } else if (!currentConfig.parsed.agents.list) {
+                  currentConfig.parsed.agents.list = [];
+                }
+                
+                // Check if agent already exists
+                const existingAgent = currentConfig.parsed.agents.list.find((a: any) => a.id === id);
+                if (existingAgent) {
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    message: `Agent with ID "${id}" already exists`
+                  }));
+                  return;
+                }
+                
+                // Build agent configuration
+                const newAgent: any = {
+                  id,
+                  name,
+                  workspace: workspace || `~/.openclaw/workspace-${id}`,
+                  agentDir: `~/.openclaw/agents/${id}/agent`
+                };
+                
+                if (model) newAgent.model = model;
+                if (tools) newAgent.tools = tools;
+                if (sandbox) newAgent.sandbox = sandbox;
+                
+                // Add to agents.list
+                currentConfig.parsed.agents.list.push(newAgent);
+                
+                // Apply config (triggers restart)
+                await gateway.request('config.apply', {
+                  raw: JSON.stringify(currentConfig.parsed, null, 2),
+                  reason: `Added agent: ${name}`,
+                  note: `Agent "${name}" created successfully`
+                });
+                
+                ws.send(JSON.stringify({
+                  type: 'agents.add.ack',
+                  agentId: id
+                }));
+              } catch (err) {
+                console.error('[Client] Agent creation failed:', err);
+                ws.send(JSON.stringify({ 
+                  type: 'error', 
+                  message: err instanceof Error ? err.message : 'Failed to create agent'
+                }));
+              }
             }
           } catch (err) {
             console.error('[Client] Failed to parse message:', err);

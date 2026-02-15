@@ -3,15 +3,26 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageSquare, LayoutGrid, Wifi, WifiOff } from "lucide-react";
 import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast } from "@/hooks";
-import { ChatMessageItem, ChatInput, StreamingIndicator } from "@/components/chat";
 import { StatusBar } from "@/components/layout";
 import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
+import { PanelProvider, usePanels } from "@/contexts/PanelContext";
+import { PanelContainer } from "@/components/panels";
+import { ChatMessageItem, ChatInput, StreamingIndicator } from "@/components/chat";
 import { getStreamKey } from "@/lib/gateway-utils";
 
 export const dynamic = 'force-dynamic';
 
 export default function MissionControl() {
+  return (
+    <PanelProvider maxPanels={2}>
+      <MissionControlInner />
+    </PanelProvider>
+  );
+}
+
+function MissionControlInner() {
+  const { layout, openPanel, closePanel, setActivePanel } = usePanels();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
@@ -119,6 +130,22 @@ export default function MissionControl() {
   });
 
   const activeAgent = agents.find(a => a.id === selectedAgent);
+  
+  // Get the active panel
+  const activePanel = layout.panels.find(p => p.id === layout.activePanel);
+  const activePanelAgent = activePanel?.agentId ? agents.find(a => a.id === activePanel.agentId) : undefined;
+
+  // Handler to open chat panel for an agent
+  const handleSelectAgent = useCallback((agentId: string) => {
+    setSelectedAgent(agentId);
+    const agent = agents.find(a => a.id === agentId);
+    openPanel('chat', { agentId, agentName: agent?.name || 'Chat' });
+  }, [agents, openPanel]);
+  
+  // Handler to open create agent panel
+  const handleCreateAgent = useCallback(() => {
+    openPanel('create-agent');
+  }, [openPanel]);
 
   const sendChatMessage = () => {
     if (!selectedAgent || !chatInput.trim()) return;
@@ -135,13 +162,9 @@ export default function MissionControl() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory, chatStreams, selectedAgent]);
 
-  const currentStreamKey = selectedAgent && activeRuns[selectedAgent] 
-    ? getStreamKey(selectedAgent, activeRuns[selectedAgent])
-    : null;
-  
-  const assistantStream = currentStreamKey ? chatStreams[currentStreamKey] : undefined;
-  const reasoningStream = currentStreamKey ? reasoningStreams[currentStreamKey] : undefined;
-  const sessionKey = selectedAgent ? `agent:${selectedAgent}:main` : null;
+  // Use the active panel's agent for session key
+  const activePanelAgentId = activePanel?.agentId;
+  const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
 
   if (connectionStatus === 'no-config' || showSetup) {
     return (
@@ -166,7 +189,7 @@ export default function MissionControl() {
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
           <span className="font-bold text-sm tracking-tight truncate max-w-[150px]">
-            {activeAgent?.name || "Mission Control"}
+            {activePanelAgent?.name || "Mission Control"}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -182,9 +205,9 @@ export default function MissionControl() {
         </div>
       </header>
 
-      {/* Main Chat Area */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
-        {!selectedAgent ? (
+        {layout.panels.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
             <div className="relative mb-6">
               <MessageSquare className="w-20 h-20 opacity-10" />
@@ -200,33 +223,23 @@ export default function MissionControl() {
             </button>
           </div>
         ) : (
-          <>
-            {/* Chat History */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 overscroll-contain">
-              <div className="max-w-4xl mx-auto space-y-6 pb-4">
-                {(chatHistory[selectedAgent] || []).map((msg) => (
-                  <ChatMessageItem key={msg.id} message={msg} />
-                ))}
-                
-                <StreamingIndicator 
-                  assistantStream={assistantStream}
-                  reasoningStream={reasoningStream}
-                  isTyping={!!(selectedAgent && activeRuns[selectedAgent])}
-                />
-                
-                <div ref={chatEndRef} />
-              </div>
-            </div>
-
-            {/* Input Area */}
-            <ChatInput
-              value={chatInput}
-              onChange={setChatInput}
-              onSend={sendChatMessage}
-              activeAgent={activeAgent}
-              disabled={connectionStatus !== 'connected'}
-            />
-          </>
+          <PanelContainer
+            panels={layout.panels}
+            activePanel={layout.activePanel}
+            onPanelActivate={setActivePanel}
+            onPanelClose={closePanel}
+            agents={agents}
+            sendMessage={sendMessage}
+            connectionStatus={connectionStatus}
+            chatHistory={chatHistory}
+            chatStreams={chatStreams}
+            reasoningStreams={reasoningStreams}
+            activeRuns={activeRuns}
+            addUserMessage={addUserMessage}
+            models={models}
+            sessionSettings={sessionSettings}
+            updateSetting={updateSetting}
+          />
         )}
       </div>
 
@@ -234,12 +247,13 @@ export default function MissionControl() {
       <div className="hidden md:block">
         <StatusBar
           agents={agents}
-          selectedAgent={selectedAgent}
-          activeAgent={activeAgent}
+          selectedAgent={activePanel?.agentId || null}
+          activeAgent={activePanelAgent}
           connectionStatus={connectionStatus}
           isAgentMenuOpen={isAgentMenuOpen}
           onToggleAgentMenu={() => setIsAgentMenuOpen(!isAgentMenuOpen)}
-          onSelectAgent={setSelectedAgent}
+          onSelectAgent={handleSelectAgent}
+          onCreateAgent={handleCreateAgent}
           models={models}
           currentModel={sessionSettings.model}
           thinkingMode={sessionSettings.thinking || 'low'}
@@ -263,10 +277,10 @@ export default function MissionControl() {
         isOpen={isMobilePanelOpen}
         onClose={() => setIsMobilePanelOpen(false)}
         agents={agents}
-        selectedAgent={selectedAgent}
-        activeAgent={activeAgent}
+        selectedAgent={activePanel?.agentId || null}
+        activeAgent={activePanelAgent}
         onSelectAgent={(id) => {
-          setSelectedAgent(id);
+          handleSelectAgent(id);
           setIsMobilePanelOpen(false);
         }}
         models={models}

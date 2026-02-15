@@ -1,4 +1,4 @@
-import { Zap, ChevronDown } from 'lucide-react';
+import { Zap, ChevronDown, Plus } from 'lucide-react';
 import type { Agent } from '@/types';
 
 interface AgentSelectorProps {
@@ -8,6 +8,7 @@ interface AgentSelectorProps {
   isOpen: boolean;
   onToggle: () => void;
   onSelect: (agentId: string) => void;
+  onCreateAgent?: () => void;
 }
 
 export function AgentSelector({ 
@@ -16,7 +17,8 @@ export function AgentSelector({
   activeAgent, 
   isOpen, 
   onToggle, 
-  onSelect 
+  onSelect,
+  onCreateAgent
 }: AgentSelectorProps) {
   return (
     <div className="relative">
@@ -57,6 +59,25 @@ export function AgentSelector({
                 )}
               </button>
             ))}
+            
+            {/* Separator */}
+            {onCreateAgent && agents.length > 0 && (
+              <div className="border-t border-border my-1" />
+            )}
+            
+            {/* Create Agent Option */}
+            {onCreateAgent && (
+              <button
+                onClick={() => {
+                  onCreateAgent();
+                  onToggle();
+                }}
+                className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <Plus className="w-4 h-4 text-primary" />
+                <span className="text-primary font-medium">Create New Agent</span>
+              </button>
+            )}
           </div>
         </div>
       )}
