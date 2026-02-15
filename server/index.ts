@@ -7,6 +7,7 @@ require('dotenv').config({ path: '.env.local', override: true });
 
 import { createServer } from 'http';
 import { parse } from 'url';
+import * as path from 'path';
 import next from 'next';
 import { ConfigManager } from './core/ConfigManager';
 import { GatewayClient } from './core/GatewayClient';
@@ -21,10 +22,11 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 // Cache package version for health checks
-// In development (tsx), path is ../package.json; in production (compiled), it's ../../package.json
-const packageVersion = dev
-  ? require('../package.json').version
-  : require('../../package.json').version;
+// Use path.join to resolve package.json location properly in both dev and production
+const packageJsonPath = dev
+  ? path.join(__dirname, '../package.json')
+  : path.join(__dirname, '../../package.json');
+const packageVersion = require(packageJsonPath).version;
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
