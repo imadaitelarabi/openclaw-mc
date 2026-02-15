@@ -20,10 +20,12 @@ export function CreateAgentPanel({ sendMessage, onSuccess, onCancel }: CreateAge
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     setIsSubmitting(true);
 
     try {
@@ -48,9 +50,14 @@ export function CreateAgentPanel({ sendMessage, onSuccess, onCancel }: CreateAge
         sandbox: { mode: formData.sandboxMode }
       });
 
-      // Call onSuccess callback
+      // Show success message - Note: This is optimistic
+      // In a production system, we would wait for 'agents.add.ack' from the server
+      setSuccessMessage(`Agent "${agentName}" creation request sent. The Gateway will restart to apply changes.`);
+      setIsSubmitting(false);
+      
+      // Call onSuccess callback after a brief delay to show the message
       if (onSuccess) {
-        onSuccess(agentId);
+        setTimeout(() => onSuccess(agentId), 2000);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create agent');
@@ -152,6 +159,12 @@ export function CreateAgentPanel({ sendMessage, onSuccess, onCancel }: CreateAge
                 <option value="off">Off (Direct Access)</option>
               </select>
             </div>
+
+            {successMessage && (
+              <div className="p-4 bg-primary/10 border border-primary rounded-lg text-primary text-sm">
+                {successMessage}
+              </div>
+            )}
 
             {error && (
               <div className="p-4 bg-destructive/10 border border-destructive rounded-lg text-destructive text-sm">

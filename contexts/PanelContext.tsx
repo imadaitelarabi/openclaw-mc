@@ -38,22 +38,24 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
     const panelId = uuidv4();
     
     setLayout(prev => {
+      let currentLayout = prev;
+      
       // Check if we've reached the max panels
-      if (prev.panels.length >= prev.maxPanels) {
+      if (currentLayout.panels.length >= currentLayout.maxPanels) {
         // Remove the oldest inactive panel
-        const inactivePanels = prev.panels.filter(p => !p.isActive);
+        const inactivePanels = currentLayout.panels.filter(p => !p.isActive);
         if (inactivePanels.length > 0) {
           // Remove the first inactive panel
           const toRemove = inactivePanels[0];
-          prev = {
-            ...prev,
-            panels: prev.panels.filter(p => p.id !== toRemove.id)
+          currentLayout = {
+            ...currentLayout,
+            panels: currentLayout.panels.filter(p => p.id !== toRemove.id)
           };
         } else {
           // All panels are active, remove the first one
-          prev = {
-            ...prev,
-            panels: prev.panels.slice(1)
+          currentLayout = {
+            ...currentLayout,
+            panels: currentLayout.panels.slice(1)
           };
         }
       }
@@ -87,10 +89,10 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
       };
 
       // Set all existing panels to inactive
-      const updatedPanels = prev.panels.map(p => ({ ...p, isActive: false }));
+      const updatedPanels = currentLayout.panels.map(p => ({ ...p, isActive: false }));
 
       return {
-        ...prev,
+        ...currentLayout,
         panels: [...updatedPanels, newPanel],
         activePanel: panelId
       };

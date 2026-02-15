@@ -23,8 +23,6 @@ export default function MissionControl() {
 
 function MissionControlInner() {
   const { layout, openPanel, closePanel, setActivePanel } = usePanels();
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState("");
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
   const [gateways, setGateways] = useState<any[]>([]);
@@ -32,7 +30,6 @@ function MissionControlInner() {
   const [showSetup, setShowSetup] = useState(false);
   const [isGatewayConnecting, setIsGatewayConnecting] = useState(false);
   
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   // Custom hooks for WebSocket and event handling
@@ -58,6 +55,10 @@ function MissionControlInner() {
     onEvent: stableOnEvent
   });
 
+  // Get the active panel - needed for session settings
+  const activePanel = layout.panels.find(p => p.id === layout.activePanel);
+  const activePanelAgentId = activePanel?.agentId;
+
   const {
     models,
     sessionSettings,
@@ -66,7 +67,7 @@ function MissionControlInner() {
     setModels,
     setSessionSettings,
     setLoading
-  } = useSessionSettings(selectedAgent, sendMessage, connectionStatus);
+  } = useSessionSettings(activePanelAgentId || null, sendMessage, connectionStatus);
 
   // Request gateways on connect
   useEffect(() => {
@@ -109,9 +110,9 @@ function MissionControlInner() {
         setLoading(false);
       } else if (message.type === 'sessions' && message.data) {
         const sessions = message.data.sessions || [];
-        if (selectedAgent) {
+        if (activePanelAgentId) {
           const agentSession = sessions.find((s: any) => 
-            s.key?.includes(`agent:${selectedAgent}`)
+            s.key?.includes(`agent:${activePanelAgentId}`)
           );
           if (agentSession) {
             setSessionSettings({
@@ -129,15 +130,11 @@ function MissionControlInner() {
     };
   });
 
-  const activeAgent = agents.find(a => a.id === selectedAgent);
-  
-  // Get the active panel
-  const activePanel = layout.panels.find(p => p.id === layout.activePanel);
+  // Calculate active panel agent for UI display
   const activePanelAgent = activePanel?.agentId ? agents.find(a => a.id === activePanel.agentId) : undefined;
 
   // Handler to open chat panel for an agent
   const handleSelectAgent = useCallback((agentId: string) => {
-    setSelectedAgent(agentId);
     const agent = agents.find(a => a.id === agentId);
     openPanel('chat', { agentId, agentName: agent?.name || 'Chat' });
   }, [agents, openPanel]);
@@ -147,23 +144,7 @@ function MissionControlInner() {
     openPanel('create-agent');
   }, [openPanel]);
 
-  const sendChatMessage = () => {
-    if (!selectedAgent || !chatInput.trim()) return;
-    addUserMessage(selectedAgent, chatInput);
-    sendMessage({ 
-      type: 'chat.send', 
-      agentId: selectedAgent, 
-      message: chatInput 
-    });
-    setChatInput("");
-  };
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, chatStreams, selectedAgent]);
-
   // Use the active panel's agent for session key
-  const activePanelAgentId = activePanel?.agentId;
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
 
   if (connectionStatus === 'no-config' || showSetup) {

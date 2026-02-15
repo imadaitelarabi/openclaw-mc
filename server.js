@@ -752,6 +752,7 @@ app.prepare().then(() => {
                 }
                 
                 // Build agent configuration
+                // Note: Tilde (~) paths are expected to be expanded by the OpenClaw Gateway
                 const newAgent = {
                   id,
                   name,
