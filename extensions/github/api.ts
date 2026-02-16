@@ -163,7 +163,7 @@ export class GitHubAPI {
 
     try {
       const prs = await this.request<GitHubPR[]>(
-        `/repos/${owner}/${repo}/pulls?state=open&per_page=${Math.max(maxResults, 1)}`
+        `/repos/${owner}/${repo}/pulls?state=open&sort=updated&direction=desc&per_page=${Math.max(maxResults, 1)}`
       );
       return prs;
     } catch (error) {
