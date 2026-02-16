@@ -37,7 +37,7 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
   // Isolated state per hook instance
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isPollingRef = useRef<boolean>(false);
-  const lastSeenIdRef = useRef<string | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
    * Poll chat history for reasoning blocks and enriched tool calls
@@ -62,7 +62,7 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
 
     // Reset flag after response window
     // This allows the next poll to proceed
-    setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       isPollingRef.current = false;
     }, 1000);
   }, [agentId, sendMessage]);
@@ -74,6 +74,11 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
+      }
+      // Clear any pending timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
       return;
     }
@@ -88,11 +93,10 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
   }, [agentId, activeRunId, pollHistory]);
-
-  return {
-    /** Whether this hook is currently polling */
-    isPolling: isPollingRef.current,
-  };
 }
