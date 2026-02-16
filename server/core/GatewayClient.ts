@@ -394,6 +394,17 @@ export class GatewayClient {
     }
   }
 
+  async abortChat(agentId: string): Promise<void> {
+    const sessionKey = `agent:${agentId}:main`;
+    console.log(`[Gateway] Aborting all runs for session: ${sessionKey}`);
+    try {
+      await this.request('chat.abort', { sessionKey });
+    } catch (err) {
+      console.error(`[Gateway] Failed to abort chat for ${sessionKey}:`, err);
+      // Don't re-throw, as it's a best-effort action
+    }
+  }
+
   /**
    * Fetch chat history from Gateway
    * @param sessionKey - Session key (e.g., "agent:agentId:main")

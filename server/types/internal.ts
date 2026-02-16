@@ -38,6 +38,7 @@ export type ClientMessage =
         before?: string;
       };
     }
+  | { type: 'chat.abort.run'; agentId: string }
   | { type: 'models.list' }
   | { type: 'sessions.list' }
   | {

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageSquare, LayoutGrid, Wifi, WifiOff } from "lucide-react";
-import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast } from "@/hooks";
+import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useSessionControl } from "@/hooks";
 import { StatusBar } from "@/components/layout";
 import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
@@ -43,7 +43,8 @@ function MissionControlInner() {
     reasoningStreams,
     activeRuns, 
     handleAgentEvent, 
-    addUserMessage 
+    addUserMessage,
+    clearChatHistory
   } = useAgentEvents();
 
   const onEventRef = useRef<(message: any) => void>(() => {});
@@ -72,6 +73,15 @@ function MissionControlInner() {
     setSessionSettings,
     setLoading
   } = useSessionSettings(activePanelAgentId || null, sendMessage, connectionStatus);
+
+  // Session control hook for abort and reset
+  const { abortRun, resetSession } = useSessionControl({ sendMessage });
+
+  // Enhanced reset handler that also clears UI history
+  const handleResetSession = useCallback((agentId: string) => {
+    resetSession(agentId);
+    clearChatHistory(agentId);
+  }, [resetSession, clearChatHistory]);
 
   const sendRequestWithAck = useCallback((payload: any, ackType: string, timeoutMs = 20000) => {
     return new Promise<any>((resolve, reject) => {
@@ -362,6 +372,7 @@ function MissionControlInner() {
             models={models}
             sessionSettings={sessionSettings}
             updateSetting={updateSetting}
+            onAbortRun={abortRun}
             onCreateAgent={handleCreateAgentRequest}
             onUpdateAgent={handleUpdateAgentRequest}
           />
@@ -390,6 +401,7 @@ function MissionControlInner() {
           onThinkingChange={sessionKey ? (thinking) => updateSetting(sessionKey, { thinking }) : undefined}
           onShowToolsChange={handleShowToolsChange}
           onShowReasoningChange={handleShowReasoningChange}
+          onResetSession={handleResetSession}
           
           gateways={gateways}
           activeGatewayId={activeGatewayId}

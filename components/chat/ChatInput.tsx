@@ -1,4 +1,4 @@
-import { Send } from 'lucide-react';
+import { Send, Square } from 'lucide-react';
 import { useRef, useEffect } from 'react';
 import type { Agent } from '@/types';
 
@@ -8,9 +8,11 @@ interface ChatInputProps {
   onSend: () => void;
   activeAgent?: Agent;
   disabled?: boolean;
+  isRunning?: boolean;
+  onAbort?: () => void;
 }
 
-export function ChatInput({ value, onChange, onSend, activeAgent, disabled }: ChatInputProps) {
+export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRunning, onAbort }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Reset height when value is empty
@@ -25,6 +27,14 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled }: Ch
     // Reset height after sending
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
+    }
+  };
+
+  const handleButtonClick = () => {
+    if (isRunning && onAbort) {
+      onAbort();
+    } else {
+      handleSend();
     }
   };
 
@@ -52,11 +62,12 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled }: Ch
           disabled={disabled}
         />
         <button
-          onClick={handleSend}
-          disabled={!value.trim() || disabled}
+          onClick={handleButtonClick}
+          disabled={isRunning ? false : (!value.trim() || disabled)}
           className="bg-primary text-primary-foreground p-2.5 md:px-4 md:py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          title={isRunning ? 'Stop generation' : 'Send message'}
         >
-          <Send className="w-5 h-5" />
+          {isRunning ? <Square className="w-5 h-5" /> : <Send className="w-5 h-5" />}
         </button>
       </div>
     </div>

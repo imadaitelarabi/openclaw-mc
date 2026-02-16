@@ -65,3 +65,13 @@ export async function handleChatHistoryLoad(
     );
   }
 }
+
+export async function handleChatAbort(
+  msg: { agentId: string },
+  ws: ExtendedWebSocket,
+  gateway: GatewayClient
+): Promise<void> {
+  if (msg.agentId) {
+    await gateway.abortChat(msg.agentId);
+  }
+}

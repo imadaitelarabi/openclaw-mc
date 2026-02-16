@@ -1,0 +1,28 @@
+/**
+ * Session Control Hook
+ * Provides functions to abort active runs and reset sessions
+ */
+
+interface UseSessionControlProps {
+  sendMessage: (msg: any) => void;
+}
+
+export function useSessionControl({ sendMessage }: UseSessionControlProps) {
+  const abortRun = (agentId: string) => {
+    sendMessage({
+      type: 'chat.abort.run',
+      agentId,
+    });
+  };
+
+  const resetSession = (agentId: string) => {
+    // Sending /new as a message triggers a session reset on the gateway
+    sendMessage({
+      type: 'chat.send',
+      agentId,
+      message: '/new',
+    });
+  };
+
+  return { abortRun, resetSession };
+}
