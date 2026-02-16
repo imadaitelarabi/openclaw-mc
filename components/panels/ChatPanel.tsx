@@ -13,6 +13,7 @@ interface ChatPanelProps {
   chatHistory: any[];
   chatStream: Record<string, string>;
   reasoningStream: Record<string, string>;
+  thinkingTraces: Record<string, string>;
   activeRuns: Record<string, string>;
   addUserMessage: (agentId: string, message: string) => void;
   models: any[];
@@ -28,6 +29,7 @@ export function ChatPanel({
   chatHistory,
   chatStream,
   reasoningStream,
+  thinkingTraces,
   activeRuns,
   addUserMessage
 }: ChatPanelProps) {
@@ -55,6 +57,7 @@ export function ChatPanel({
   
   const assistantStream = currentStreamKey ? chatStream[currentStreamKey] : undefined;
   const reasoningStreamData = currentStreamKey ? reasoningStream[currentStreamKey] : undefined;
+  const thinkingTrace = currentStreamKey ? thinkingTraces[currentStreamKey] : undefined;
 
   return (
     <div className="flex flex-col h-full">
@@ -68,6 +71,7 @@ export function ChatPanel({
           <StreamingIndicator 
             assistantStream={assistantStream}
             reasoningStream={reasoningStreamData}
+            thinkingTrace={thinkingTrace}
             isTyping={!!(agentId && activeRuns[agentId])}
           />
           

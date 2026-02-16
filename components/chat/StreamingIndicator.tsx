@@ -3,14 +3,24 @@ import { ReasoningCard } from './ReasoningCard';
 interface StreamingIndicatorProps {
   assistantStream?: string;
   reasoningStream?: string;
+  thinkingTrace?: string;
   isTyping?: boolean;
 }
 
-export function StreamingIndicator({ assistantStream, reasoningStream, isTyping }: StreamingIndicatorProps) {
-  if (!assistantStream && !reasoningStream && !isTyping) return null;
+export function StreamingIndicator({ assistantStream, reasoningStream, thinkingTrace, isTyping }: StreamingIndicatorProps) {
+  if (!assistantStream && !reasoningStream && !thinkingTrace && !isTyping) return null;
 
   return (
     <>
+      {thinkingTrace && (
+        <div className="flex flex-col items-start">
+          <ReasoningCard 
+            message={{ id: 'thinking-trace', role: 'reasoning', content: thinkingTrace, timestamp: Date.now() }} 
+            isStreaming 
+          />
+        </div>
+      )}
+      
       {reasoningStream && (
         <div className="flex flex-col items-start">
           <ReasoningCard 
@@ -31,7 +41,7 @@ export function StreamingIndicator({ assistantStream, reasoningStream, isTyping 
         </div>
       )}
 
-      {isTyping && !assistantStream && !reasoningStream && (
+      {isTyping && !assistantStream && !reasoningStream && !thinkingTrace && (
         <div className="flex flex-col items-start animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="max-w-[85%] rounded-lg p-4 bg-secondary/40 backdrop-blur border border-secondary flex gap-1 items-center h-[44px]">
             <div className="w-1.5 h-1.5 bg-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
