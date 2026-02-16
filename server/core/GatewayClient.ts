@@ -252,6 +252,21 @@ export class GatewayClient {
       const sessions = await this.request('sessions.list', {});
       this.transformAndBroadcastSessions(sessions);
 
+      // Auto-subscribe to active sessions for event stream resumption
+      if (sessions?.sessions && Array.isArray(sessions.sessions)) {
+        console.log('[Gateway] Auto-subscribing to active sessions for reconnection...');
+        sessions.sessions.forEach((session: any) => {
+          try {
+            // Subscribe to each session to resume event streams
+            this.request('chat.subscribe', { sessionKey: session.key }).catch((err) => {
+              console.error(`[Gateway] Failed to subscribe to ${session.key}:`, err);
+            });
+          } catch (err) {
+            console.error(`[Gateway] Error subscribing to ${session.key}:`, err);
+          }
+        });
+      }
+
       // Fetch recent chat history for each agent (last 20 messages)
       console.log('[Gateway] Fetching chat history for agents...');
       const historyPromises = this.agentsList.map(async (agent) => {
