@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { ChatMessageItem, ChatInput, StreamingIndicator } from '@/components/chat';
+import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton } from '@/components/chat';
 import { getStreamKey } from '@/lib/gateway-utils';
 import type { Agent } from '@/types';
 
@@ -34,6 +34,7 @@ export function ChatPanel({
   addUserMessage
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
@@ -54,7 +55,9 @@ export function ChatPanel({
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
     // Consider "at bottom" if within 50px of the bottom
-    shouldAutoScrollRef.current = scrollHeight - scrollTop - clientHeight < 50;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    shouldAutoScrollRef.current = isAtBottom;
+    setShowScrollButton(!isAtBottom);
   };
 
   useEffect(() => {
@@ -63,6 +66,14 @@ export function ChatPanel({
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [chatHistory, chatStream, agentId]);
+
+  const scrollToBottom = () => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      shouldAutoScrollRef.current = true;
+      setShowScrollButton(false);
+    }
+  };
 
   const currentStreamKey = agentId && activeRuns[agentId] 
     ? getStreamKey(agentId, activeRuns[agentId])
@@ -95,6 +106,9 @@ export function ChatPanel({
           <div ref={chatEndRef} />
         </div>
       </div>
+
+      {/* Scroll to Bottom Button */}
+      <ScrollToBottomButton onClick={scrollToBottom} visible={showScrollButton} />
 
       {/* Input Area */}
       <ChatInput
