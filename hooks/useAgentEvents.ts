@@ -10,6 +10,50 @@ export function useAgentEvents() {
   
   // Refs to store latest accumulated text (synchronous, no state timing issues)
   const latestTextRef = useRef<Record<string, string>>({});
+  const pendingToolIdsRef = useRef<Record<string, string[]>>({});
+  const toolCallToMessageIdRef = useRef<Record<string, string>>({});
+
+  const getToolQueueKey = (runId: string, toolName: string) => `${runId}::${toolName}`;
+
+  const enqueuePendingToolId = (runId: string, toolName: string, toolId: string) => {
+    const queueKey = getToolQueueKey(runId, toolName);
+    const queue = pendingToolIdsRef.current[queueKey] || [];
+    if (!queue.includes(toolId)) {
+      pendingToolIdsRef.current[queueKey] = [...queue, toolId];
+    }
+  };
+
+  const dequeuePendingToolId = (runId: string, toolName: string, toolId?: string) => {
+    const queueKey = getToolQueueKey(runId, toolName);
+    const queue = pendingToolIdsRef.current[queueKey] || [];
+
+    if (queue.length === 0) return;
+
+    if (toolId) {
+      const nextQueue = queue.filter(id => id !== toolId);
+      if (nextQueue.length > 0) pendingToolIdsRef.current[queueKey] = nextQueue;
+      else delete pendingToolIdsRef.current[queueKey];
+      return;
+    }
+
+    const nextQueue = queue.slice(1);
+    if (nextQueue.length > 0) pendingToolIdsRef.current[queueKey] = nextQueue;
+    else delete pendingToolIdsRef.current[queueKey];
+  };
+
+  const clearPendingToolQueuesForRun = (runId: string) => {
+    Object.keys(pendingToolIdsRef.current).forEach(key => {
+      if (key.startsWith(`${runId}::`)) {
+        delete pendingToolIdsRef.current[key];
+      }
+    });
+
+    Object.keys(toolCallToMessageIdRef.current).forEach(key => {
+      if (key.startsWith(`${runId}::`)) {
+        delete toolCallToMessageIdRef.current[key];
+      }
+    });
+  };
 
   const handleAgentEvent = useCallback((message: any) => {
     const { event, payload } = message;
@@ -48,9 +92,50 @@ export function useAgentEvents() {
     if (stream === 'tool') {
       const toolData = data || {};
       const toolName = payload.tool || toolData.name || 'unknown tool';
-      const toolId = getToolId(runId, toolName, seq);
+      const toolCallId = toolData.toolCallId as string | undefined;
+      const toolCallMapKey = toolCallId ? `${runId}::${toolCallId}` : undefined;
+      const toolPhase = toolData.phase as string | undefined;
+      const hasSeq = typeof seq === 'number';
+      const toolId = hasSeq
+        ? getToolId(runId, toolName, seq)
+        : `${runId}-${toolName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+      const resolveToolId = (currentHistory: ChatMessage[]) => {
+        if (toolCallMapKey) {
+          const mappedId = toolCallToMessageIdRef.current[toolCallMapKey];
+          if (mappedId && currentHistory.some(m => m.id === mappedId && m.role === 'tool')) {
+            return mappedId;
+          }
+        }
+
+        if (hasSeq) {
+          const seqToolId = getToolId(runId, toolName, seq);
+          if (currentHistory.some(m => m.id === seqToolId && m.role === 'tool')) {
+            return seqToolId;
+          }
+        }
+
+        const queueKey = getToolQueueKey(runId, toolName);
+        const queue = pendingToolIdsRef.current[queueKey] || [];
+        const queuedId = queue.find(id => currentHistory.some(
+          m => m.id === id && m.role === 'tool' && m.tool?.status === 'start'
+        ));
+        if (queuedId) return queuedId;
+
+        const fallback = [...currentHistory].reverse().find(
+          m => m.role === 'tool' && m.runId === runId && m.tool?.name === toolName && m.tool?.status === 'start'
+        );
+
+        return fallback?.id;
+      };
+
+      const isStartPhase = toolPhase === 'start';
+      const isUpdatePhase = toolPhase === 'update';
+      const isResultPhase = toolPhase === 'result' || toolPhase === 'end';
+      const isErrorPhase = toolPhase === 'error' || (toolPhase === 'result' && Boolean(toolData.isError));
+      const toolResult = toolData.result ?? toolData.meta?.result ?? toolData.meta;
       
-      if (toolData.phase === 'start') {
+      if (isStartPhase) {
         const toolMsg: ChatMessage = {
           id: toolId,
           role: 'tool',
@@ -58,8 +143,9 @@ export function useAgentEvents() {
           tool: {
             name: toolName,
             args: toolData.args,
-            result: toolData.meta?.result,
-            status: toolData.phase
+            result: toolResult,
+            status: 'start',
+            startTime: Date.now()
           },
           timestamp: Date.now(),
           runId
@@ -67,25 +153,108 @@ export function useAgentEvents() {
 
         setChatHistory(prev => {
           const currentHistory = prev[agentId] || [];
-          if (currentHistory.some(m => m.id === toolId)) return prev;
+          const existingByToolCallId = toolCallMapKey
+            ? currentHistory.find(m => m.id === toolCallToMessageIdRef.current[toolCallMapKey] && m.role === 'tool')
+            : undefined;
+
+          if (currentHistory.some(m => m.id === toolId) || existingByToolCallId) return prev;
+
+          enqueuePendingToolId(runId, toolName, toolId);
+          if (toolCallMapKey) {
+            toolCallToMessageIdRef.current[toolCallMapKey] = toolId;
+          }
           return { ...prev, [agentId]: [...currentHistory, toolMsg] };
         });
-      } else if (toolData.phase === 'end') {
+      } else if (isUpdatePhase) {
         setChatHistory(prev => {
           const currentHistory = prev[agentId] || [];
+          const matchedToolId = resolveToolId(currentHistory);
+          if (!matchedToolId) return prev;
+
           const updated = currentHistory.map(msg => {
-            if (msg.id === toolId && msg.role === 'tool') {
+            if (msg.id === matchedToolId && msg.role === 'tool') {
               return {
                 ...msg,
                 tool: {
                   ...msg.tool!,
-                  result: toolData.meta?.result || msg.tool?.result,
-                  status: 'end'
+                  status: 'start',
+                  result: toolResult ?? msg.tool?.result
                 }
               };
             }
             return msg;
           });
+
+          return { ...prev, [agentId]: updated };
+        });
+      } else if (isResultPhase && !isErrorPhase) {
+        setChatHistory(prev => {
+          const currentHistory = prev[agentId] || [];
+          const matchedToolId = resolveToolId(currentHistory);
+          if (!matchedToolId) return prev;
+
+          const updated = currentHistory.map(msg => {
+            if (msg.id === matchedToolId && msg.role === 'tool') {
+              const duration = msg.tool?.startTime 
+                ? Date.now() - msg.tool.startTime 
+                : undefined;
+              
+              // Extract exit code if available (for exec tools)
+              // Try meta.exitCode first (direct metadata), then meta.result.exitCode (nested in result)
+              const exitCode = toolData.meta?.exitCode !== undefined 
+                ? toolData.meta.exitCode 
+                : toolData.meta?.result?.exitCode ?? toolData.result?.exitCode;
+
+              return {
+                ...msg,
+                tool: {
+                  ...msg.tool!,
+                  result: toolResult ?? msg.tool?.result,
+                  status: 'end',
+                  duration,
+                  exitCode
+                }
+              };
+            }
+            return msg;
+          });
+
+          dequeuePendingToolId(runId, toolName, matchedToolId);
+          if (toolCallMapKey) {
+            delete toolCallToMessageIdRef.current[toolCallMapKey];
+          }
+          return { ...prev, [agentId]: updated };
+        });
+      } else if (isErrorPhase) {
+        setChatHistory(prev => {
+          const currentHistory = prev[agentId] || [];
+          const matchedToolId = resolveToolId(currentHistory);
+          if (!matchedToolId) return prev;
+
+          const updated = currentHistory.map(msg => {
+            if (msg.id === matchedToolId && msg.role === 'tool') {
+              const duration = msg.tool?.startTime 
+                ? Date.now() - msg.tool.startTime 
+                : undefined;
+
+              return {
+                ...msg,
+                tool: {
+                  ...msg.tool!,
+                  status: 'error',
+                  error: toolData.error || toolData.meta?.error || (typeof toolResult === 'string' ? toolResult : 'Tool execution failed'),
+                  result: toolResult ?? msg.tool?.result,
+                  duration
+                }
+              };
+            }
+            return msg;
+          });
+
+          dequeuePendingToolId(runId, toolName, matchedToolId);
+          if (toolCallMapKey) {
+            delete toolCallToMessageIdRef.current[toolCallMapKey];
+          }
           return { ...prev, [agentId]: updated };
         });
       }
@@ -170,6 +339,39 @@ export function useAgentEvents() {
               }]
             };
           });
+        }
+        
+        // Handle pending tools gracefully when run ends/errors
+        if (data?.phase === 'error') {
+          setChatHistory(prev => {
+            const currentHistory = prev[agentId] || [];
+            const updated = currentHistory.map(msg => {
+              // Mark pending tools as interrupted
+              if (msg.runId === runId && msg.role === 'tool' && msg.tool?.status === 'start') {
+                const duration = msg.tool.startTime 
+                  ? Date.now() - msg.tool.startTime 
+                  : undefined;
+                
+                return {
+                  ...msg,
+                  tool: {
+                    ...msg.tool,
+                    status: 'error' as const,
+                    error: 'Interrupted by run failure',
+                    duration
+                  }
+                };
+              }
+              return msg;
+            });
+            return { ...prev, [agentId]: updated };
+          });
+
+          clearPendingToolQueuesForRun(runId);
+        }
+
+        if (data?.phase === 'end') {
+          clearPendingToolQueuesForRun(runId);
         }
         
         // Clear streams
