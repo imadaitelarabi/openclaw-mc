@@ -99,12 +99,66 @@ export function useAgentEvents() {
     }));
   }, []);
 
+  /**
+   * Prepend older messages to existing chat history (for pagination)
+   */
+  const prependChatHistory = useCallback((agentId: string, messages: any[]) => {
+    console.log(`[Mission Control] Prepending ${messages.length} older messages for agent ${agentId}`);
+    
+    // Transform Gateway messages to ChatMessage format
+    const transformedMessages: ChatMessage[] = messages.map((msg: any) => {
+      const chatMsg: ChatMessage = {
+        id: msg.id || msg.runId || `${Date.now()}-${Math.random()}`,
+        role: msg.role || 'assistant',
+        content: msg.content || msg.text || '',
+        timestamp: msg.timestamp || Date.now(),
+      };
+
+      if (msg.runId) {
+        chatMsg.runId = msg.runId;
+      }
+
+      if (msg.role === 'tool' && msg.tool) {
+        chatMsg.tool = {
+          name: msg.tool.name,
+          args: msg.tool.args,
+          result: msg.tool.result,
+          status: msg.tool.status || 'end',
+          error: msg.tool.error,
+          duration: msg.tool.duration,
+          exitCode: msg.tool.exitCode,
+          startTime: msg.tool.startTime,
+        };
+      }
+
+      return chatMsg;
+    });
+
+    // Prepend to existing history
+    setChatHistory(prev => {
+      const existing = prev[agentId] || [];
+      return {
+        ...prev,
+        [agentId]: [...transformedMessages, ...existing],
+      };
+    });
+  }, []);
+
   const handleAgentEvent = useCallback((message: any) => {
     // Handle chat history loading
     if (message.type === 'chat_history') {
       const { agentId, messages } = message;
       if (agentId && Array.isArray(messages)) {
         loadChatHistory(agentId, messages);
+      }
+      return;
+    }
+
+    // Handle loading more history (pagination)
+    if (message.type === 'chat_history_more') {
+      const { agentId, messages } = message;
+      if (agentId && Array.isArray(messages)) {
+        prependChatHistory(agentId, messages);
       }
       return;
     }
@@ -467,7 +521,7 @@ export function useAgentEvents() {
         }
       }
     }
-  }, [loadChatHistory]);
+  }, [loadChatHistory, prependChatHistory]);
 
   const addUserMessage = useCallback((agentId: string, content: string) => {
     const userMsg: ChatMessage = {

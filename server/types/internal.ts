@@ -29,6 +29,7 @@ export type ClientMessage =
   | { type: 'gateways.remove'; id: string }
   | { type: 'gateway.call'; method: string; params?: Record<string, unknown>; requestId?: string }
   | { type: 'chat.send'; agentId: string; message: string }
+  | { type: 'chat.history.load'; agentId: string; params: Record<string, unknown> }
   | { type: 'models.list' }
   | { type: 'sessions.list' }
   | {
@@ -82,6 +83,7 @@ export type ServerMessage =
   | { type: 'agents.update.ack'; requestId?: string; agentId: string; name: string }
   | { type: 'agents.delete.ack'; requestId?: string; agentId: string; removed: boolean }
   | { type: 'chat_history'; agentId: string; messages: unknown[] }
+  | { type: 'chat_history_more'; agentId: string; messages: unknown[] }
   | { type: 'event'; event: string; payload: Record<string, unknown> };
 
 // Transformed types for client display

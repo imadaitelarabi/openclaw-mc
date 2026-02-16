@@ -7,7 +7,7 @@ import type { ClientMessage, ExtendedWebSocket } from '../types/internal';
 import type { GatewayClient } from '../core/GatewayClient';
 import { ConfigManager } from '../core/ConfigManager';
 import { handleAgentAdd, handleAgentUpdate, handleAgentDelete } from './agent.handler';
-import { handleChatSend } from './chat.handler';
+import { handleChatSend, handleChatHistoryLoad } from './chat.handler';
 import { handleSessionsList, handleSessionsPatch } from './session.handler';
 import {
   handleGatewaysList,
@@ -57,6 +57,10 @@ export async function handleMessage(
 
       case 'chat.send':
         await handleChatSend(msg, ws, gateway);
+        break;
+
+      case 'chat.history.load':
+        await handleChatHistoryLoad(msg, ws, gateway);
         break;
 
       case 'models.list':

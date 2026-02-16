@@ -1,6 +1,6 @@
 /**
  * Chat Handler
- * Handles chat message sending
+ * Handles chat message sending and history loading
  */
 
 import type { ExtendedWebSocket } from '../types/internal';
@@ -14,5 +14,43 @@ export async function handleChatSend(
   // Handle chat messages from client
   if (msg.agentId && msg.message) {
     await gateway.sendChat(msg.agentId, msg.message);
+  }
+}
+
+export async function handleChatHistoryLoad(
+  msg: any,
+  ws: ExtendedWebSocket,
+  gateway: GatewayClient
+): Promise<void> {
+  try {
+    const { agentId, params } = msg;
+    if (!agentId || !params?.sessionKey) {
+      console.error('[Chat] Invalid chat.history.load request');
+      return;
+    }
+
+    // Fetch history from Gateway
+    const messages = await gateway.fetchChatHistory(
+      params.sessionKey,
+      params.limit || 50,
+      params.before
+    );
+
+    // Send response back to client
+    ws.send(
+      JSON.stringify({
+        type: 'chat_history_more',
+        agentId,
+        messages,
+      })
+    );
+  } catch (err) {
+    console.error('[Chat] Failed to load history:', err);
+    ws.send(
+      JSON.stringify({
+        type: 'error',
+        message: 'Failed to load chat history',
+      })
+    );
   }
 }

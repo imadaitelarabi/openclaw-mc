@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton } from '@/components/chat';
+import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
+import { useChatHistory } from '@/hooks';
 import { getStreamKey } from '@/lib/gateway-utils';
 import type { Agent } from '@/types';
 
@@ -34,9 +35,13 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showHistoryLoader, setShowHistoryLoader] = useState(true); // Show by default if there's history
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
+
+  // Chat history hook for loading older messages
+  const { loading: historyLoading, loadMoreHistory } = useChatHistory({ sendMessage });
 
   // Extract verbose mode from session settings
   const verboseMode = sessionSettings?.verbose || 'off';
@@ -75,6 +80,19 @@ export function ChatPanel({
     }
   };
 
+  // Handle loading more history
+  const handleLoadMore = async () => {
+    if (chatHistory.length === 0) return;
+    
+    // Get the oldest message ID for pagination
+    const oldestMessage = chatHistory[0];
+    const beforeId = oldestMessage?.id;
+    
+    if (beforeId) {
+      await loadMoreHistory(agentId, 50, beforeId);
+    }
+  };
+
   const currentStreamKey = agentId && activeRuns[agentId] 
     ? getStreamKey(agentId, activeRuns[agentId])
     : null;
@@ -91,6 +109,15 @@ export function ChatPanel({
         className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 overscroll-contain"
       >
         <div className="max-w-4xl mx-auto space-y-6 pb-4">
+          {/* History Loader - shows at top if there's history */}
+          {showHistoryLoader && chatHistory.length > 0 && (
+            <ChatHistoryLoader
+              agentId={agentId}
+              loading={historyLoading[agentId] || false}
+              onLoadMore={handleLoadMore}
+            />
+          )}
+
           {chatHistory.map((msg) => (
             <ChatMessageItem key={msg.id} message={msg} verboseMode={verboseMode} />
           ))}
