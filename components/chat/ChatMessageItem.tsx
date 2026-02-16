@@ -110,40 +110,27 @@ export const ChatMessageItem = memo(function ChatMessageItem({ message, showTool
 }, (prevProps, nextProps) => {
   // Custom comparison for better memoization
   // Return true if props are equal (component should NOT re-render)
-  if (
-    prevProps.message.id !== nextProps.message.id ||
-    prevProps.message.content !== nextProps.message.content ||
-    prevProps.message.timestamp !== nextProps.message.timestamp ||
-    prevProps.showTools !== nextProps.showTools
-  ) {
+  
+  // Message ID is the primary identifier - if it changed, it's a different message
+  if (prevProps.message.id !== nextProps.message.id) {
     return false;
   }
   
-  // Compare tool object (only if both exist)
-  if (prevProps.message.tool || nextProps.message.tool) {
-    if (!prevProps.message.tool || !nextProps.message.tool) {
-      return false;
-    }
-    if (prevProps.message.tool.name !== nextProps.message.tool.name ||
-        prevProps.message.tool.status !== nextProps.message.tool.status) {
-      return false;
-    }
+  // Check if showTools changed (affects rendering of tool messages)
+  if (prevProps.showTools !== nextProps.showTools) {
+    return false;
   }
   
-  // Compare attachments array
-  if (prevProps.message.attachments || nextProps.message.attachments) {
-    if (!prevProps.message.attachments || !nextProps.message.attachments) {
-      return false;
-    }
-    if (prevProps.message.attachments.length !== nextProps.message.attachments.length) {
-      return false;
-    }
-    // Quick check: compare first attachment's content (usually sufficient for identity check)
-    if (prevProps.message.attachments.length > 0 &&
-        prevProps.message.attachments[0].content !== nextProps.message.attachments[0].content) {
-      return false;
-    }
+  // For the same message ID, check if content changed (e.g., streaming updates)
+  if (prevProps.message.content !== nextProps.message.content) {
+    return false;
   }
   
+  // Check if tool status changed (e.g., from 'running' to 'complete')
+  if (prevProps.message.tool?.status !== nextProps.message.tool?.status) {
+    return false;
+  }
+  
+  // All relevant fields are equal, no need to re-render
   return true;
 });
