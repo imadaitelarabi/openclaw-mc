@@ -12,6 +12,9 @@ export function useAgentEvents() {
   const latestTextRef = useRef<Record<string, string>>({});
   const pendingToolIdsRef = useRef<Record<string, string[]>>({});
   const toolCallToMessageIdRef = useRef<Record<string, string>>({});
+  
+  // Event deduplication tracking
+  const seenEventsRef = useRef(new Set<string>());
 
   const getToolQueueKey = (runId: string, toolName: string) => `${runId}::${toolName}`;
 
@@ -185,6 +188,22 @@ export function useAgentEvents() {
     const { stream, data, runId, sessionKey, seq } = payload;
     const agentId = extractAgentId(sessionKey);
     if (!agentId) return;
+
+    // Deduplication: Check if we've already processed this event
+    const eventKey = `${runId}:${stream}:${seq || 0}`;
+    if (seenEventsRef.current.has(eventKey)) {
+      console.log('[Mission Control] Skipping duplicate event:', eventKey);
+      return;
+    }
+    
+    // Mark event as seen
+    seenEventsRef.current.add(eventKey);
+    
+    // Prune old entries to prevent memory leaks (keep last 1000)
+    if (seenEventsRef.current.size > 1000) {
+      const entries = Array.from(seenEventsRef.current);
+      seenEventsRef.current = new Set(entries.slice(-500));
+    }
 
     const streamKey = getStreamKey(agentId, runId);
 
