@@ -248,9 +248,36 @@ export class GatewayClient {
       // Send Agent Definitions to client
       this.broadcast({ type: 'agent_definitions', data: this.agentsList });
 
-      // Then fetch sessions
+      // Fetch sessions to determine active runs
       const sessions = await this.request('sessions.list', {});
       this.transformAndBroadcastSessions(sessions);
+
+      // Fetch recent chat history for each agent (last 20 messages)
+      console.log('[Gateway] Fetching chat history for agents...');
+      const historyPromises = this.agentsList.map(async (agent) => {
+        const sessionKey = `agent:${agent.id}:main`;
+        try {
+          const messages = await this.fetchChatHistory(sessionKey, 20);
+          return { agentId: agent.id, messages };
+        } catch (err) {
+          console.error(`[Gateway] Failed to fetch history for ${agent.id}:`, err);
+          return { agentId: agent.id, messages: [] };
+        }
+      });
+
+      const histories = await Promise.all(historyPromises);
+      
+      // Broadcast chat history to clients
+      histories.forEach(({ agentId, messages }) => {
+        if (messages.length > 0) {
+          console.log(`[Gateway] Broadcasting ${messages.length} messages for agent ${agentId}`);
+          this.broadcast({
+            type: 'chat_history',
+            agentId,
+            messages,
+          });
+        }
+      });
     } catch (err) {
       console.error('[Gateway] Failed to fetch initial data:', err);
     }
@@ -349,6 +376,36 @@ export class GatewayClient {
     } catch (err) {
       console.error(`[Chat] Failed to send to ${sessionKey}:`, err);
       return { ok: false, error: (err as Error).message };
+    }
+  }
+
+  /**
+   * Fetch chat history from Gateway
+   * @param sessionKey - Session key (e.g., "agent:agentId:main")
+   * @param limit - Number of messages to fetch (default: 20)
+   * @param before - Message ID to paginate from (optional)
+   * @returns Array of chat messages
+   */
+  async fetchChatHistory(
+    sessionKey: string,
+    limit: number = 20,
+    before?: string
+  ): Promise<any[]> {
+    try {
+      const params: Record<string, unknown> = {
+        sessionKey,
+        limit,
+      };
+      
+      if (before) {
+        params.before = before;
+      }
+
+      const response = await this.request('chat.history', params);
+      return Array.isArray(response) ? response : response?.messages || [];
+    } catch (err) {
+      console.error(`[Gateway] Failed to fetch chat history for ${sessionKey}:`, err);
+      return [];
     }
   }
 

@@ -55,7 +55,60 @@ export function useAgentEvents() {
     });
   };
 
+  /**
+   * Load chat history from Gateway
+   */
+  const loadChatHistory = useCallback((agentId: string, messages: any[]) => {
+    console.log(`[Mission Control] Loading ${messages.length} history messages for agent ${agentId}`);
+    
+    // Transform Gateway messages to ChatMessage format
+    const transformedMessages: ChatMessage[] = messages.map((msg: any) => {
+      // Basic message structure
+      const chatMsg: ChatMessage = {
+        id: msg.id || msg.runId || `${Date.now()}-${Math.random()}`,
+        role: msg.role || 'assistant',
+        content: msg.content || msg.text || '',
+        timestamp: msg.timestamp || Date.now(),
+      };
+
+      // Add runId if present
+      if (msg.runId) {
+        chatMsg.runId = msg.runId;
+      }
+
+      // Handle tool messages
+      if (msg.role === 'tool' && msg.tool) {
+        chatMsg.tool = {
+          name: msg.tool.name,
+          args: msg.tool.args,
+          result: msg.tool.result,
+          status: msg.tool.status || 'end',
+          error: msg.tool.error,
+          duration: msg.tool.duration,
+          exitCode: msg.tool.exitCode,
+          startTime: msg.tool.startTime,
+        };
+      }
+
+      return chatMsg;
+    });
+
+    setChatHistory(prev => ({
+      ...prev,
+      [agentId]: transformedMessages,
+    }));
+  }, []);
+
   const handleAgentEvent = useCallback((message: any) => {
+    // Handle chat history loading
+    if (message.type === 'chat_history') {
+      const { agentId, messages } = message;
+      if (agentId && Array.isArray(messages)) {
+        loadChatHistory(agentId, messages);
+      }
+      return;
+    }
+
     const { event, payload } = message;
     
     // Process chat events to end active runs
@@ -414,7 +467,7 @@ export function useAgentEvents() {
         }
       }
     }
-  }, []);
+  }, [loadChatHistory]);
 
   const addUserMessage = useCallback((agentId: string, content: string) => {
     const userMsg: ChatMessage = {
