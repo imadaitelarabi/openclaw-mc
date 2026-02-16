@@ -48,7 +48,14 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
           : 'bg-secondary/80 backdrop-blur'
       }`}>
         <div className="markdown-content break-words select-text max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              a: ({ node, ...props }) => (
+                <a {...props} target="_blank" rel="noopener noreferrer" />
+              )
+            }}
+          >
             {message.content}
           </ReactMarkdown>
         </div>
