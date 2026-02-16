@@ -57,6 +57,7 @@ export const ChatPanel = memo(function ChatPanel({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
+  const previousChatLengthRef = useRef(0);
 
   // Chat history hook for loading older messages
   const { loading: historyLoading, loadMoreHistory } = useChatHistory({ sendMessage });
@@ -69,11 +70,13 @@ export const ChatPanel = memo(function ChatPanel({
     isActivePanel: isActive,
   });
 
-  // Track activity when chat history changes (new messages arrive)
+  // Track activity when chat history length increases (new messages arrive)
   useEffect(() => {
-    if (chatHistory.length > 0) {
+    const currentLength = chatHistory.length;
+    if (currentLength > previousChatLengthRef.current) {
       trackActivity();
     }
+    previousChatLengthRef.current = currentLength;
   }, [chatHistory.length, trackActivity]);
 
   // Debounced scroll position save function

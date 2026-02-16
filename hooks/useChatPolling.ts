@@ -221,6 +221,9 @@ export function useChatPolling({
       
       pollHistory();
       
+      // Check again after poll completes in case cleanup happened during poll
+      if (isCleanedUp) return;
+      
       // Schedule next poll with adaptive interval
       const interval = getCurrentInterval();
       intervalRef.current = setTimeout(() => {
