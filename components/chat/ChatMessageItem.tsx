@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { ChatMessage } from '@/types';
 import { ToolCard } from './ToolCard';
 import { ReasoningCard } from './ReasoningCard';
@@ -11,7 +11,7 @@ interface ChatMessageItemProps {
   showTools: boolean;
 }
 
-export function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
+export const ChatMessageItem = memo(function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
   const [copied, setCopied] = useState(false);
   const content = typeof message.content === 'string'
     ? message.content
@@ -107,4 +107,45 @@ export function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison for better memoization
+  // Return true if props are equal (component should NOT re-render)
+  
+  // Message ID is the primary identifier - if it changed, it's a different message
+  if (prevProps.message.id !== nextProps.message.id) {
+    return false;
+  }
+  
+  // Check if showTools changed (affects rendering of tool messages)
+  if (prevProps.showTools !== nextProps.showTools) {
+    return false;
+  }
+  
+  // For the same message ID, check if content changed (e.g., streaming updates)
+  if (prevProps.message.content !== nextProps.message.content) {
+    return false;
+  }
+  
+  // Check if tool existence changed
+  const prevHasTool = !!prevProps.message.tool;
+  const nextHasTool = !!nextProps.message.tool;
+  if (prevHasTool !== nextHasTool) {
+    return false;
+  }
+  
+  // Check if tool properties changed (status, result, error, name, or args)
+  if (prevHasTool && nextHasTool) {
+    const prevTool = prevProps.message.tool!;
+    const nextTool = nextProps.message.tool!;
+    if (prevTool.status !== nextTool.status ||
+        prevTool.result !== nextTool.result ||
+        prevTool.error !== nextTool.error ||
+        prevTool.name !== nextTool.name ||
+        prevTool.args !== nextTool.args) {
+      return false;
+    }
+  }
+  
+  // All relevant fields are equal, no need to re-render
+  return true;
+});

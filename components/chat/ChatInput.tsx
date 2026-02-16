@@ -192,8 +192,13 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
             value={value}
             onChange={(e) => {
               onChange(e.target.value);
-              e.target.style.height = 'auto';
-              e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+              // Defer style update to next frame to avoid blocking main thread
+              requestAnimationFrame(() => {
+                if (textareaRef.current) {
+                  textareaRef.current.style.height = 'auto';
+                  textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+                }
+              });
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {

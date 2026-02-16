@@ -4,6 +4,7 @@ import { memo, useState, useRef, useEffect, useMemo } from 'react';
 import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
 import { useChatHistory, useChatPolling } from '@/hooks';
 import { uiStateStore } from '@/lib/ui-state-db';
+import { debounce } from '@/lib/utils';
 import type { Agent } from '@/types';
 
 // Constants
@@ -62,6 +63,21 @@ export const ChatPanel = memo(function ChatPanel({
     activeRunId,
     sendMessage,
   });
+
+  // Debounced scroll position save function
+  const debouncedSaveScroll = useMemo(
+    () => debounce((agentId: string, position: number) => {
+      uiStateStore.saveScrollPosition(agentId, position);
+    }, 300),
+    []
+  );
+
+  // Cleanup debounced function on unmount
+  useEffect(() => {
+    return () => {
+      debouncedSaveScroll.cancel();
+    };
+  }, [debouncedSaveScroll]);
 
   // Filter messages based on per-panel settings
   const filteredChatHistory = useMemo(() => {
@@ -166,8 +182,8 @@ export const ChatPanel = memo(function ChatPanel({
     shouldAutoScrollRef.current = isAtBottom;
     setShowScrollButton(!isAtBottom);
     
-    // Save scroll position periodically
-    uiStateStore.saveScrollPosition(agentId, scrollTop);
+    // Save scroll position with debounce (max once every 300ms)
+    debouncedSaveScroll(agentId, scrollTop);
   };
 
   useEffect(() => {
