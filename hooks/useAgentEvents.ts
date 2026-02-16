@@ -475,6 +475,36 @@ export function useAgentEvents() {
   }, []);
 
   const handleAgentEvent = useCallback((message: any) => {
+    if (message.type === 'chat.abort.run.ack') {
+      const { agentId, ok } = message;
+      if (!agentId || !ok) return;
+
+      setActiveRuns(prev => {
+        const runId = prev[agentId];
+        if (!runId) return prev;
+
+        const next = { ...prev };
+        delete next[agentId];
+
+        const streamKey = getStreamKey(agentId, runId);
+        setChatStreams(streamPrev => {
+          const streamNext = { ...streamPrev };
+          delete streamNext[streamKey];
+          return streamNext;
+        });
+        setReasoningStreams(reasoningPrev => {
+          const reasoningNext = { ...reasoningPrev };
+          delete reasoningNext[streamKey];
+          return reasoningNext;
+        });
+        delete latestTextRef.current[streamKey];
+        clearPendingToolQueuesForRun(runId);
+
+        return next;
+      });
+      return;
+    }
+
     // Handle chat history loading
     if (message.type === 'chat_history') {
       const { agentId, messages } = message;

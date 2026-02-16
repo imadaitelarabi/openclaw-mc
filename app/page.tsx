@@ -88,10 +88,6 @@ function MissionControlInner() {
     }
 
     abortRun(agentId);
-    toast({
-      title: 'Stop requested',
-      description: 'Sent abort request to gateway.'
-    });
   }, [abortRun, connectionStatus, toast]);
 
   // Enhanced reset handler that also clears UI history
@@ -172,6 +168,19 @@ function MissionControlInner() {
       } else if (message.type === 'gateways.switch.ack' || message.type === 'gateways.remove.ack') {
         sendMessage({ type: 'gateways.list' });
         setShowSetup(false);
+      } else if (message.type === 'chat.abort.run.ack') {
+        if (message.ok) {
+          toast({
+            title: 'Run stopped',
+            description: 'Generation was aborted.'
+          });
+        } else {
+          toast({
+            title: 'Stop failed',
+            description: message.error || 'Failed to abort run.',
+            variant: 'destructive'
+          });
+        }
       } else if (message.type === 'error') {
         if (message.requestId) {
           return;
