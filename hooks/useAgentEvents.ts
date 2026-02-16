@@ -2,6 +2,189 @@ import { useState, useRef, useCallback } from 'react';
 import type { ChatMessage } from '@/types';
 import { extractAgentId, getStreamKey, getToolId } from '@/lib/gateway-utils';
 
+function normalizeTextContent(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value == null) return '';
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeTextContent(item)).filter(Boolean).join('\n');
+  }
+
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+
+    if (typeof record.text === 'string') return record.text;
+    if (typeof record.content === 'string') return record.content;
+    if (record.content !== undefined) return normalizeTextContent(record.content);
+    if (typeof record.value === 'string') return record.value;
+
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return String(value);
+}
+
+function stripAssistantFinalEnvelope(text: string): string {
+  const finalMatch = text.match(/<final>([\s\S]*?)<\/final>/i);
+  const withoutEnvelope = finalMatch ? finalMatch[1] : text;
+  return withoutEnvelope.replace(/\[\[reply_to_current\]\]/g, '').trim();
+}
+
+function toContentParts(content: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(content)) {
+    return content.filter((part): part is Record<string, unknown> => typeof part === 'object' && part !== null);
+  }
+
+  if (typeof content === 'string') {
+    return [{ type: 'text', text: content }];
+  }
+
+  if (content && typeof content === 'object') {
+    return [content as Record<string, unknown>];
+  }
+
+  return [];
+}
+
+function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
+  return messages.flatMap((msg: any, index: number): ChatMessage[] => {
+    const role = msg?.role;
+    const timestamp = typeof msg?.timestamp === 'number' ? msg.timestamp : Date.now();
+    const runId = typeof msg?.runId === 'string' ? msg.runId : undefined;
+    const baseId = msg?.id || msg?.runId || `${timestamp}-${index}-${Math.random().toString(36).slice(2, 7)}`;
+
+    // Handle tool results from history payloads
+    if (role === 'toolResult') {
+      const details = (msg?.details && typeof msg.details === 'object') ? msg.details : {};
+      const contentText = normalizeTextContent(msg?.content);
+      const aggregated = normalizeTextContent((details as any)?.aggregated);
+      const exitCode = typeof (details as any)?.exitCode === 'number' ? (details as any).exitCode : undefined;
+      const duration = typeof (details as any)?.durationMs === 'number'
+        ? (details as any).durationMs
+        : (typeof (details as any)?.duration === 'number' ? (details as any).duration : undefined);
+      const isError = Boolean(msg?.isError);
+
+      return [{
+        id: msg?.toolCallId || baseId,
+        role: 'tool',
+        content: msg?.toolName || 'tool',
+        tool: {
+          name: msg?.toolName || 'tool',
+          status: isError ? 'error' : 'end',
+          result: aggregated || contentText || (details as any)?.result,
+          error: isError ? normalizeTextContent((details as any)?.error || contentText || 'Tool execution failed') : undefined,
+          exitCode,
+          duration,
+        },
+        timestamp,
+        runId,
+      }];
+    }
+
+    const parts = toContentParts(msg?.content);
+    const textParts: string[] = [];
+    const thinkingParts: string[] = [];
+    const toolMessages: ChatMessage[] = [];
+
+    parts.forEach((part, partIndex) => {
+      const partType = typeof part.type === 'string' ? part.type : '';
+
+      if (partType === 'text') {
+        const rawText = normalizeTextContent(part.text);
+        if (rawText) textParts.push(stripAssistantFinalEnvelope(rawText));
+        return;
+      }
+
+      if (partType === 'thinking') {
+        const thinkingText = normalizeTextContent(part.thinking ?? part.text);
+        if (thinkingText) thinkingParts.push(thinkingText);
+        return;
+      }
+
+      if (partType === 'toolCall') {
+        const toolName = normalizeTextContent(part.name || 'tool');
+        const toolCallId = normalizeTextContent(part.id || `${baseId}-tool-${partIndex}`);
+        toolMessages.push({
+          id: toolCallId,
+          role: 'tool',
+          content: toolName,
+          tool: {
+            name: toolName,
+            args: part.arguments,
+            status: 'start',
+          },
+          timestamp,
+          runId,
+        });
+        return;
+      }
+
+      const fallbackText = normalizeTextContent(part);
+      if (fallbackText) textParts.push(stripAssistantFinalEnvelope(fallbackText));
+    });
+
+    const normalizedRole: ChatMessage['role'] = role === 'user'
+      ? 'user'
+      : role === 'reasoning'
+        ? 'reasoning'
+        : role === 'tool'
+          ? 'tool'
+          : 'assistant';
+
+    const textContent = textParts.filter(Boolean).join('\n\n').trim();
+    const thinkingContent = thinkingParts.filter(Boolean).join('\n\n').trim();
+    const result: ChatMessage[] = [];
+
+    if (thinkingContent) {
+      result.push({
+        id: `${baseId}-reasoning`,
+        role: 'reasoning',
+        content: thinkingContent,
+        timestamp,
+        runId,
+      });
+    }
+
+    if (textContent || (normalizedRole !== 'tool' && parts.length === 0)) {
+      result.push({
+        id: String(baseId),
+        role: normalizedRole,
+        content: textContent || normalizeTextContent(msg?.content ?? msg?.text),
+        thinking: thinkingContent || undefined,
+        timestamp,
+        runId,
+      });
+    }
+
+    if (normalizedRole === 'tool' && msg?.tool) {
+      result.push({
+        id: String(baseId),
+        role: 'tool',
+        content: normalizeTextContent(msg?.tool?.name || msg?.content || 'tool'),
+        tool: {
+          name: normalizeTextContent(msg?.tool?.name || 'tool'),
+          args: msg?.tool?.args,
+          result: msg?.tool?.result,
+          status: msg?.tool?.status || 'end',
+          error: msg?.tool?.error,
+          duration: msg?.tool?.duration,
+          exitCode: msg?.tool?.exitCode,
+          startTime: msg?.tool?.startTime,
+        },
+        timestamp,
+        runId,
+      });
+    }
+
+    return [...result, ...toolMessages];
+  });
+}
+
 export function useAgentEvents() {
   const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({});
   const [chatStreams, setChatStreams] = useState<Record<string, string>>({});
@@ -63,38 +246,7 @@ export function useAgentEvents() {
    */
   const loadChatHistory = useCallback((agentId: string, messages: any[]) => {
     console.log(`[Mission Control] Loading ${messages.length} history messages for agent ${agentId}`);
-    
-    // Transform Gateway messages to ChatMessage format
-    const transformedMessages: ChatMessage[] = messages.map((msg: any) => {
-      // Basic message structure
-      const chatMsg: ChatMessage = {
-        id: msg.id || msg.runId || `${Date.now()}-${Math.random()}`,
-        role: msg.role || 'assistant',
-        content: msg.content || msg.text || '',
-        timestamp: msg.timestamp || Date.now(),
-      };
-
-      // Add runId if present
-      if (msg.runId) {
-        chatMsg.runId = msg.runId;
-      }
-
-      // Handle tool messages
-      if (msg.role === 'tool' && msg.tool) {
-        chatMsg.tool = {
-          name: msg.tool.name,
-          args: msg.tool.args,
-          result: msg.tool.result,
-          status: msg.tool.status || 'end',
-          error: msg.tool.error,
-          duration: msg.tool.duration,
-          exitCode: msg.tool.exitCode,
-          startTime: msg.tool.startTime,
-        };
-      }
-
-      return chatMsg;
-    });
+    const transformedMessages = transformGatewayHistoryMessages(messages);
 
     setChatHistory(prev => ({
       ...prev,
@@ -107,35 +259,7 @@ export function useAgentEvents() {
    */
   const prependChatHistory = useCallback((agentId: string, messages: any[]) => {
     console.log(`[Mission Control] Prepending ${messages.length} older messages for agent ${agentId}`);
-    
-    // Transform Gateway messages to ChatMessage format
-    const transformedMessages: ChatMessage[] = messages.map((msg: any) => {
-      const chatMsg: ChatMessage = {
-        id: msg.id || msg.runId || `${Date.now()}-${Math.random()}`,
-        role: msg.role || 'assistant',
-        content: msg.content || msg.text || '',
-        timestamp: msg.timestamp || Date.now(),
-      };
-
-      if (msg.runId) {
-        chatMsg.runId = msg.runId;
-      }
-
-      if (msg.role === 'tool' && msg.tool) {
-        chatMsg.tool = {
-          name: msg.tool.name,
-          args: msg.tool.args,
-          result: msg.tool.result,
-          status: msg.tool.status || 'end',
-          error: msg.tool.error,
-          duration: msg.tool.duration,
-          exitCode: msg.tool.exitCode,
-          startTime: msg.tool.startTime,
-        };
-      }
-
-      return chatMsg;
-    });
+    const transformedMessages = transformGatewayHistoryMessages(messages);
 
     // Prepend to existing history
     setChatHistory(prev => {
@@ -303,7 +427,7 @@ export function useAgentEvents() {
                 ...msg,
                 tool: {
                   ...msg.tool!,
-                  status: 'start',
+                  status: 'start' as const,
                   result: toolResult ?? msg.tool?.result
                 }
               };
@@ -336,7 +460,7 @@ export function useAgentEvents() {
                 tool: {
                   ...msg.tool!,
                   result: toolResult ?? msg.tool?.result,
-                  status: 'end',
+                  status: 'end' as const,
                   duration,
                   exitCode
                 }
@@ -367,7 +491,7 @@ export function useAgentEvents() {
                 ...msg,
                 tool: {
                   ...msg.tool!,
-                  status: 'error',
+                  status: 'error' as const,
                   error: toolData.error || toolData.meta?.error || (typeof toolResult === 'string' ? toolResult : 'Tool execution failed'),
                   result: toolResult ?? msg.tool?.result,
                   duration
@@ -391,7 +515,7 @@ export function useAgentEvents() {
       if (data?.delta) {
         setReasoningStreams(prev => ({
           ...prev,
-          [streamKey]: (prev[streamKey] || '') + data.delta
+          [streamKey]: (prev[streamKey] || '') + normalizeTextContent(data.delta)
         }));
       } else if (data?.text) {
         setChatHistory(prev => {
@@ -402,7 +526,7 @@ export function useAgentEvents() {
             [agentId]: [...currentHistory, {
               id: `${runId}-reasoning`,
               role: 'reasoning',
-              content: data.text,
+              content: normalizeTextContent(data.text),
               timestamp: Date.now(),
               runId
             }]
@@ -418,14 +542,14 @@ export function useAgentEvents() {
 
     // Handle assistant stream
     if (stream === 'assistant') {
-      if (data?.text) {
-        latestTextRef.current[streamKey] = data.text;
+      if (data?.text !== undefined) {
+        latestTextRef.current[streamKey] = normalizeTextContent(data.text);
       }
       
-      if (data?.delta) {
+      if (data?.delta !== undefined) {
         setChatStreams(prev => ({
           ...prev,
-          [streamKey]: (prev[streamKey] || '') + data.delta
+          [streamKey]: (prev[streamKey] || '') + normalizeTextContent(data.delta)
         }));
       }
     }

@@ -29,7 +29,15 @@ export type ClientMessage =
   | { type: 'gateways.remove'; id: string }
   | { type: 'gateway.call'; method: string; params?: Record<string, unknown>; requestId?: string }
   | { type: 'chat.send'; agentId: string; message: string }
-  | { type: 'chat.history.load'; agentId: string; params: Record<string, unknown> }
+  | {
+      type: 'chat.history.load';
+      agentId: string;
+      params: {
+        sessionKey: string;
+        limit?: number;
+        before?: string;
+      };
+    }
   | { type: 'models.list' }
   | { type: 'sessions.list' }
   | {
