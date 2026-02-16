@@ -1,12 +1,24 @@
+import { useState } from 'react';
 import type { ChatMessage } from '@/types';
 import { ToolCard } from './ToolCard';
 import { ReasoningCard } from './ReasoningCard';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Copy, Check } from 'lucide-react';
 
 interface ChatMessageItemProps {
   message: ChatMessage;
 }
 
 export function ChatMessageItem({ message }: ChatMessageItemProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (message.role === 'tool') {
     return (
       <div className="flex flex-col items-start">
@@ -25,13 +37,15 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
 
   return (
     <div className={`flex flex-col w-full overflow-hidden ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
-      <div className={`max-w-[95%] sm:max-w-[85%] rounded-lg p-3 md:p-4 ${
+      <div className={`relative max-w-[95%] sm:max-w-[85%] rounded-lg p-3 md:p-4 group ${
         message.role === 'user' 
           ? 'bg-primary text-primary-foreground' 
           : 'bg-secondary/80 backdrop-blur'
       }`}>
-        <div className="text-sm md:text-base whitespace-pre-wrap leading-relaxed break-words">
-          {message.content}
+        <div className="markdown-content break-words select-text max-w-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {message.content}
+          </ReactMarkdown>
         </div>
         {message.thinking && (
           <details className="mt-3 pt-3 border-t border-white/10">
@@ -43,6 +57,13 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
             </div>
           </details>
         )}
+        <button
+          onClick={handleCopy}
+          className="absolute bottom-2 right-2 p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20"
+          aria-label="Copy message"
+        >
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
       </div>
     </div>
   );

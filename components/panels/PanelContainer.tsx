@@ -71,12 +71,14 @@ export function PanelContainer({
         <div 
           key={panel.id} 
           className="flex flex-col border-r last:border-r-0 border-border min-h-0 overflow-hidden"
+          onClick={() => onPanelActivate(panel.id)}
         >
           <PanelHeader
             title={panel.title}
             isActive={panel.isActive}
             onClose={() => onPanelClose(panel.id)}
             onClick={() => onPanelActivate(panel.id)}
+            showCloseButton={panels.length > 1}
           />
           
           <div className="flex-1 min-h-0 overflow-hidden">
