@@ -1,4 +1,4 @@
-import { Wifi, WifiOff, RotateCcw } from 'lucide-react';
+import { Wifi, WifiOff } from 'lucide-react';
 import type { Agent, ConnectionStatus } from '@/types';
 import { AgentSelector } from '../agents';
 import { ModelSelector, ThinkingToggle, VerboseToggle, ReasoningToggle } from '../statusbar';
@@ -30,9 +30,6 @@ interface StatusBarProps {
   onShowToolsChange?: (show: boolean) => void;
   onShowReasoningChange?: (show: boolean) => void;
   
-  // Session control
-  onResetSession?: (agentId: string) => void;
-  
   // Gateway management
   gateways: any[];
   activeGatewayId: string | null;
@@ -61,18 +58,12 @@ export function StatusBar({
   onThinkingChange,
   onShowToolsChange,
   onShowReasoningChange,
-  onResetSession,
   gateways,
   activeGatewayId,
   onSwitchGateway,
   onAddGateway,
   onRemoveGateway
 }: StatusBarProps) {
-  const handleResetSession = () => {
-    if (selectedAgent && onResetSession && window.confirm('Are you sure you want to start a new session? This will clear your chat history.')) {
-      onResetSession(selectedAgent);
-    }
-  };
 
   return (
     <div className="h-8 bg-secondary border-t border-border flex items-center px-3 text-xs select-none relative z-50 gap-3">
@@ -136,21 +127,6 @@ export function StatusBar({
           onChange={onShowReasoningChange || (() => {})}
           disabled={!onShowReasoningChange}
         />
-      )}
-
-      {/* Separator */}
-      {selectedAgent && <div className="h-4 w-px bg-border" />}
-
-      {/* New Session Button */}
-      {selectedAgent && onResetSession && (
-        <button
-          onClick={handleResetSession}
-          className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors"
-          title="Start new session"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span className="hidden xl:inline">New Session</span>
-        </button>
       )}
 
       <div className="flex-1" />
