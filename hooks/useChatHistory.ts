@@ -22,6 +22,12 @@ export function useChatHistory({ sendMessage }: UseChatHistoryProps) {
     (agentId: string, limit: number = DEFAULT_HISTORY_PAGE_SIZE, before?: string) => {
       setLoading((prev) => ({ ...prev, [agentId]: true }));
 
+      // Create timeout that will be cleared on success
+      const timeoutId = setTimeout(() => {
+        console.warn(`[ChatHistory] Load timeout for ${agentId}`);
+        setLoading((prev) => ({ ...prev, [agentId]: false }));
+      }, HISTORY_LOAD_TIMEOUT_MS);
+
       try {
         const sessionKey = `agent:${agentId}:main`;
         const params: Record<string, unknown> = {
@@ -40,15 +46,19 @@ export function useChatHistory({ sendMessage }: UseChatHistoryProps) {
           agentId,
           params,
         });
+
+        // Clear timeout on successful send
+        clearTimeout(timeoutId);
+        
+        // Set loading to false after a reasonable wait for response
+        setTimeout(() => {
+          setLoading((prev) => ({ ...prev, [agentId]: false }));
+        }, 2000);
       } catch (err) {
         console.error(`[ChatHistory] Failed to load more history for ${agentId}:`, err);
+        clearTimeout(timeoutId);
         setLoading((prev) => ({ ...prev, [agentId]: false }));
       }
-
-      // Reset loading state after a timeout as fallback
-      setTimeout(() => {
-        setLoading((prev) => ({ ...prev, [agentId]: false }));
-      }, HISTORY_LOAD_TIMEOUT_MS);
     },
     [sendMessage]
   );

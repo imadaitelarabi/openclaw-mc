@@ -1,6 +1,15 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ChatMessage } from '@/types';
 import { extractAgentId, getStreamKey, getToolId } from '@/lib/gateway-utils';
+import { 
+  isToolResultMessage, 
+  isAssistantMessage, 
+  isUserMessage,
+  isReasoningMessage,
+  isToolMessage,
+  hasContentParts,
+  isValidGatewayMessage
+} from '@/lib/gateway-type-guards';
 
 function normalizeTextContent(value: unknown): string {
   if (typeof value === 'string') return value;
@@ -61,12 +70,18 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
   };
 
   messages.forEach((msg: any, index: number) => {
+    // Validate message has minimum required structure
+    if (!isValidGatewayMessage(msg)) {
+      console.warn('[transformGatewayHistoryMessages] Invalid message structure:', msg);
+      return;
+    }
+
     const role = msg?.role;
     const timestamp = typeof msg?.timestamp === 'number' ? msg.timestamp : Date.now();
     const runId = typeof msg?.runId === 'string' ? msg.runId : undefined;
     const baseId = msg?.id || msg?.runId || `${timestamp}-${index}-${Math.random().toString(36).slice(2, 7)}`;
 
-    if (role === 'toolResult') {
+    if (isToolResultMessage(msg)) {
       const details = (msg?.details && typeof msg.details === 'object') ? msg.details : {};
       const contentText = normalizeTextContent(msg?.content);
       const aggregated = normalizeTextContent((details as any)?.aggregated);
@@ -299,15 +314,21 @@ export function useAgentEvents() {
    * Prepend older messages to existing chat history (for pagination)
    */
   const prependChatHistory = useCallback((agentId: string, messages: any[]) => {
-    console.log(`[Mission Control] Prepending ${messages.length} older messages for agent ${agentId}`);
     const transformedMessages = transformGatewayHistoryMessages(messages);
 
-    // Prepend to existing history
+    // Prepend to existing history with deduplication
     setChatHistory(prev => {
       const existing = prev[agentId] || [];
+      const existingIds = new Set(existing.map(m => m.id));
+      
+      // Filter out duplicates
+      const newMessages = transformedMessages.filter(m => !existingIds.has(m.id));
+      
+      console.log(`[Mission Control] Prepending ${newMessages.length} new messages (filtered ${transformedMessages.length - newMessages.length} duplicates) for agent ${agentId}`);
+      
       return {
         ...prev,
-        [agentId]: [...transformedMessages, ...existing],
+        [agentId]: [...newMessages, ...existing],
       };
     });
   }, []);
@@ -718,6 +739,15 @@ export function useAgentEvents() {
       ...prev,
       [agentId]: [...(prev[agentId] || []), userMsg]
     }));
+  }, []);
+
+  // Cleanup effect to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      // Clear event tracking on unmount
+      seenEventsRef.current.clear();
+      console.log('[Mission Control] Cleared event deduplication cache on unmount');
+    };
   }, []);
 
   return {

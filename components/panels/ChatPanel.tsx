@@ -68,16 +68,18 @@ export function ChatPanel({
     const restoreScroll = async () => {
       const position = await uiStateStore.getScrollPosition(agentId);
       if (position !== null && scrollContainerRef.current) {
-        // Delay slightly to ensure content is rendered
-        setTimeout(() => {
-          if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTop = position;
-            // Disable auto-scroll if not at bottom
-            const { scrollHeight, clientHeight } = scrollContainerRef.current;
-            const isAtBottom = scrollHeight - position - clientHeight < 50;
-            shouldAutoScrollRef.current = isAtBottom;
-          }
-        }, SCROLL_RESTORE_DELAY_MS);
+        // Wait for next paint cycle, then restore
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollTop = position;
+              const { scrollHeight, clientHeight } = scrollContainerRef.current;
+              const isAtBottom = scrollHeight - position - clientHeight < 50;
+              shouldAutoScrollRef.current = isAtBottom;
+              console.log(`[ChatPanel] Restored scroll position to ${position}px`);
+            }
+          });
+        });
       }
     };
     restoreScroll();
