@@ -51,7 +51,7 @@ export function ChatPanel({
 
   // Polling hook for real-time reasoning and enriched tool calls
   const currentRunId = activeRuns[agentId] || null;
-  useChatPolling({
+  const { isPolling } = useChatPolling({
     agentId,
     activeRunId: currentRunId,
     sendMessage,

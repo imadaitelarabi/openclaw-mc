@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef } from 'react';
 const POLL_INTERVAL_MS = 500;
 const POLL_COOLDOWN_MS = POLL_INTERVAL_MS * 2; // Timeout for race condition guard (2x interval)
 
+// Debug flag for development/troubleshooting
+const DEBUG = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_POLLING === 'true';
+
 /**
  * Configuration for the polling hook
  */
@@ -37,7 +40,7 @@ interface PollConfig {
  * @param config - Configuration object
  * @returns Object containing polling state
  */
-export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig) {
+export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig): { isPolling: boolean } {
   // Isolated state per hook instance
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isPollingRef = useRef<boolean>(false);
@@ -49,31 +52,57 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
   const pollHistory = useCallback(() => {
     // Race condition guard - prevent overlapping polls
     if (isPollingRef.current) {
+      if (DEBUG) {
+        console.log(`[ChatPolling] Skipping poll for ${agentId} - request already in flight`);
+      }
       return;
     }
     
     isPollingRef.current = true;
 
-    // Request minimal data (last 10 messages)
-    sendMessage({
-      type: 'chat.history.load',
-      agentId,
-      params: {
-        sessionKey: `agent:${agentId}:main`,
-        limit: 10, // Minimal fetch to reduce bandwidth
-      },
-    });
+    if (DEBUG) {
+      console.log(`[ChatPolling] Polling ${agentId} - fetching last 10 messages`);
+    }
+
+    try {
+      // Request minimal data (last 10 messages)
+      sendMessage({
+        type: 'chat.history.load',
+        agentId,
+        params: {
+          sessionKey: `agent:${agentId}:main`,
+          limit: 10, // Minimal fetch to reduce bandwidth
+        },
+      });
+    } catch (err) {
+      if (DEBUG) {
+        console.error(`[ChatPolling] Error sending poll request for ${agentId}:`, err);
+      }
+      // Reset flag immediately on error to allow next poll
+      isPollingRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      return;
+    }
 
     // Reset flag after response window
     // This allows the next poll to proceed
     timeoutRef.current = setTimeout(() => {
       isPollingRef.current = false;
+      if (DEBUG) {
+        console.log(`[ChatPolling] Poll cooldown complete for ${agentId}`);
+      }
     }, POLL_COOLDOWN_MS);
   }, [agentId, sendMessage]);
 
   useEffect(() => {
     // Only poll when this agent has an active run
     if (!activeRunId) {
+      if (DEBUG) {
+        console.log(`[ChatPolling] No active run for ${agentId} - stopping polling`);
+      }
       // Clear interval if it exists
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -87,12 +116,19 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
       return;
     }
 
+    if (DEBUG) {
+      console.log(`[ChatPolling] Starting polling for ${agentId} (runId: ${activeRunId})`);
+    }
+
     // Start polling immediately, then every 500ms
     pollHistory();
     intervalRef.current = setInterval(pollHistory, POLL_INTERVAL_MS);
 
     // Cleanup on unmount or when run ends
     return () => {
+      if (DEBUG) {
+        console.log(`[ChatPolling] Cleanup - stopping polling for ${agentId}`);
+      }
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -107,4 +143,6 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
     // by the pollHistory closure.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, activeRunId]);
+
+  return { isPolling: isPollingRef.current };
 }
