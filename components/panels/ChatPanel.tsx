@@ -29,13 +29,17 @@ export function ChatPanel({
   chatStream,
   reasoningStream,
   activeRuns,
-  addUserMessage
+  addUserMessage,
+  sessionSettings
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
+
+  // Extract verbose mode from session settings
+  const verboseMode = sessionSettings?.verbose || 'off';
 
   const sendChatMessage = () => {
     if (!agentId || !chatInput.trim()) return;
@@ -88,7 +92,7 @@ export function ChatPanel({
       >
         <div className="max-w-4xl mx-auto space-y-6 pb-4">
           {chatHistory.map((msg) => (
-            <ChatMessageItem key={msg.id} message={msg} />
+            <ChatMessageItem key={msg.id} message={msg} verboseMode={verboseMode} />
           ))}
           
           <StreamingIndicator 

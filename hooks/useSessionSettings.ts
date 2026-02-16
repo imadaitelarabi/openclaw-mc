@@ -5,7 +5,7 @@ interface SessionSettings {
   modelProvider?: string;
   thinking?: 'off' | 'low' | 'medium' | 'high';
   verbose?: 'on' | 'off';
-  reasoning?: 'off' | 'stream';
+  reasoning?: 'off' | 'on' | 'stream';
 }
 
 interface Model {
