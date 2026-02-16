@@ -182,7 +182,9 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
   };
 
   const handleSelectTagOption = (option: ChatInputTagOption) => {
-    const newValue = insertTag(value, option.tag, (newPosition: number) => {
+    const insertValue = option.value?.trim() ? option.value : option.tag;
+
+    const newValue = insertTag(value, insertValue, (newPosition: number) => {
       requestAnimationFrame(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
