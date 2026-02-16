@@ -182,6 +182,7 @@ mission-control.yourdomain.com {
 | `OPENCLAW_GATEWAY_TOKEN` | Gateway authentication token | - | No* |
 | `PORT` | Server listening port | `3000` | No |
 | `NODE_ENV` | Runtime environment | `development` | No |
+| `DEBUG_GATEWAY_EVENTS` | Enable detailed gateway event payload logging | `false` | No |
 
 \* Required only if not using UI setup or existing config.json
 
@@ -387,6 +388,9 @@ MIT License - see LICENSE file for details.
 
 Additional documentation is available in the [`docs/`](./docs) folder:
 
+- [**GATEWAY-EVENT-FORWARDING.md**](./docs/GATEWAY-EVENT-FORWARDING.md) - Global event forwarding and comprehensive logging
+- [**SERVER-ARCHITECTURE.md**](./docs/SERVER-ARCHITECTURE.md) - Server architecture and design patterns
+- [**PATTERN-BASED-EVENT-HANDLING.md**](./docs/PATTERN-BASED-EVENT-HANDLING.md) - Event processing pipeline
 - [**DOCKER-MAKEFILE-GUIDE.md**](./docs/DOCKER-MAKEFILE-GUIDE.md) - Complete Docker and Makefile usage guide
 - [**STREAMING-GUIDE.md**](./docs/STREAMING-GUIDE.md) - WebSocket streaming implementation details
 - [**WEBSOCKET.md**](./docs/WEBSOCKET.md) - WebSocket architecture and message protocol
