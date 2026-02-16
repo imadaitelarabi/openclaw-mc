@@ -109,12 +109,41 @@ export const ChatMessageItem = memo(function ChatMessageItem({ message, showTool
   );
 }, (prevProps, nextProps) => {
   // Custom comparison for better memoization
-  return (
-    prevProps.message.id === nextProps.message.id &&
-    prevProps.message.content === nextProps.message.content &&
-    prevProps.message.timestamp === nextProps.message.timestamp &&
-    prevProps.showTools === nextProps.showTools &&
-    JSON.stringify(prevProps.message.tool) === JSON.stringify(nextProps.message.tool) &&
-    JSON.stringify(prevProps.message.attachments) === JSON.stringify(nextProps.message.attachments)
-  );
+  // Return true if props are equal (component should NOT re-render)
+  if (
+    prevProps.message.id !== nextProps.message.id ||
+    prevProps.message.content !== nextProps.message.content ||
+    prevProps.message.timestamp !== nextProps.message.timestamp ||
+    prevProps.showTools !== nextProps.showTools
+  ) {
+    return false;
+  }
+  
+  // Compare tool object (only if both exist)
+  if (prevProps.message.tool || nextProps.message.tool) {
+    if (!prevProps.message.tool || !nextProps.message.tool) {
+      return false;
+    }
+    if (prevProps.message.tool.name !== nextProps.message.tool.name ||
+        prevProps.message.tool.status !== nextProps.message.tool.status) {
+      return false;
+    }
+  }
+  
+  // Compare attachments array
+  if (prevProps.message.attachments || nextProps.message.attachments) {
+    if (!prevProps.message.attachments || !nextProps.message.attachments) {
+      return false;
+    }
+    if (prevProps.message.attachments.length !== nextProps.message.attachments.length) {
+      return false;
+    }
+    // Quick check: compare first attachment's content (usually sufficient for identity check)
+    if (prevProps.message.attachments.length > 0 &&
+        prevProps.message.attachments[0].content !== nextProps.message.attachments[0].content) {
+      return false;
+    }
+  }
+  
+  return true;
 });
