@@ -70,8 +70,6 @@ export function ChatPanel({
   const scrollToBottom = () => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      shouldAutoScrollRef.current = true;
-      setShowScrollButton(false);
     }
   };
 
