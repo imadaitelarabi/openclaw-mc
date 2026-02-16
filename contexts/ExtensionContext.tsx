@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import type { Extension, ExtensionState } from '@/types/extension';
 import { extensionRegistry } from '@/lib/extension-registry';
+import { githubExtension } from '@/extensions/github';
 
 interface ExtensionContextValue {
   extensions: Extension[];
@@ -27,6 +28,10 @@ export function useExtensions() {
   return context;
 }
 
+export function useOptionalExtensions() {
+  return useContext(ExtensionContext);
+}
+
 interface ExtensionProviderProps {
   children: ReactNode;
 }
@@ -42,6 +47,9 @@ export function ExtensionProvider({ children }: ExtensionProviderProps) {
       try {
         console.log('[ExtensionContext] Initializing extension registry...');
         await extensionRegistry.initialize();
+
+        // Register built-in extensions
+        await extensionRegistry.register(githubExtension);
         
         // Load all registered extensions
         refreshExtensions();
