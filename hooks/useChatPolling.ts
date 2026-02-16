@@ -78,9 +78,9 @@ export function useChatPolling({
   isActivePanel = true 
 }: PollConfig): { isPolling: boolean; trackActivity: () => void } {
   // Isolated state per hook instance
-  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPollingRef = useRef<boolean>(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cooldownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendMessageRef = useRef(sendMessage);
   const isCleanedUpRef = useRef<boolean>(false);
   const activityRef = useRef<ActivityState>({
@@ -172,16 +172,16 @@ export function useChatPolling({
       }
       // Reset flag immediately on error to allow next poll
       isPollingRef.current = false;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
+      if (cooldownTimeoutRef.current) {
+        clearTimeout(cooldownTimeoutRef.current);
+        cooldownTimeoutRef.current = null;
       }
       return;
     }
 
     // Reset flag after response window
     // This allows the next poll to proceed
-    timeoutRef.current = setTimeout(() => {
+    cooldownTimeoutRef.current = setTimeout(() => {
       isPollingRef.current = false;
       if (DEBUG) {
         console.log(`[ChatPolling] Poll cooldown complete for ${agentId}`);
@@ -195,15 +195,15 @@ export function useChatPolling({
       if (DEBUG) {
         console.log(`[ChatPolling] No active run for ${agentId} - stopping polling`);
       }
-      // Clear interval if it exists
-      if (intervalRef.current) {
-        clearTimeout(intervalRef.current);
-        intervalRef.current = null;
+      // Clear poll timeout if it exists
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
       }
-      // Clear any pending timeout
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
+      // Clear any pending cooldown timeout
+      if (cooldownTimeoutRef.current) {
+        clearTimeout(cooldownTimeoutRef.current);
+        cooldownTimeoutRef.current = null;
       }
       isPollingRef.current = false;
       isCleanedUpRef.current = false;
@@ -227,7 +227,7 @@ export function useChatPolling({
       
       // Schedule next poll with adaptive interval
       const interval = getCurrentInterval();
-      intervalRef.current = setTimeout(() => {
+      pollTimeoutRef.current = setTimeout(() => {
         if (!isCleanedUpRef.current) {
           schedulePoll();
         }
@@ -243,16 +243,17 @@ export function useChatPolling({
       if (DEBUG) {
         console.log(`[ChatPolling] Cleanup - stopping polling for ${agentId}`);
       }
-      if (intervalRef.current) {
-        clearTimeout(intervalRef.current);
-        intervalRef.current = null;
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
       }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
+      if (cooldownTimeoutRef.current) {
+        clearTimeout(cooldownTimeoutRef.current);
+        cooldownTimeoutRef.current = null;
       }
       isPollingRef.current = false;
     };
+    // Note: pollHistory and getCurrentInterval are stable via useCallback and will not cause unnecessary restarts
   }, [agentId, activeRunId, isActivePanel, pollHistory, getCurrentInterval]);
 
   // Note: isPolling is a ref value and won't trigger re-renders when it changes.
