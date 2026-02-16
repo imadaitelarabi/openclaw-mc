@@ -3,6 +3,7 @@ import { useRef, useEffect, useState } from 'react';
 import type { Agent, ChatAttachment } from '@/types';
 import { DEFAULT_ATTACHMENT_CONFIG } from '@/types/attachment';
 import { AttachmentPreview } from './AttachmentPreview';
+import { ChatInputTagDropdown } from '@/components/extensions';
 import { 
   fileToAttachment, 
   validateFile, 
@@ -10,6 +11,8 @@ import {
   revokePreviewUrls,
 } from '@/lib/file-utils';
 import { useToast } from '@/hooks/useToast';
+import { useExtensionChatInput, useChatTagging } from '@/hooks';
+import type { ChatInputTagOption } from '@/types/extension';
 
 interface ChatInputProps {
   value: string;
@@ -27,7 +30,12 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
   const attachmentsRef = useRef<ChatAttachment[]>([]);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [tagOptions, setTagOptions] = useState<ChatInputTagOption[]>([]);
   const { toast } = useToast();
+  const { searchTags, isLoading: isTagLoading } = useExtensionChatInput();
+  const { isTagging, tagQuery, handleInput, insertTag, cancelTagging } = useChatTagging();
+
+  const isTagDropdownOpen = isTagging && (isTagLoading || tagOptions.length > 0);
 
   // Reset height when value is empty
   useEffect(() => {
@@ -47,6 +55,29 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
       revokePreviewUrls(attachmentsRef.current);
     };
   }, []);
+
+  // Fetch extension tag options when user types @...
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTagOptions = async () => {
+      if (!isTagging || !tagQuery) {
+        setTagOptions([]);
+        return;
+      }
+
+      const options = await searchTags(tagQuery);
+      if (!cancelled) {
+        setTagOptions(options);
+      }
+    };
+
+    loadTagOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isTagging, tagQuery, searchTags]);
 
   const handleSend = () => {
     onSend(attachments.length > 0 ? attachments : undefined);
@@ -150,6 +181,25 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
     });
   };
 
+  const handleSelectTagOption = (option: ChatInputTagOption) => {
+    const newValue = insertTag(value, option.tag, (newPosition: number) => {
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(newPosition, newPosition);
+        }
+      });
+    });
+
+    onChange(newValue);
+    setTagOptions([]);
+  };
+
+  const handleCloseTagDropdown = () => {
+    cancelTagging();
+    setTagOptions([]);
+  };
+
   return (
     <div className="p-3 md:p-4 border-t border-border bg-background/50 backdrop-blur">
       <div className="max-w-4xl mx-auto">
@@ -161,7 +211,7 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
 
         {/* Input Container */}
         <div 
-          className={`flex gap-2 md:gap-3 items-end ${isDragging ? 'ring-2 ring-primary rounded-lg' : ''}`}
+          className={`relative flex gap-2 md:gap-3 items-end ${isDragging ? 'ring-2 ring-primary rounded-lg' : ''}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -191,7 +241,10 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
             ref={textareaRef}
             value={value}
             onChange={(e) => {
-              onChange(e.target.value);
+              const newValue = e.target.value;
+              onChange(newValue);
+              handleInput(newValue, e.target.selectionStart ?? newValue.length);
+
               // Defer style update to next frame to avoid blocking main thread
               requestAnimationFrame(() => {
                 if (textareaRef.current) {
@@ -201,6 +254,11 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
               });
             }}
             onKeyDown={(e) => {
+              if (isTagDropdownOpen && ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Tab'].includes(e.key)) {
+                e.preventDefault();
+                return;
+              }
+
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
@@ -213,6 +271,16 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
             autoFocus
             disabled={disabled}
           />
+
+          {isTagDropdownOpen && (
+            <ChatInputTagDropdown
+              options={tagOptions}
+              onSelect={handleSelectTagOption}
+              onClose={handleCloseTagDropdown}
+              isLoading={isTagLoading}
+            />
+          )}
+
           <button
             onClick={handleButtonClick}
             disabled={Boolean(disabled) || (!isRunning && !value.trim() && attachments.length === 0)}
