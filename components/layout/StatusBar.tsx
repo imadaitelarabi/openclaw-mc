@@ -3,6 +3,9 @@ import type { Agent, ConnectionStatus } from '@/types';
 import { AgentSelector } from '../agents';
 import { ModelSelector, ThinkingToggle, VerboseToggle, ReasoningToggle } from '../statusbar';
 import { GatewaySwitcher } from '../gateway/GatewaySwitcher';
+import { ExtensionStatusBarItem } from '../extensions';
+import { useExtensionStatusBar } from '@/hooks';
+import { useToast } from '@/hooks/useToast';
 
 interface StatusBarProps {
   agents: Agent[];
@@ -64,6 +67,21 @@ export function StatusBar({
   onAddGateway,
   onRemoveGateway
 }: StatusBarProps) {
+  const { statusBarItems } = useExtensionStatusBar();
+  const { toast } = useToast();
+
+  const handleCopy = (value: string) => {
+    navigator.clipboard.writeText(value);
+    toast({
+      title: 'Copied to clipboard',
+      description: value,
+      variant: 'success',
+    });
+  };
+
+  const handleOpen = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className="h-8 bg-secondary border-t border-border flex items-center px-3 text-xs select-none relative z-50 gap-3">
@@ -130,6 +148,24 @@ export function StatusBar({
       )}
 
       <div className="flex-1" />
+
+      {/* Extension Status Bar Items */}
+      {statusBarItems.size > 0 && (
+        <>
+          {Array.from(statusBarItems.entries()).map(([extensionName, item]) => (
+            <ExtensionStatusBarItem
+              key={extensionName}
+              extensionName={extensionName}
+              item={item}
+              onCopy={handleCopy}
+              onOpen={handleOpen}
+            />
+          ))}
+          
+          {/* Separator */}
+          <div className="h-4 w-px bg-border" />
+        </>
+      )}
 
       {/* Right: System Status */}
       <div className="flex items-center gap-3">
