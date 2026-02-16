@@ -14,9 +14,14 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text:', err);
+      // Optionally show error feedback to user
+    }
   };
 
   if (message.role === 'tool') {
