@@ -132,8 +132,17 @@ export class GatewayClient {
     this.ws.on('message', (data: WebSocket.Data) => {
       try {
         const msg = JSON.parse(data.toString());
-        if (msg.type === 'event') {
-          console.log(`[Gateway] Event: ${msg.event} (stream: ${msg.payload?.stream})`);
+        if (
+          msg?.type === 'res' &&
+          msg?.ok === true &&
+          msg?.payload?.sessions &&
+          Array.isArray(msg.payload.sessions)
+        ) {
+          console.log(
+            `[Gateway] Received sessions response: ${msg.payload.sessions.length} sessions`
+          );
+        } else {
+          console.log('[Gateway] Received message:', JSON.stringify(msg, null, 2));
         }
         this.handleGatewayMessage(msg);
       } catch (err) {
@@ -161,7 +170,6 @@ export class GatewayClient {
 
   private async handleGatewayMessage(msg: GatewayResponse | GatewayEvent): Promise<void> {
     if (msg.type === 'event' && (msg as GatewayEvent).event === 'connect.challenge') {
-      console.log('[Gateway] Received challenge:', JSON.stringify((msg as GatewayEvent).payload));
       await this.authenticate((msg as GatewayEvent).payload);
       return;
     }
@@ -208,7 +216,7 @@ export class GatewayClient {
         auth: {
           token: this.token!,
         },
-        caps: [],
+        caps: ["tool-events"],
         userAgent: 'Mission-Control/2.0',
         locale: 'en-US',
       };
@@ -253,43 +261,10 @@ export class GatewayClient {
     return agent ? agent.name : id;
   }
 
-  /**
-   * Log Gateway Event with comprehensive details
-   * Captures event name, run ID, session key, payload size, and timestamp
-   */
-  private logGatewayEvent(msg: GatewayEvent): void {
-    const timestamp = new Date().toISOString();
-    const eventName = msg.event;
-    const payload = msg.payload || {};
-    
-    // Extract key identifiers from payload
-    const runId = payload.runId || payload.run_id || null;
-    const sessionKey = payload.sessionKey || payload.session_key || null;
-    
-    // Calculate payload size (compact stringification)
-    const payloadSize = JSON.stringify(payload).length;
-    
-    // Basic log entry (always shown)
-    const logEntry = {
-      timestamp,
-      event: eventName,
-      runId,
-      sessionKey,
-      payloadSize: `${payloadSize} bytes`,
-    };
-    
-    console.log(`[Gateway Event] ${JSON.stringify(logEntry)}`);
-    
-    // Detailed payload logging with pretty-printing (only if DEBUG_GATEWAY_EVENTS is enabled)
-    // Note: We stringify twice here for clarity: once for size (compact), once for readability (formatted)
-    if (this.debugGatewayEvents) {
-      console.log(`[Gateway Event Payload] ${eventName}:`, JSON.stringify(payload, null, 2));
-    }
-  }
-
+  
   private async handleGatewayEvent(msg: GatewayEvent): Promise<void> {
-    // 1. Log all gateway events with comprehensive details
-    this.logGatewayEvent(msg);
+
+
 
     // 2. Broadcast ALL events to connected clients (Thin Proxy approach)
     this.broadcast({
