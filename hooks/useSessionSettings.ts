@@ -4,8 +4,8 @@ interface SessionSettings {
   model?: string;
   modelProvider?: string;
   thinking?: 'off' | 'low' | 'medium' | 'high';
-  verbose?: 'on' | 'off' | 'inherit';
-  reasoning?: 'off' | 'on' | 'stream';
+  verbose?: 'on' | 'off';
+  reasoning?: 'off' | 'stream';
 }
 
 interface Model {

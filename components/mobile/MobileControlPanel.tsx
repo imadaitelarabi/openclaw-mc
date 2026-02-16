@@ -15,8 +15,8 @@ interface MobileControlPanelProps {
   models: any[];
   currentModel?: string;
   thinkingMode: 'off' | 'low' | 'medium' | 'high';
-  verboseMode: 'on' | 'off' | 'inherit';
-  reasoningMode: 'off' | 'on' | 'stream';
+  verboseMode: 'on' | 'off';
+  reasoningMode: 'off' | 'stream';
   onModelChange: (model: string, provider?: string) => void;
   onThinkingChange: (val: any) => void;
   onVerboseChange: (val: any) => void;

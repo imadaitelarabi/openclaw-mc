@@ -18,12 +18,12 @@ interface StatusBarProps {
   models?: any[];
   currentModel?: string;
   thinkingMode?: 'off' | 'low' | 'medium' | 'high';
-  verboseMode?: 'on' | 'off' | 'inherit';
-  reasoningMode?: 'off' | 'on' | 'stream';
+  verboseMode?: 'on' | 'off';
+  reasoningMode?: 'off' | 'stream';
   onModelChange?: (model: string, provider?: string) => void;
   onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
-  onVerboseChange?: (verbose: 'on' | 'off' | 'inherit') => void;
-  onReasoningChange?: (reasoning: 'off' | 'on' | 'stream') => void;
+  onVerboseChange?: (verbose: 'on' | 'off') => void;
+  onReasoningChange?: (reasoning: 'off' | 'stream') => void;
   
   // Gateway management
   gateways: any[];
