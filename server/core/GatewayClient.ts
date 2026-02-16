@@ -311,7 +311,7 @@ export class GatewayClient {
     const runId = payload.runId || payload.run_id || null;
     const sessionKey = payload.sessionKey || payload.session_key || null;
     
-    // Calculate payload size
+    // Calculate payload size (compact stringification)
     const payloadSize = JSON.stringify(payload).length;
     
     // Basic log entry (always shown)
@@ -325,7 +325,8 @@ export class GatewayClient {
     
     console.log(`[Gateway Event] ${JSON.stringify(logEntry)}`);
     
-    // Detailed payload logging (only if DEBUG_GATEWAY_EVENTS is enabled)
+    // Detailed payload logging with pretty-printing (only if DEBUG_GATEWAY_EVENTS is enabled)
+    // Note: We stringify twice here for clarity: once for size (compact), once for readability (formatted)
     if (this.debugGatewayEvents) {
       console.log(`[Gateway Event Payload] ${eventName}:`, JSON.stringify(payload, null, 2));
     }
