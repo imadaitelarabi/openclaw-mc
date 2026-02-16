@@ -124,14 +124,27 @@ export const ChatPanel = memo(function ChatPanel({
     return () => clearTimeout(timeoutId);
   }, [chatInput, agentId]);
 
-  const sendChatMessage = () => {
-    if (!agentId || !chatInput.trim()) return;
+  const sendChatMessage = (attachments?: any[]) => {
+    if (!agentId || (!chatInput.trim() && (!attachments || attachments.length === 0))) return;
     addUserMessage(agentId, chatInput);
-    sendMessage({ 
+    
+    const messageData: any = { 
       type: 'chat.send', 
       agentId: agentId, 
       message: chatInput 
-    });
+    };
+    
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      // Convert attachments to the format expected by Gateway
+      messageData.attachments = attachments.map(att => ({
+        name: att.name,
+        mimeType: att.mimeType,
+        media: att.media,
+      }));
+    }
+    
+    sendMessage(messageData);
     setChatInput("");
     // Clear draft after sending
     uiStateStore.clearDraft(agentId);

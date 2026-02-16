@@ -373,19 +373,29 @@ export class GatewayClient {
     return this.request(method, params);
   }
 
-  async sendChat(agentId: string, message: string): Promise<{ ok: boolean; error?: string }> {
+  async sendChat(agentId: string, message: string, attachments?: any[]): Promise<{ ok: boolean; error?: string }> {
     // Find active session for this agent
     const sessionKey = `agent:${agentId}:main`;
 
     console.log(`[Chat] Sending to ${sessionKey}: ${message.substring(0, 50)}...`);
+    if (attachments && attachments.length > 0) {
+      console.log(`[Chat] With ${attachments.length} attachment(s)`);
+    }
 
     try {
-      const res = await this.request('chat.send', {
+      const params: any = {
         sessionKey: sessionKey,
         message: message,
         deliver: true,
         idempotencyKey: uuidv4(),
-      });
+      };
+
+      // Add attachments if provided
+      if (attachments && attachments.length > 0) {
+        params.attachments = attachments;
+      }
+
+      const res = await this.request('chat.send', params);
       console.log(`[Chat] Sent successfully. RunID: ${res?.runId}`);
       return { ok: true };
     } catch (err) {

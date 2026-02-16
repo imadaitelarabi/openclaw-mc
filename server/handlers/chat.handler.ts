@@ -23,7 +23,7 @@ export async function handleChatSend(
 ): Promise<void> {
   // Handle chat messages from client
   if (msg.agentId && msg.message) {
-    await gateway.sendChat(msg.agentId, msg.message);
+    await gateway.sendChat(msg.agentId, msg.message, msg.attachments);
   }
 }
 
