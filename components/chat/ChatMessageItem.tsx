@@ -133,13 +133,15 @@ export const ChatMessageItem = memo(function ChatMessageItem({ message, showTool
     return false;
   }
   
-  // Check if tool properties changed (status, result, or error)
+  // Check if tool properties changed (status, result, error, name, or args)
   if (prevHasTool && nextHasTool) {
     const prevTool = prevProps.message.tool!;
     const nextTool = nextProps.message.tool!;
     if (prevTool.status !== nextTool.status ||
         prevTool.result !== nextTool.result ||
-        prevTool.error !== nextTool.error) {
+        prevTool.error !== nextTool.error ||
+        prevTool.name !== nextTool.name ||
+        prevTool.args !== nextTool.args) {
       return false;
     }
   }
