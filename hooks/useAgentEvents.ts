@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ChatMessage } from '@/types';
 import { extractAgentId, getStreamKey, getToolId } from '@/lib/gateway-utils';
+import { uiStateStore } from '@/lib/ui-state-db';
 import { 
   isToolResultMessage, 
   isAssistantMessage, 
@@ -251,6 +252,7 @@ export function useAgentEvents() {
   const latestTextRef = useRef<Record<string, string>>({});
   const pendingToolIdsRef = useRef<Record<string, string[]>>({});
   const toolCallToMessageIdRef = useRef<Record<string, string>>({});
+  const persistedStreamAgentsRef = useRef(new Set<string>());
   
   // Event deduplication tracking
   const seenEventsRef = useRef(new Set<string>());
@@ -740,6 +742,91 @@ export function useAgentEvents() {
       [agentId]: [...(prev[agentId] || []), userMsg]
     }));
   }, []);
+
+  // Restore in-progress stream state on mount so typing survives refresh
+  useEffect(() => {
+    let mounted = true;
+
+    const restoreStreamState = async () => {
+      const persistedStates = await uiStateStore.getAllStreamStates();
+      if (!mounted || persistedStates.length === 0) return;
+
+      setActiveRuns(prev => {
+        const next = { ...prev };
+        persistedStates.forEach(({ agentId, runId }) => {
+          if (!next[agentId]) {
+            next[agentId] = runId;
+          }
+        });
+        return next;
+      });
+
+      setChatStreams(prev => {
+        const next = { ...prev };
+        persistedStates.forEach(({ agentId, runId, assistantStream }) => {
+          const streamKey = getStreamKey(agentId, runId);
+          if (!next[streamKey] && assistantStream) {
+            next[streamKey] = assistantStream;
+          }
+        });
+        return next;
+      });
+
+      setReasoningStreams(prev => {
+        const next = { ...prev };
+        persistedStates.forEach(({ agentId, runId, reasoningStream }) => {
+          const streamKey = getStreamKey(agentId, runId);
+          if (!next[streamKey] && reasoningStream) {
+            next[streamKey] = reasoningStream;
+          }
+        });
+        return next;
+      });
+
+      persistedStreamAgentsRef.current = new Set(persistedStates.map(({ agentId }) => agentId));
+    };
+
+    void restoreStreamState();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Persist active stream state for refresh recovery
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const activeEntries = Object.entries(activeRuns);
+      const nextPersistedAgents = new Set(activeEntries.map(([agentId]) => agentId));
+
+      if (activeEntries.length > 0) {
+        void Promise.all(
+          activeEntries.map(([agentId, runId]) => {
+            const streamKey = getStreamKey(agentId, runId);
+            const assistantStream = chatStreams[streamKey] || '';
+            const reasoningStream = reasoningStreams[streamKey] || '';
+
+            return uiStateStore.saveStreamState(
+              agentId,
+              runId,
+              assistantStream,
+              reasoningStream
+            );
+          })
+        );
+      }
+
+      persistedStreamAgentsRef.current.forEach((agentId) => {
+        if (!nextPersistedAgents.has(agentId)) {
+          void uiStateStore.clearStreamState(agentId);
+        }
+      });
+
+      persistedStreamAgentsRef.current = nextPersistedAgents;
+    }, 200);
+
+    return () => clearTimeout(timeoutId);
+  }, [activeRuns, chatStreams, reasoningStreams]);
 
   // Cleanup effect to prevent memory leaks
   useEffect(() => {

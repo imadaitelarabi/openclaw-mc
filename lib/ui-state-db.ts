@@ -23,13 +23,22 @@ interface UIStateDB extends DBSchema {
     key: string; // agentId
     value: { messageId: string; timestamp: number };
   };
+  'stream-states': {
+    key: string; // agentId
+    value: {
+      runId: string;
+      assistantStream: string;
+      reasoningStream: string;
+      timestamp: number;
+    };
+  };
 }
 
 class UIStateStore {
   private dbPromise: Promise<IDBPDatabase<UIStateDB>>;
 
   constructor() {
-    this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 1, {
+    this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 2, {
       upgrade(db) {
         // Create object stores if they don't exist
         if (!db.objectStoreNames.contains('scroll-positions')) {
@@ -43,6 +52,9 @@ class UIStateStore {
         }
         if (!db.objectStoreNames.contains('last-seen')) {
           db.createObjectStore('last-seen');
+        }
+        if (!db.objectStoreNames.contains('stream-states')) {
+          db.createObjectStore('stream-states');
         }
       },
     });
@@ -152,6 +164,82 @@ class UIStateStore {
     }
   }
 
+  // Active typing stream state (for refresh recovery during in-progress runs)
+  async saveStreamState(
+    agentId: string,
+    runId: string,
+    assistantStream: string,
+    reasoningStream: string
+  ): Promise<void> {
+    try {
+      const db = await this.dbPromise;
+      await db.put(
+        'stream-states',
+        {
+          runId,
+          assistantStream,
+          reasoningStream,
+          timestamp: Date.now(),
+        },
+        agentId
+      );
+    } catch (err) {
+      console.error('[UIState] Failed to save stream state:', err);
+    }
+  }
+
+  async getAllStreamStates(): Promise<Array<{
+    agentId: string;
+    runId: string;
+    assistantStream: string;
+    reasoningStream: string;
+    timestamp: number;
+  }>> {
+    try {
+      const db = await this.dbPromise;
+      const tx = db.transaction('stream-states', 'readonly');
+      const store = tx.objectStore('stream-states');
+      const keys = await store.getAllKeys();
+      const values = await store.getAll();
+      await tx.done;
+
+      return keys
+        .map((key, index) => {
+          const value = values[index];
+          if (typeof key !== 'string' || !value?.runId) {
+            return null;
+          }
+
+          return {
+            agentId: key,
+            runId: value.runId,
+            assistantStream: value.assistantStream || '',
+            reasoningStream: value.reasoningStream || '',
+            timestamp: value.timestamp || Date.now(),
+          };
+        })
+        .filter((item): item is {
+          agentId: string;
+          runId: string;
+          assistantStream: string;
+          reasoningStream: string;
+          timestamp: number;
+        } => item !== null);
+    } catch (err) {
+      console.error('[UIState] Failed to get stream states:', err);
+      return [];
+    }
+  }
+
+  async clearStreamState(agentId: string): Promise<void> {
+    try {
+      const db = await this.dbPromise;
+      await db.delete('stream-states', agentId);
+    } catch (err) {
+      console.error('[UIState] Failed to clear stream state:', err);
+    }
+  }
+
   // Clear all UI state for an agent
   async clearAgentState(agentId: string): Promise<void> {
     try {
@@ -160,6 +248,7 @@ class UIStateStore {
         db.delete('scroll-positions', agentId),
         db.delete('drafts', agentId),
         db.delete('last-seen', agentId),
+        db.delete('stream-states', agentId),
       ]);
       
       // Clear all tool cards for this agent
