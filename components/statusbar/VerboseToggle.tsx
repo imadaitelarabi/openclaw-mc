@@ -51,7 +51,7 @@ export function VerboseToggle({ value, onChange, disabled }: VerboseSelectorProp
           <div className="py-1">
             {VERBOSE_MODES.map(mode => (
               <button
-                key={mode.value}
+                key={mode.value.toString()}
                 onClick={() => {
                   onChange(mode.value);
                   setIsOpen(false);

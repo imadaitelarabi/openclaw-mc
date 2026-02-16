@@ -51,7 +51,7 @@ export function ReasoningToggle({ value, onChange, disabled }: ReasoningSelector
           <div className="py-1">
             {REASONING_MODES.map(mode => (
               <button
-                key={mode.value}
+                key={mode.value.toString()}
                 onClick={() => {
                   onChange(mode.value);
                   setIsOpen(false);
