@@ -77,9 +77,13 @@ export function PanelContainer({
             isActive={panel.isActive}
             onClose={() => onPanelClose(panel.id)}
             onClick={() => onPanelActivate(panel.id)}
+            showCloseButton={panels.length > 1}
           />
           
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div 
+            className="flex-1 min-h-0 overflow-hidden"
+            onClick={() => onPanelActivate(panel.id)}
+          >
             {panel.type === 'chat' && panel.agentId && (
               <ChatPanel
                 agentId={panel.agentId}
