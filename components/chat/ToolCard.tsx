@@ -99,7 +99,7 @@ export function ToolCard({ message }: ToolCardProps) {
           <summary className="text-xs cursor-pointer text-muted-foreground hover:text-foreground">
             Result
           </summary>
-          <pre className="text-xs mt-2 p-2 bg-black/20 rounded overflow-x-auto max-h-64 overflow-y-auto">
+          <pre className="text-xs mt-2 p-2 bg-black/20 rounded overflow-auto max-h-64">
             {typeof tool.result === 'string' 
               ? tool.result 
               : JSON.stringify(tool.result, null, 2)}

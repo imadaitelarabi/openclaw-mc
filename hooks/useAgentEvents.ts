@@ -81,6 +81,7 @@ export function useAgentEvents() {
                 : undefined;
               
               // Extract exit code if available (for exec tools)
+              // Try meta.exitCode first (direct metadata), then meta.result.exitCode (nested in result)
               const exitCode = toolData.meta?.exitCode !== undefined 
                 ? toolData.meta.exitCode 
                 : toolData.meta?.result?.exitCode;
