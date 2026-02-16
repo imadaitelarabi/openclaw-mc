@@ -288,6 +288,16 @@ export class GatewayClient {
       // Then fetch sessions
       const sessions = await this.request('sessions.list', {});
       this.transformAndBroadcastSessions(sessions);
+
+      // Checklist: Subscribe to all main agent sessions to receive events
+      if (this.agentsList.length > 0) {
+        for (const agent of this.agentsList) {
+          const sessionKey = `agent:${agent.id}:main`;
+          this.request('chat.subscribe', { sessionKey }).catch((err) => {
+            console.error(`[Gateway] Failed to subscribe to ${sessionKey}:`, err.message);
+          });
+        }
+      }
     } catch (err) {
       console.error('[Gateway] Failed to fetch initial data:', err);
     }
@@ -422,6 +432,14 @@ export class GatewayClient {
       if (s.kind !== 'cron') {
         const parts = s.key.split(':');
         if (parts.length >= 2) activeSessions.add(parts[1]);
+
+        // Checklist: Subscribe to session events (idempotent on gateway)
+        this.request('chat.subscribe', { sessionKey: s.key }).catch((err) => {
+          // Only log on real errors, ignore if it's just a timeout during high load
+          if (err.message !== 'Request timeout') {
+            console.error(`[Gateway] Subscription failed for ${s.key}:`, err.message);
+          }
+        });
       }
     });
 
