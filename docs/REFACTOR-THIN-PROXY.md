@@ -49,7 +49,7 @@ Gateway → GatewayClient → broadcast(raw events only) → UI Client
 - `components/chat/TaggedMessage.tsx` - Unused tagged message component
 - `lib/event-formatting.ts` - Client-side tag parsing (no longer needed)
 
-**Total Removed**: ~1,200 lines of code
+**Total Removed**: ~1,400 lines of code
 
 ## ✨ Key Improvements
 
@@ -57,9 +57,11 @@ Gateway → GatewayClient → broadcast(raw events only) → UI Client
 
 #### GatewayClient.ts - Thin Proxy Implementation
 - **Removed**: `processEvent()` calls and event processing pipeline
+- **Removed**: Activity logging and persistence (activity-history.json)
+- **Removed**: Cron event handling and session filtering
 - **Changed**: `handleGatewayEvent()` now only broadcasts raw events
 - **Added**: `call(method, params)` - Generic RPC pass-through method
-- **Simplified**: Activity logging is now opt-in observer, not core dependency
+- **Simplified**: Pure thin proxy - no feature-specific logic
 
 ```typescript
 // Before: Complex processing
@@ -182,6 +184,9 @@ type: 'event.processed'
 formattedMessages: string[]
 thinkingDelta: string
 thinkingComplete: string
+type: 'activity'
+type: 'activities'
+type: 'crons'
 ```
 
 ## 📚 Documentation Updates
