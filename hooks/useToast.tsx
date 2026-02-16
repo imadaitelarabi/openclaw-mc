@@ -50,13 +50,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               t.variant === "destructive" 
                 ? "destructive border-destructive bg-destructive text-destructive-foreground" 
                 : "bg-background text-foreground border-border",
-              t.variant === "success" && "border-green-500 bg-green-500/10 text-green-500"
+              t.variant === "success" && "border-primary bg-card text-card-foreground"
             )}
           >
             <div className="grid gap-1">
-              {t.title && <div className="text-sm font-semibold">{t.title}</div>}
+              {t.title && (
+                <div className={cn("text-sm font-semibold", t.variant === "success" && "text-primary")}>{t.title}</div>
+              )}
               {t.description && (
-                <div className="text-sm opacity-90">{t.description}</div>
+                <div className={cn("text-sm", t.variant === "success" ? "text-muted-foreground" : "opacity-90")}>{t.description}</div>
               )}
             </div>
             <button
