@@ -133,10 +133,15 @@ export const ChatMessageItem = memo(function ChatMessageItem({ message, showTool
     return false;
   }
   
-  // Check if tool status changed (e.g., from 'running' to 'complete')
-  if (prevHasTool && nextHasTool && 
-      prevProps.message.tool!.status !== nextProps.message.tool!.status) {
-    return false;
+  // Check if tool properties changed (status, result, or error)
+  if (prevHasTool && nextHasTool) {
+    const prevTool = prevProps.message.tool!;
+    const nextTool = nextProps.message.tool!;
+    if (prevTool.status !== nextTool.status ||
+        prevTool.result !== nextTool.result ||
+        prevTool.error !== nextTool.error) {
+      return false;
+    }
   }
   
   // All relevant fields are equal, no need to re-render
