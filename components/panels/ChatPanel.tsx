@@ -30,6 +30,9 @@ interface ChatPanelProps {
   // Per-panel settings
   showTools?: boolean;
   showReasoning?: boolean;
+  
+  // Panel state
+  isActive?: boolean;
 }
 
 export const ChatPanel = memo(function ChatPanel({
@@ -45,7 +48,8 @@ export const ChatPanel = memo(function ChatPanel({
   sessionSettings,
   onAbortRun,
   showTools = false,
-  showReasoning = true
+  showReasoning = true,
+  isActive = true
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -53,16 +57,28 @@ export const ChatPanel = memo(function ChatPanel({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
+  const previousChatLengthRef = useRef(0);
 
   // Chat history hook for loading older messages
   const { loading: historyLoading, loadMoreHistory } = useChatHistory({ sendMessage });
 
-  // Polling hook for real-time reasoning and enriched tool calls
-  useChatPolling({
+  // Polling hook for real-time reasoning and enriched tool calls with adaptive intervals
+  const { trackActivity } = useChatPolling({
     agentId,
     activeRunId,
     sendMessage,
+    isActivePanel: isActive,
   });
+
+  // Track activity when chat history length increases (new messages arrive)
+  useEffect(() => {
+    const currentLength = chatHistory.length;
+    // Only track activity if length increases and it's not the initial population
+    if (currentLength > previousChatLengthRef.current && previousChatLengthRef.current > 0) {
+      trackActivity();
+    }
+    previousChatLengthRef.current = currentLength;
+  }, [chatHistory.length, trackActivity]);
 
   // Debounced scroll position save function
   const debouncedSaveScroll = useMemo(

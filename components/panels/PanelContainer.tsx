@@ -114,6 +114,7 @@ export function PanelContainer({
                 onAbortRun={onAbortRun}
                 showTools={panel.settings?.showTools ?? false}
                 showReasoning={panel.settings?.showReasoning ?? true}
+                isActive={panel.isActive}
               />
             )}
             
