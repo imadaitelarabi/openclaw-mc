@@ -1,4 +1,5 @@
 import type { ChatMessage } from '@/types';
+import { Brain } from 'lucide-react';
 
 interface ReasoningCardProps {
   message: ChatMessage;
@@ -10,8 +11,9 @@ export function ReasoningCard({ message, isStreaming = false }: ReasoningCardPro
     <div className="max-w-[85%] rounded-lg p-4 bg-purple-500/10 border border-purple-500/30 backdrop-blur">
       <div className="flex items-center gap-2 mb-2">
         {isStreaming && <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />}
+        <Brain className="w-3.5 h-3.5 text-purple-700 dark:text-purple-300" />
         <span className="text-xs font-mono text-purple-700 dark:text-purple-300 font-semibold">
-          🧠 {isStreaming ? 'Reasoning...' : 'Reasoning'}
+          {isStreaming ? 'Reasoning...' : 'Reasoning'}
         </span>
       </div>
       <details open={!isStreaming} className="mt-2">

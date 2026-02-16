@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Brain } from 'lucide-react';
 
 interface ThinkingSelectorProps {
   value: 'off' | 'low' | 'medium' | 'high';
@@ -40,8 +40,10 @@ export function ThinkingToggle({ value, onChange, disabled }: ThinkingSelectorPr
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
         className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-label="Thinking level"
+        title="Thinking level"
       >
-        <span className="text-xs">🧠</span>
+        <Brain className="w-3.5 h-3.5" />
         <span className="font-medium text-xs">{currentMode.label}</span>
         <ChevronDown className="w-3 h-3 opacity-50" />
       </button>

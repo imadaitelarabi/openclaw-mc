@@ -19,11 +19,11 @@ interface StatusBarProps {
   currentModel?: string;
   thinkingMode?: 'off' | 'low' | 'medium' | 'high';
   verboseMode?: 'on' | 'off';
-  reasoningMode?: 'off' | 'stream';
+  reasoningMode?: 'off' | 'on' | 'stream';
   onModelChange?: (model: string, provider?: string) => void;
   onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
   onVerboseChange?: (verbose: 'on' | 'off') => void;
-  onReasoningChange?: (reasoning: 'off' | 'stream') => void;
+  onReasoningChange?: (reasoning: 'off' | 'on' | 'stream') => void;
   
   // Gateway management
   gateways: any[];
