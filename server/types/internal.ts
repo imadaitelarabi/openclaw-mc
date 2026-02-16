@@ -20,16 +20,6 @@ export interface ServerConfig {
   activeGatewayId: string | null;
 }
 
-// Activity Log
-export interface Activity {
-  id: string;
-  agentId: string;
-  agentName: string;
-  message: string;
-  timestamp: number;
-  type: string;
-}
-
 // Client WebSocket Messages
 export type ClientMessage =
   | { type: 'ping' }
@@ -85,15 +75,12 @@ export type ServerMessage =
   | { type: 'error'; message: string; requestId?: string }
   | { type: 'agents'; data: TransformedAgent[] }
   | { type: 'agent_definitions'; data: Agent[] }
-  | { type: 'crons'; data: CronJob[] }
   | { type: 'sessions'; data: { sessions: Session[] } }
   | { type: 'sessions.patch.ack' }
   | { type: 'models'; data: ModelsListResponse }
   | { type: 'agents.add.ack'; requestId?: string; agentId: string }
   | { type: 'agents.update.ack'; requestId?: string; agentId: string; name: string }
   | { type: 'agents.delete.ack'; requestId?: string; agentId: string; removed: boolean }
-  | { type: 'activity'; data: Activity }
-  | { type: 'activities'; data: Activity[] }
   | { type: 'event'; event: string; payload: Record<string, unknown> };
 
 // Transformed types for client display
@@ -104,13 +91,6 @@ export interface TransformedAgent {
   emoji?: string;
   status: 'active' | 'idle';
   model?: string;
-}
-
-export interface CronJob {
-  id: string;
-  name: string;
-  schedule: string;
-  status: 'active' | 'error';
 }
 
 // WebSocket Client with custom properties

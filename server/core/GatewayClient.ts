@@ -5,8 +5,6 @@
  */
 
 import WebSocket from 'ws';
-import * as fs from 'fs';
-import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import type {
   GatewayRequest,
@@ -17,18 +15,12 @@ import type {
   Session,
 } from '../types/gateway';
 import type {
-  Activity,
   PendingRequest,
   ConnectWaiter,
   ExtendedWebSocket,
   TransformedAgent,
-  CronJob,
 } from '../types/internal';
 import { ConfigManager } from './ConfigManager';
-
-// Use process.cwd() for project root instead of relative paths from __dirname
-const DATA_DIR = path.join(process.cwd(), 'data');
-const ACTIVITY_LOG_PATH = path.join(DATA_DIR, 'activity-history.json');
 
 export class GatewayClient {
   private url: string | null = null;
@@ -40,51 +32,15 @@ export class GatewayClient {
   private clients: Set<ExtendedWebSocket> = new Set();
   private reconnectTimer: NodeJS.Timeout | null = null;
   private agentsList: Agent[] = [];
-  private activityLog: Activity[] = [];
-  private saveTimer: NodeJS.Timeout | null = null;
   private connectWaiters: ConnectWaiter[] = [];
   private configManager: ConfigManager;
   private debugGatewayEvents: boolean = false;
 
   constructor(configManager: ConfigManager) {
     this.configManager = configManager;
-    this.ensureDataDir();
-    this.loadActivityLog();
     this.updateFromConfig();
     // Read DEBUG_GATEWAY_EVENTS from environment
     this.debugGatewayEvents = process.env.DEBUG_GATEWAY_EVENTS === 'true';
-  }
-
-  private ensureDataDir(): void {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-  }
-
-  private loadActivityLog(): void {
-    try {
-      if (fs.existsSync(ACTIVITY_LOG_PATH)) {
-        const data = fs.readFileSync(ACTIVITY_LOG_PATH, 'utf8');
-        this.activityLog = JSON.parse(data);
-        console.log(`[Persistence] Loaded ${this.activityLog.length} activities`);
-      }
-    } catch (err) {
-      console.error('[Persistence] Failed to load activity log:', err);
-      this.activityLog = [];
-    }
-  }
-
-  private saveActivityLog(): void {
-    if (this.saveTimer) clearTimeout(this.saveTimer);
-
-    this.saveTimer = setTimeout(() => {
-      try {
-        fs.writeFileSync(ACTIVITY_LOG_PATH, JSON.stringify(this.activityLog, null, 2));
-        console.log('[Persistence] Saved activity log');
-      } catch (err) {
-        console.error('[Persistence] Failed to save activity log:', err);
-      }
-    }, 2000); // Debounce saves by 2 seconds
   }
 
   updateFromConfig(): void {
@@ -341,52 +297,6 @@ export class GatewayClient {
       event: msg.event,
       payload: msg.payload,
     });
-
-    // 3. Handle specific event types for internal processing (activity log persistence)
-    switch (msg.event) {
-      case 'chat':
-      case 'agent':
-        if (msg.payload?.sessionKey) {
-          const parts = (msg.payload.sessionKey || '').split(':');
-          const agentId = parts.length >= 2 ? parts[1] : 'unknown';
-          const agentName = this.getAgentName(agentId);
-
-          let messageText = `${msg.event} activity`;
-          if (msg.event === 'agent' && msg.payload.tool) {
-            messageText = `Used tool: ${msg.payload.tool}`;
-          } else if (msg.event === 'chat') {
-            messageText = `Chat message`;
-          }
-
-          const activity: Activity = {
-            id: uuidv4(),
-            agentId: agentId,
-            agentName: agentName,
-            message: messageText,
-            timestamp: Date.now(),
-            type: msg.event,
-          };
-
-          // Add to log and persist
-          this.activityLog.unshift(activity);
-          if (this.activityLog.length > 500) {
-            this.activityLog = this.activityLog.slice(0, 500);
-          }
-          this.saveActivityLog();
-
-          // Broadcast to connected clients
-          this.broadcast({
-            type: 'activity',
-            data: activity,
-          });
-        }
-        break;
-
-      case 'cron':
-        // Refresh data when cron events occur
-        await this.fetchInitialData();
-        break;
-    }
   }
 
   private transformAndBroadcastSessions(data: any): void {
@@ -394,10 +304,8 @@ export class GatewayClient {
 
     const activeSessions = new Set<string>();
     data.sessions.forEach((s: Session) => {
-      if (s.kind !== 'cron') {
-        const parts = s.key.split(':');
-        if (parts.length >= 2) activeSessions.add(parts[1]);
-      }
+      const parts = s.key.split(':');
+      if (parts.length >= 2) activeSessions.add(parts[1]);
     });
 
     const agents: TransformedAgent[] = this.agentsList.map((a) => ({
@@ -409,17 +317,7 @@ export class GatewayClient {
       model: a.model,
     }));
 
-    const crons: CronJob[] = data.sessions
-      .filter((s: Session) => s.kind === 'cron')
-      .map((s: Session) => ({
-        id: s.sessionId,
-        name: s.key.split(':').pop() || 'Unknown',
-        schedule: 'Active',
-        status: s.abortedLastRun ? 'error' : 'active',
-      }));
-
     this.broadcast({ type: 'agents', data: agents });
-    this.broadcast({ type: 'crons', data: crons });
   }
 
   request(method: string, params: any): Promise<any> {
@@ -489,16 +387,6 @@ export class GatewayClient {
       if (this.agentsList.length > 0) {
         this.broadcast({ type: 'agent_definitions', data: this.agentsList });
         this.fetchInitialData();
-      }
-
-      // Send activity history
-      if (this.activityLog.length > 0) {
-        client.send(
-          JSON.stringify({
-            type: 'activities',
-            data: this.activityLog.slice(0, 100), // Send last 100 on connect
-          })
-        );
       }
     } else {
       client.send(JSON.stringify({ type: 'status', status: 'connecting' }));
