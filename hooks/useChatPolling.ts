@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 
+// Constants
+const POLL_INTERVAL_MS = 500;
+const POLL_COOLDOWN_MS = 1000; // Timeout for race condition guard (2x interval)
+
 /**
  * Configuration for the polling hook
  */
@@ -64,7 +68,7 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
     // This allows the next poll to proceed
     timeoutRef.current = setTimeout(() => {
       isPollingRef.current = false;
-    }, 1000);
+    }, POLL_COOLDOWN_MS);
   }, [agentId, sendMessage]);
 
   useEffect(() => {
@@ -85,7 +89,7 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
 
     // Start polling immediately, then every 500ms
     pollHistory();
-    intervalRef.current = setInterval(pollHistory, 500);
+    intervalRef.current = setInterval(pollHistory, POLL_INTERVAL_MS);
 
     // Cleanup on unmount or when run ends
     return () => {
@@ -98,5 +102,5 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
         timeoutRef.current = null;
       }
     };
-  }, [agentId, activeRunId, pollHistory]);
+  }, [agentId, activeRunId, sendMessage, pollHistory]);
 }
