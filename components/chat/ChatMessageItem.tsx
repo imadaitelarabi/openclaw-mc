@@ -61,14 +61,14 @@ export function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
         {message.attachments && message.attachments.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {message.attachments.map((attachment, index) => (
-              <div key={`${attachment.name}-${index}`} className="relative rounded overflow-hidden border border-white/20">
+              <div key={`${attachment.fileName || 'attachment'}-${index}`} className="relative rounded overflow-hidden border border-white/20">
                 {/* Only render if it's a valid image data URI */}
-                {attachment.media.startsWith('data:image/') && (
+                {attachment.content.startsWith('data:image/') && (
                   <img
-                    src={attachment.media}
-                    alt={attachment.name}
+                    src={attachment.content}
+                    alt={attachment.fileName || 'Image attachment'}
                     className="max-w-xs max-h-48 object-contain"
-                    title={attachment.name}
+                    title={attachment.fileName}
                   />
                 )}
               </div>
