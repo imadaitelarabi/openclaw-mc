@@ -45,12 +45,15 @@ export class GatewayClient {
   private saveTimer: NodeJS.Timeout | null = null;
   private connectWaiters: ConnectWaiter[] = [];
   private configManager: ConfigManager;
+  private debugGatewayEvents: boolean = false;
 
   constructor(configManager: ConfigManager) {
     this.configManager = configManager;
     this.ensureDataDir();
     this.loadActivityLog();
     this.updateFromConfig();
+    // Read DEBUG_GATEWAY_EVENTS from environment
+    this.debugGatewayEvents = process.env.DEBUG_GATEWAY_EVENTS === 'true';
   }
 
   private ensureDataDir(): void {
@@ -295,8 +298,51 @@ export class GatewayClient {
     return agent ? agent.name : id;
   }
 
+  /**
+   * Log Gateway Event with comprehensive details
+   * Captures event name, run ID, session key, payload size, and timestamp
+   */
+  private logGatewayEvent(msg: GatewayEvent): void {
+    const timestamp = new Date().toISOString();
+    const eventName = msg.event;
+    const payload = msg.payload || {};
+    
+    // Extract key identifiers from payload
+    const runId = payload.runId || payload.run_id || null;
+    const sessionKey = payload.sessionKey || payload.session_key || null;
+    
+    // Calculate payload size
+    const payloadSize = JSON.stringify(payload).length;
+    
+    // Basic log entry (always shown)
+    const logEntry = {
+      timestamp,
+      event: eventName,
+      runId,
+      sessionKey,
+      payloadSize: `${payloadSize} bytes`,
+    };
+    
+    console.log(`[Gateway Event] ${JSON.stringify(logEntry)}`);
+    
+    // Detailed payload logging (only if DEBUG_GATEWAY_EVENTS is enabled)
+    if (this.debugGatewayEvents) {
+      console.log(`[Gateway Event Payload] ${eventName}:`, JSON.stringify(payload, null, 2));
+    }
+  }
+
   private async handleGatewayEvent(msg: GatewayEvent): Promise<void> {
-    // Process events through the pipeline
+    // 1. Log all gateway events with comprehensive details
+    this.logGatewayEvent(msg);
+
+    // 2. Broadcast ALL events to connected clients (Inclusive approach)
+    this.broadcast({
+      type: 'event',
+      event: msg.event,
+      payload: msg.payload,
+    });
+
+    // 3. Process specific events through the pipeline for enhanced formatting
     if (msg.event === 'chat' || msg.event === 'agent') {
       if (msg.event === 'agent' && msg.payload.stream === 'tool') {
         console.log(`[Gateway] TOOL EVENT DETECTED:`, JSON.stringify(msg.payload, null, 2));
@@ -305,14 +351,7 @@ export class GatewayClient {
       // Process event through pipeline
       const processed = processEvent(msg.event, msg.payload);
       
-      // Forward raw event for backward compatibility
-      this.broadcast({
-        type: 'event',
-        event: msg.event,
-        payload: msg.payload,
-      });
-      
-      // Also forward processed event with formatted messages
+      // Forward processed event with formatted messages
       if (processed.formattedMessages.length > 0 || processed.thinkingDelta) {
         this.broadcast({
           type: 'event.processed',
@@ -327,6 +366,7 @@ export class GatewayClient {
       }
     }
 
+    // 4. Handle specific event types for internal processing
     switch (msg.event) {
       case 'chat':
       case 'agent':
@@ -367,6 +407,7 @@ export class GatewayClient {
         break;
 
       case 'cron':
+        // Refresh data when cron events occur
         await this.fetchInitialData();
         break;
     }
