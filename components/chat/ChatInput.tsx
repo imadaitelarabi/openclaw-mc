@@ -24,6 +24,7 @@ interface ChatInputProps {
 export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRunning, onAbort }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachmentsRef = useRef<ChatAttachment[]>([]);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
@@ -35,12 +36,17 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
     }
   }, [value]);
 
+  // Keep latest attachments for unmount cleanup
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+
   // Clean up preview URLs on unmount
   useEffect(() => {
     return () => {
-      revokePreviewUrls(attachments);
+      revokePreviewUrls(attachmentsRef.current);
     };
-  }, [attachments]);
+  }, []);
 
   const handleSend = () => {
     onSend(attachments.length > 0 ? attachments : undefined);
