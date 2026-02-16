@@ -80,7 +80,14 @@ export const ChatMessageItem = memo(function ChatMessageItem({ message, showTool
             remarkPlugins={[remarkGfm]}
             components={{
               a: ({ node, ...props }) => (
-                <a {...props} target="_blank" rel="noopener noreferrer" />
+                <a
+                  {...props}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={message.role === 'user'
+                    ? '!text-foreground underline hover:opacity-90'
+                    : undefined}
+                />
               )
             }}
           >
