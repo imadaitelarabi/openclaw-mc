@@ -14,6 +14,7 @@ import {
   handleGatewaysAdd,
   handleGatewaysSwitch,
   handleGatewaysRemove,
+  handleGatewayCall,
 } from './gateway.handler';
 import { handleModelsList } from './models.handler';
 
@@ -48,6 +49,10 @@ export async function handleMessage(
 
       case 'gateways.remove':
         await handleGatewaysRemove(msg, ws, gateway, configManager);
+        break;
+
+      case 'gateway.call':
+        await handleGatewayCall(msg, ws, gateway);
         break;
 
       case 'chat.send':

@@ -1,25 +1,17 @@
 import { useState, useRef, useCallback } from 'react';
 import type { ChatMessage } from '@/types';
 import { extractAgentId, getStreamKey, getToolId } from '@/lib/gateway-utils';
-import { parseTaggedMessage } from '@/lib/event-formatting';
 
 export function useAgentEvents() {
   const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({});
   const [chatStreams, setChatStreams] = useState<Record<string, string>>({});
   const [reasoningStreams, setReasoningStreams] = useState<Record<string, string>>({});
   const [activeRuns, setActiveRuns] = useState<Record<string, string>>({});
-  const [thinkingTraces, setThinkingTraces] = useState<Record<string, string>>({});
   
   // Refs to store latest accumulated text (synchronous, no state timing issues)
   const latestTextRef = useRef<Record<string, string>>({});
 
   const handleAgentEvent = useCallback((message: any) => {
-    // Handle new processed events format
-    if (message.type === 'event.processed') {
-      handleProcessedEvent(message);
-      return;
-    }
-
     const { event, payload } = message;
     
     // Process chat events to end active runs
@@ -222,113 +214,6 @@ export function useAgentEvents() {
     }
   }, []);
 
-  // Handler for processed events
-  const handleProcessedEvent = useCallback((message: any) => {
-    const { agentId, runId, formattedMessages, thinkingDelta, thinkingComplete } = message;
-    
-    if (!agentId || !runId) return;
-    
-    const streamKey = getStreamKey(agentId, runId);
-    
-    // Handle thinking delta (live updates)
-    if (thinkingDelta) {
-      setThinkingTraces(prev => ({
-        ...prev,
-        [streamKey]: (prev[streamKey] || '') + thinkingDelta
-      }));
-    }
-    
-    // Handle thinking complete (commit to history)
-    if (thinkingComplete) {
-      const reasoningMsg: ChatMessage = {
-        id: `${runId}-reasoning-trace`,
-        role: 'reasoning',
-        content: thinkingComplete,
-        timestamp: Date.now(),
-        runId
-      };
-      
-      setChatHistory(prev => {
-        const currentHistory = prev[agentId] || [];
-        if (currentHistory.some(m => m.id === reasoningMsg.id)) return prev;
-        return { ...prev, [agentId]: [...currentHistory, reasoningMsg] };
-      });
-      
-      // Clear thinking trace
-      setThinkingTraces(prev => {
-        const next = { ...prev };
-        delete next[streamKey];
-        return next;
-      });
-    }
-    
-    // Handle formatted messages (tool calls, results, meta)
-    if (formattedMessages && formattedMessages.length > 0) {
-      formattedMessages.forEach((formattedMsg: string, idx: number) => {
-        const parsed = parseTaggedMessage(formattedMsg);
-        
-        if (parsed.type === 'tool') {
-          const toolMsg: ChatMessage = {
-            id: `${runId}-tool-${idx}-${Date.now()}`,
-            role: 'tool',
-            content: parsed.toolName || 'unknown',
-            tool: {
-              name: parsed.toolName || 'unknown',
-              args: parsed.toolArgs,
-              status: 'start'
-            },
-            timestamp: Date.now(),
-            runId
-          };
-          
-          setChatHistory(prev => {
-            const currentHistory = prev[agentId] || [];
-            if (currentHistory.some(m => m.id === toolMsg.id)) return prev;
-            return { ...prev, [agentId]: [...currentHistory, toolMsg] };
-          });
-        } else if (parsed.type === 'tool-result') {
-          // Tool result is a separate transcript item (Studio pattern)
-          const toolResultMsg: ChatMessage = {
-            id: `${runId}-tool-result-${idx}-${Date.now()}`,
-            role: 'tool',
-            content: parsed.content,
-            tool: {
-              name: 'Result',
-              result: parsed.content,
-              status: 'end',
-              ...(parsed.toolMeta && { meta: parsed.toolMeta })
-            },
-            timestamp: Date.now(),
-            runId
-          };
-          
-          setChatHistory(prev => {
-            const currentHistory = prev[agentId] || [];
-            if (currentHistory.some(m => m.id === toolResultMsg.id)) return prev;
-            return { ...prev, [agentId]: [...currentHistory, toolResultMsg] };
-          });
-        } else if (parsed.type === 'trace') {
-          // This is handled by thinkingComplete above
-          // But if it comes through formattedMessages, add it
-          const traceMsg: ChatMessage = {
-            id: `${runId}-trace-${idx}`,
-            role: 'reasoning',
-            content: parsed.content,
-            timestamp: Date.now(),
-            runId
-          };
-          
-          setChatHistory(prev => {
-            const currentHistory = prev[agentId] || [];
-            if (currentHistory.some(m => m.id === traceMsg.id)) return prev;
-            return { ...prev, [agentId]: [...currentHistory, traceMsg] };
-          });
-        }
-        // meta messages are mostly for logging/debugging, skip adding to history
-      });
-    }
-  }, []);
-
   const addUserMessage = useCallback((agentId: string, content: string) => {
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -346,7 +231,6 @@ export function useAgentEvents() {
     chatHistory,
     chatStreams,
     reasoningStreams,
-    thinkingTraces,
     activeRuns,
     handleAgentEvent,
     addUserMessage

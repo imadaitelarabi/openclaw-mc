@@ -25,7 +25,6 @@ import type {
   CronJob,
 } from '../types/internal';
 import { ConfigManager } from './ConfigManager';
-import { processEvent } from '../utils/event-processor';
 
 // Use process.cwd() for project root instead of relative paths from __dirname
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -336,38 +335,14 @@ export class GatewayClient {
     // 1. Log all gateway events with comprehensive details
     this.logGatewayEvent(msg);
 
-    // 2. Broadcast ALL events to connected clients (Inclusive approach)
+    // 2. Broadcast ALL events to connected clients (Thin Proxy approach)
     this.broadcast({
       type: 'event',
       event: msg.event,
       payload: msg.payload,
     });
 
-    // 3. Process specific events through the pipeline for enhanced formatting
-    if (msg.event === 'chat' || msg.event === 'agent') {
-      if (msg.event === 'agent' && msg.payload.stream === 'tool') {
-        console.log(`[Gateway] TOOL EVENT DETECTED:`, JSON.stringify(msg.payload, null, 2));
-      }
-      
-      // Process event through pipeline
-      const processed = processEvent(msg.event, msg.payload);
-      
-      // Forward processed event with formatted messages
-      if (processed.formattedMessages.length > 0 || processed.thinkingDelta) {
-        this.broadcast({
-          type: 'event.processed',
-          eventType: processed.type,
-          agentId: processed.agentId,
-          runId: processed.runId,
-          sessionKey: processed.sessionKey,
-          formattedMessages: processed.formattedMessages,
-          thinkingDelta: processed.thinkingDelta,
-          thinkingComplete: processed.thinkingComplete,
-        });
-      }
-    }
-
-    // 4. Handle specific event types for internal processing
+    // 3. Handle specific event types for internal processing (activity log persistence)
     switch (msg.event) {
       case 'chat':
       case 'agent':
@@ -473,6 +448,14 @@ export class GatewayClient {
         }
       }, 30000);
     });
+  }
+
+  /**
+   * Generic gateway RPC call - allows UI to call any Gateway method
+   * without needing a specific server-side handler
+   */
+  async call(method: string, params: any = {}): Promise<any> {
+    return this.request(method, params);
   }
 
   async sendChat(agentId: string, message: string): Promise<{ ok: boolean; error?: string }> {
