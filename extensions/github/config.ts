@@ -6,14 +6,14 @@ export interface GitHubConfig {
   // API credentials
   token?: string;
   
-  // Repository settings
-  owner?: string;
-  repo?: string;
-  
   // User preferences
   refreshInterval?: number;
   maxResults?: number;
   showClosed?: boolean;
+
+  // Organization/repository browsing limits
+  maxOrganizations?: number;
+  maxReposPerOrg?: number;
 }
 
 /**
@@ -21,6 +21,8 @@ export interface GitHubConfig {
  */
 export const defaultConfig: GitHubConfig = {
   refreshInterval: 300000, // 5 minutes
-  maxResults: 10,
+  maxResults: 5,
   showClosed: false,
+  maxOrganizations: 8,
+  maxReposPerOrg: 6,
 };

@@ -12,8 +12,6 @@ import type { GitHubConfig } from '../config';
 
 export function OnboardingPanel({ extensionName, onComplete, onCancel }: OnboardingProps) {
   const [token, setToken] = useState('');
-  const [owner, setOwner] = useState('');
-  const [repo, setRepo] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,22 +22,12 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel }: Onboard
       return;
     }
 
-    if (!owner.trim()) {
-      setError('Repository owner is required');
-      return;
-    }
-
-    if (!repo.trim()) {
-      setError('Repository name is required');
-      return;
-    }
-
     setIsValidating(true);
     setError(null);
 
     try {
       // Test connection
-      const api = new GitHubAPI({ token, owner, repo });
+      const api = new GitHubAPI({ token });
       const isValid = await api.testConnection();
 
       if (!isValid) {
@@ -47,21 +35,21 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel }: Onboard
         return;
       }
 
-      // Try to access the repository
+      // Validate that we can access organization/repository graph
       try {
-        await api.getPullRequests();
+        await api.getOrganizations();
       } catch (err) {
-        setError('Failed to access repository. Please check owner and repo name.');
+        setError('Failed to access your organizations and repositories. Please check token permissions.');
         return;
       }
 
       // Save configuration
       const config: GitHubConfig = {
-        owner,
-        repo,
         refreshInterval: 300000,
-        maxResults: 10,
+        maxResults: 5,
         showClosed: false,
+        maxOrganizations: 8,
+        maxReposPerOrg: 6,
       };
 
       await saveConfig(config, token);
@@ -80,7 +68,7 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel }: Onboard
     <div className="p-6 max-w-md mx-auto">
       <h2 className="text-xl font-semibold mb-2">Setup GitHub Integration</h2>
       <p className="text-sm text-muted-foreground mb-6">
-        Connect to GitHub to access pull requests and issues directly from Mission Control.
+        Connect to GitHub to browse organizations, repositories, pull requests, and issues directly from Mission Control.
       </p>
       
       <div className="space-y-4">
@@ -106,43 +94,7 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel }: Onboard
             >
               Create a token
             </a>
-            {' '}with <code className="px-1 py-0.5 bg-muted rounded">repo</code> scope
-          </p>
-        </div>
-
-        {/* Repository Owner */}
-        <div>
-          <label htmlFor="owner" className="block text-sm font-medium mb-1">
-            Repository Owner
-          </label>
-          <input
-            id="owner"
-            type="text"
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
-            placeholder="username or organization"
-            className="w-full px-3 py-2 border border-border rounded bg-background text-sm"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            GitHub username or organization name
-          </p>
-        </div>
-
-        {/* Repository Name */}
-        <div>
-          <label htmlFor="repo" className="block text-sm font-medium mb-1">
-            Repository Name
-          </label>
-          <input
-            id="repo"
-            type="text"
-            value={repo}
-            onChange={(e) => setRepo(e.target.value)}
-            placeholder="repository-name"
-            className="w-full px-3 py-2 border border-border rounded bg-background text-sm"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Example: <code className="px-1 py-0.5 bg-muted rounded">openclaw-mc</code>
+            {' '}with <code className="px-1 py-0.5 bg-muted rounded">repo</code> and <code className="px-1 py-0.5 bg-muted rounded">read:org</code> scopes
           </p>
         </div>
 

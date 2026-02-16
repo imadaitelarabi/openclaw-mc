@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { useExtensions } from '@/contexts/ExtensionContext';
+import { useToast } from '@/hooks/useToast';
 
 interface ExtensionOnboardingPanelProps {
   extensionName: string;
@@ -15,15 +16,25 @@ export function ExtensionOnboardingPanel({ extensionName, onClose }: ExtensionOn
     enableExtension,
     refreshExtensions,
   } = useExtensions();
+  const { toast } = useToast();
 
   const extension = useMemo(() => getExtension(extensionName), [getExtension, extensionName]);
   const OnboardingComponent = extension?.hooks.onboarding?.component;
 
   const handleComplete = async () => {
-    await completeOnboarding(extensionName);
-    await enableExtension(extensionName);
-    refreshExtensions();
-    onClose();
+    try {
+      await completeOnboarding(extensionName);
+      await enableExtension(extensionName);
+      refreshExtensions();
+      onClose();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to enable extension after onboarding.';
+      toast({
+        title: 'Extension setup failed',
+        description: message,
+        variant: 'destructive',
+      });
+    }
   };
 
   if (!extension) {

@@ -15,12 +15,6 @@ const EXTENSION_NAME = 'github';
  */
 export async function isSetupComplete(): Promise<boolean> {
   try {
-    // Check if required config exists
-    const config = await uiStateStore.getExtensionConfig(EXTENSION_NAME);
-    if (!config || !config.owner || !config.repo) {
-      return false;
-    }
-
     // Check if GitHub token exists in secure storage
     const token = await SecureStorage.getItem(EXTENSION_NAME, 'token');
     if (!token) {

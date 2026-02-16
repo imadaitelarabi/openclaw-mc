@@ -5,8 +5,8 @@ GitHub integration for Mission Control - quick access to pull requests and issue
 ## Features
 
 ### Status Bar Integration
-- Shows count of open PRs in the status bar
-- Click to see list of recent PRs
+- Shows count of open PRs across your organizations/repositories
+- Click to browse nested Organization → Repository → PRs
 - Copy PR URL or open in browser
 
 ### Chat Input Tagging
@@ -29,14 +29,12 @@ GitHub integration for Mission Control - quick access to pull requests and issue
    - Generate token
 3. **Configure the extension**:
    - Enter your GitHub token
-   - Enter repository owner (username or organization)
-   - Enter repository name
    - Click "Validate & Save"
 
 ## Requirements
 
 - GitHub Personal Access Token with `repo` scope
-- Access to the repository you want to monitor
+- Access to organizations/repositories you want to monitor
 
 ## Usage Examples
 
@@ -47,19 +45,20 @@ The status bar shows:
 ```
 Click to see dropdown:
 ```
-#123: Fix authentication bug
-  by @username
-  [Copy URL] [Open in GitHub]
-
-#122: Add new feature
-  by @contributor
-  [Copy URL] [Open in GitHub]
+org-name
+  repo-a
+    #123: Fix authentication bug
+      by @username
+  repo-b
+    #122: Add new feature
+      by @contributor
 ```
 
 ### Chat Tagging
 In chat input:
 ```
 Check out @PR-123 for the authentication fix
+Check out @PR-org/repo#123 for the authentication fix
 ```
 
 Search for PRs:
@@ -75,15 +74,15 @@ Search for issues:
 Browse all:
 ```
 @                    → Shows grouped list of recent PRs and issues
+@                    → Shows nested organization/repository PR+issue options
 ```
 
 ## Configuration
 
 Stored in IndexedDB:
-- Repository owner
-- Repository name
 - Refresh interval (default: 5 minutes)
-- Max results (default: 10)
+- Max results per repository (default: 5)
+- Max organizations and repositories per org
 
 Encrypted in localStorage:
 - GitHub Personal Access Token
@@ -115,12 +114,11 @@ The extension caches results and debounces requests to stay within limits.
 - Try regenerating the token
 
 ### "Failed to access repository"
-- Verify owner and repo names are correct
-- Ensure token has access to the repository
-- For private repos, token must have full `repo` scope
+- Ensure token has access to organizations and repositories
+- For private org resources, include `read:org` + `repo` scopes
 
 ### No PRs/issues showing
-- Check repository actually has open PRs/issues
+- Check your organizations/repositories actually have open PRs/issues
 - Verify internet connection
 - Check browser console for errors
 
