@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 
 // Constants
 const POLL_INTERVAL_MS = 500;
-const POLL_COOLDOWN_MS = 1000; // Timeout for race condition guard (2x interval)
+const POLL_COOLDOWN_MS = POLL_INTERVAL_MS * 2; // Timeout for race condition guard (2x interval)
 
 /**
  * Configuration for the polling hook
@@ -102,5 +102,9 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
         timeoutRef.current = null;
       }
     };
-  }, [agentId, activeRunId, sendMessage, pollHistory]);
+    // pollHistory is intentionally excluded to avoid unnecessary interval restarts
+    // when sendMessage reference changes. The latest sendMessage will be captured
+    // by the pollHistory closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, activeRunId]);
 }
