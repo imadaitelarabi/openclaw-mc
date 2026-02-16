@@ -13,10 +13,15 @@ interface ChatMessageItemProps {
 
 export function ChatMessageItem({ message, verboseMode }: ChatMessageItemProps) {
   const [copied, setCopied] = useState(false);
+  const content = typeof message.content === 'string'
+    ? message.content
+    : message.content == null
+      ? ''
+      : JSON.stringify(message.content, null, 2);
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(message.content);
+      await navigator.clipboard.writeText(content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -61,7 +66,7 @@ export function ChatMessageItem({ message, verboseMode }: ChatMessageItemProps) 
               )
             }}
           >
-            {message.content}
+            {content}
           </ReactMarkdown>
         </div>
         {message.thinking && (

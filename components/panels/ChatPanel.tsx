@@ -1,9 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton } from '@/components/chat';
+import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
+import { useChatHistory } from '@/hooks';
 import { getStreamKey } from '@/lib/gateway-utils';
+import { uiStateStore } from '@/lib/ui-state-db';
 import type { Agent } from '@/types';
+
+// Constants
+const HISTORY_PAGE_SIZE = 50;
+const DRAFT_SAVE_DEBOUNCE_MS = 500;
+const SCROLL_RESTORE_DELAY_MS = 100;
 
 interface ChatPanelProps {
   agentId: string;
@@ -34,12 +41,62 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showHistoryLoader, setShowHistoryLoader] = useState(true); // Show by default if there's history
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
 
+  // Chat history hook for loading older messages
+  const { loading: historyLoading, loadMoreHistory } = useChatHistory({ sendMessage });
+
   // Extract verbose mode from session settings
   const verboseMode = sessionSettings?.verbose || 'off';
+
+  // Load draft on mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      const draft = await uiStateStore.getDraft(agentId);
+      if (draft) {
+        setChatInput(draft);
+      }
+    };
+    loadDraft();
+  }, [agentId]);
+
+  // Restore scroll position on mount
+  useEffect(() => {
+    const restoreScroll = async () => {
+      const position = await uiStateStore.getScrollPosition(agentId);
+      if (position !== null && scrollContainerRef.current) {
+        // Wait for next paint cycle, then restore
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollTop = position;
+              const { scrollHeight, clientHeight } = scrollContainerRef.current;
+              const isAtBottom = scrollHeight - position - clientHeight < 50;
+              shouldAutoScrollRef.current = isAtBottom;
+              console.log(`[ChatPanel] Restored scroll position to ${position}px`);
+            }
+          });
+        });
+      }
+    };
+    restoreScroll();
+  }, [agentId]);
+
+  // Save draft on input change (debounced)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (chatInput) {
+        uiStateStore.saveDraft(agentId, chatInput);
+      } else {
+        uiStateStore.clearDraft(agentId);
+      }
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [chatInput, agentId]);
 
   const sendChatMessage = () => {
     if (!agentId || !chatInput.trim()) return;
@@ -50,6 +107,8 @@ export function ChatPanel({
       message: chatInput 
     });
     setChatInput("");
+    // Clear draft after sending
+    uiStateStore.clearDraft(agentId);
   };
 
   // Check if user has manually scrolled up
@@ -60,6 +119,9 @@ export function ChatPanel({
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
     shouldAutoScrollRef.current = isAtBottom;
     setShowScrollButton(!isAtBottom);
+    
+    // Save scroll position periodically
+    uiStateStore.saveScrollPosition(agentId, scrollTop);
   };
 
   useEffect(() => {
@@ -72,6 +134,19 @@ export function ChatPanel({
   const scrollToBottom = () => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Handle loading more history
+  const handleLoadMore = async () => {
+    if (chatHistory.length === 0) return;
+    
+    // Get the oldest message ID for pagination
+    const oldestMessage = chatHistory[0];
+    const beforeId = oldestMessage?.id;
+    
+    if (beforeId) {
+      await loadMoreHistory(agentId, HISTORY_PAGE_SIZE, beforeId);
     }
   };
 
@@ -91,6 +166,15 @@ export function ChatPanel({
         className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 overscroll-contain"
       >
         <div className="max-w-4xl mx-auto space-y-6 pb-4">
+          {/* History Loader - shows at top if there's history */}
+          {showHistoryLoader && chatHistory.length > 0 && (
+            <ChatHistoryLoader
+              agentId={agentId}
+              loading={historyLoading[agentId] || false}
+              onLoadMore={handleLoadMore}
+            />
+          )}
+
           {chatHistory.map((msg) => (
             <ChatMessageItem key={msg.id} message={msg} verboseMode={verboseMode} />
           ))}
