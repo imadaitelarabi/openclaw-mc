@@ -10,13 +10,28 @@ import type { StatusBarItem } from '@/types/extension';
 
 /**
  * Hook to get status bar items from all enabled extensions
+ * Safe for SSR - returns empty state if context not available
  */
 export function useExtensionStatusBar() {
-  const { enabledExtensions } = useExtensions();
   const [statusBarItems, setStatusBarItems] = useState<Map<string, StatusBarItem>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
 
+  // Try to get extension context - may not be available in SSR
+  let enabledExtensions: any[] = [];
+  try {
+    const context = useExtensions();
+    enabledExtensions = context.enabledExtensions;
+  } catch (error) {
+    // Context not available (SSR or provider not set up)
+    // Return empty state gracefully
+  }
+
   const refreshStatusBar = useCallback(async () => {
+    if (enabledExtensions.length === 0) {
+      setStatusBarItems(new Map());
+      return;
+    }
+
     setIsLoading(true);
     const items = new Map<string, StatusBarItem>();
 
@@ -48,7 +63,9 @@ export function useExtensionStatusBar() {
 
   // Refresh on mount and when extensions change
   useEffect(() => {
-    refreshStatusBar();
+    if (enabledExtensions.length > 0) {
+      refreshStatusBar();
+    }
   }, [refreshStatusBar]);
 
   return {
