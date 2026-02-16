@@ -980,12 +980,17 @@ export function useAgentEvents() {
     };
   }, []);
 
+  const clearChatHistory = useCallback((agentId: string) => {
+    setChatHistory(prev => ({ ...prev, [agentId]: [] }));
+  }, []);
+
   return {
     chatHistory,
     chatStreams,
     reasoningStreams,
     activeRuns,
     handleAgentEvent,
-    addUserMessage
+    addUserMessage,
+    clearChatHistory
   };
 }

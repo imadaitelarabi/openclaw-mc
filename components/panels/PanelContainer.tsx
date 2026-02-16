@@ -25,6 +25,7 @@ interface PanelContainerProps {
   models: any[];
   sessionSettings: Record<string, any>;
   updateSetting: (sessionKey: string, settings: any) => void;
+  onAbortRun?: (agentId: string) => void;
   onCreateAgent: (payload: {
     id?: string;
     name: string;
@@ -52,6 +53,7 @@ export function PanelContainer({
   models,
   sessionSettings,
   updateSetting,
+  onAbortRun,
   onCreateAgent,
   onUpdateAgent
 }: PanelContainerProps) {
@@ -105,6 +107,7 @@ export function PanelContainer({
                 models={models}
                 sessionSettings={sessionSettings}
                 updateSetting={updateSetting}
+                onAbortRun={onAbortRun}
                 showTools={panel.settings?.showTools ?? false}
                 showReasoning={panel.settings?.showReasoning ?? true}
               />

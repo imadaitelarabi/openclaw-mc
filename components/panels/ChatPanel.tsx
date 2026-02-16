@@ -24,6 +24,7 @@ interface ChatPanelProps {
   models: any[];
   sessionSettings: Record<string, any>;
   updateSetting: (sessionKey: string, settings: any) => void;
+  onAbortRun?: (agentId: string) => void;
   
   // Per-panel settings
   showTools?: boolean;
@@ -41,6 +42,7 @@ export const ChatPanel = memo(function ChatPanel({
   reasoningStream,
   addUserMessage,
   sessionSettings,
+  onAbortRun,
   showTools = false,
   showReasoning = true
 }: ChatPanelProps) {
@@ -216,6 +218,8 @@ export const ChatPanel = memo(function ChatPanel({
         onSend={sendChatMessage}
         activeAgent={agent}
         disabled={connectionStatus !== 'connected'}
+        isRunning={Boolean(activeRunId)}
+        onAbort={() => onAbortRun?.(agentId)}
       />
     </div>
   );
