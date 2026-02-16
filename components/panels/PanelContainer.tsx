@@ -26,6 +26,7 @@ interface PanelContainerProps {
   sessionSettings: Record<string, any>;
   updateSetting: (sessionKey: string, settings: any) => void;
   onAbortRun?: (agentId: string) => void;
+  onResetSession?: (agentId: string) => void;
   onCreateAgent: (payload: {
     id?: string;
     name: string;
@@ -54,6 +55,7 @@ export function PanelContainer({
   sessionSettings,
   updateSetting,
   onAbortRun,
+  onResetSession,
   onCreateAgent,
   onUpdateAgent
 }: PanelContainerProps) {
@@ -79,6 +81,8 @@ export function PanelContainer({
             onClose={() => onPanelClose(panel.id)}
             onClick={() => onPanelActivate(panel.id)}
             showCloseButton={panels.length > 1}
+            agentId={panel.type === 'chat' ? panel.agentId : undefined}
+            onResetSession={panel.type === 'chat' && panel.agentId ? () => onResetSession?.(panel.agentId!) : undefined}
           />
           
           <div 

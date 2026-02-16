@@ -399,6 +399,7 @@ function MissionControlInner() {
             sessionSettings={sessionSettings}
             updateSetting={updateSetting}
             onAbortRun={handleAbortRun}
+            onResetSession={handleResetSession}
             onCreateAgent={handleCreateAgentRequest}
             onUpdateAgent={handleUpdateAgentRequest}
           />
@@ -427,7 +428,6 @@ function MissionControlInner() {
           onThinkingChange={sessionKey ? (thinking) => updateSetting(sessionKey, { thinking }) : undefined}
           onShowToolsChange={handleShowToolsChange}
           onShowReasoningChange={handleShowReasoningChange}
-          onResetSession={handleResetSession}
           
           gateways={gateways}
           activeGatewayId={activeGatewayId}
