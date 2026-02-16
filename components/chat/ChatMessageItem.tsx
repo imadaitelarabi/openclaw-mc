@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import type { ChatMessage } from '@/types';
 import { ToolCard } from './ToolCard';
 import { ReasoningCard } from './ReasoningCard';
@@ -11,7 +11,7 @@ interface ChatMessageItemProps {
   showTools: boolean;
 }
 
-export function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
+export const ChatMessageItem = memo(function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
   const [copied, setCopied] = useState(false);
   const content = typeof message.content === 'string'
     ? message.content
@@ -107,4 +107,14 @@ export function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison for better memoization
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.message.timestamp === nextProps.message.timestamp &&
+    prevProps.showTools === nextProps.showTools &&
+    JSON.stringify(prevProps.message.tool) === JSON.stringify(nextProps.message.tool) &&
+    JSON.stringify(prevProps.message.attachments) === JSON.stringify(nextProps.message.attachments)
+  );
+});
