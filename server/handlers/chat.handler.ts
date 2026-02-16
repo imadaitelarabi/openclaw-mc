@@ -23,7 +23,7 @@ export async function handleChatSend(
 ): Promise<void> {
   // Handle chat messages from client
   if (msg.agentId && msg.message) {
-    await gateway.sendChat(msg.agentId, msg.message);
+    await gateway.sendChat(msg.agentId, msg.message, msg.attachments);
   }
 }
 
@@ -72,6 +72,14 @@ export async function handleChatAbort(
   gateway: GatewayClient
 ): Promise<void> {
   if (msg.agentId) {
-    await gateway.abortChat(msg.agentId);
+    const result = await gateway.abortChat(msg.agentId);
+    ws.send(
+      JSON.stringify({
+        type: 'chat.abort.run.ack',
+        agentId: msg.agentId,
+        ok: result.ok,
+        error: result.error,
+      })
+    );
   }
 }

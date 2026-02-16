@@ -80,6 +80,109 @@ function toContentParts(content: unknown): Array<Record<string, unknown>> {
   return [];
 }
 
+function extractAttachments(msg: any): ChatMessage['attachments'] | undefined {
+  if (!Array.isArray(msg?.attachments)) return undefined;
+
+  const attachments = msg.attachments
+    .map((attachment: any) => {
+      if (!attachment || typeof attachment !== 'object') return null;
+
+      const content = normalizeTextContent(attachment.content ?? attachment.media);
+      if (!content || !content.startsWith('data:image/')) return null;
+
+      const mimeType = normalizeTextContent(attachment.mimeType) || 'image/*';
+      const type = normalizeTextContent(attachment.type) || 'image';
+      const fileName = normalizeTextContent(attachment.fileName ?? attachment.name) || undefined;
+
+      return {
+        fileName,
+        type,
+        mimeType,
+        content,
+      };
+    })
+    .filter((attachment): attachment is NonNullable<typeof attachment> => attachment !== null);
+
+  return attachments.length > 0 ? attachments : undefined;
+}
+
+function extractImageAttachmentFromPart(part: Record<string, unknown>): {
+  fileName?: string;
+  type: string;
+  mimeType: string;
+  content: string;
+} | null {
+  const partType = normalizeTextContent(part.type || '').toLowerCase();
+  const explicitMime = normalizeTextContent(part.mimeType ?? part.mime_type ?? '').toLowerCase();
+  const isImagePart =
+    partType === 'image' ||
+    partType === 'input_image' ||
+    partType === 'image_url' ||
+    partType.includes('image') ||
+    explicitMime.startsWith('image/');
+  if (!isImagePart) return null;
+
+  const nestedImage = (part.image && typeof part.image === 'object' ? part.image as Record<string, unknown> : null);
+  const nestedImageUrl = (part.image_url && typeof part.image_url === 'object'
+    ? part.image_url as Record<string, unknown>
+    : null);
+
+  const imagePayload =
+    part.media ??
+    part.content ??
+    part.data ??
+    part.url ??
+    part.image_url ??
+    part.image ??
+    nestedImage?.data ??
+    nestedImage?.base64 ??
+    nestedImage?.url ??
+    nestedImage?.content ??
+    nestedImageUrl?.url ??
+    nestedImageUrl?.content;
+  const imagePayloadText = normalizeTextContent(imagePayload);
+
+  let content = imagePayloadText;
+  if (content && !content.startsWith('data:image/')) {
+    if (/^[A-Za-z0-9+/=\s]+$/.test(content)) {
+      const cleaned = content.replace(/\s+/g, '');
+      content = `data:image/png;base64,${cleaned}`;
+    }
+  }
+
+  if (!content.startsWith('data:image/')) return null;
+
+  const mimeMatch = content.match(/^data:(image\/[^;]+);base64,/i);
+  const mimeType = (mimeMatch?.[1] || normalizeTextContent(part.mimeType) || 'image/png').toLowerCase();
+  const fileName = normalizeTextContent(part.fileName ?? part.name) || undefined;
+
+  return {
+    fileName,
+    type: 'image',
+    mimeType,
+    content,
+  };
+}
+
+function withPreservedAttachments(
+  localMessage: ChatMessage,
+  incomingMessage: ChatMessage
+): ChatMessage {
+  if (
+    localMessage.role === 'user' &&
+    (!incomingMessage.attachments || incomingMessage.attachments.length === 0) &&
+    localMessage.attachments &&
+    localMessage.attachments.length > 0
+  ) {
+    return {
+      ...incomingMessage,
+      attachments: localMessage.attachments,
+    };
+  }
+
+  return incomingMessage;
+}
+
 function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
   const transformed: ChatMessage[] = [];
   const toolMessageIndexByCallId = new Map<string, number>();
@@ -162,6 +265,7 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
     const parts = toContentParts(msg?.content);
     const textParts: string[] = [];
     const thinkingParts: string[] = [];
+    const partAttachments: NonNullable<ChatMessage['attachments']> = [];
 
     parts.forEach((part, partIndex) => {
       const partType = typeof part.type === 'string' ? part.type : '';
@@ -169,6 +273,12 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
       if (partType === 'text') {
         const rawText = normalizeTextContent(part.text);
         if (rawText) textParts.push(stripAssistantFinalEnvelope(rawText));
+        return;
+      }
+
+      const imageAttachment = extractImageAttachmentFromPart(part);
+      if (imageAttachment) {
+        partAttachments.push(imageAttachment);
         return;
       }
 
@@ -226,14 +336,25 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
       });
     }
 
-    if (textContent || (normalizedRole !== 'tool' && parts.length === 0)) {
+    const directAttachments = extractAttachments(msg);
+    const attachments = [
+      ...(directAttachments || []),
+      ...partAttachments,
+    ];
+
+    if (textContent || attachments.length > 0 || (normalizedRole !== 'tool' && parts.length === 0)) {
+      const normalizedContent = textContent
+        ? textContent
+        : (attachments.length > 0 ? '' : normalizeTextContent(msg?.content ?? msg?.text));
+
       pushMessage({
         id: String(baseId),
         role: normalizedRole,
-        content: textContent || normalizeTextContent(msg?.content ?? msg?.text),
+        content: normalizedContent,
         thinking: thinkingContent || undefined,
         timestamp,
         runId,
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
     }
 
@@ -280,6 +401,12 @@ function areChatMessagesEqual(a: ChatMessage, b: ChatMessage): boolean {
     a.timestamp !== b.timestamp ||
     a.runId !== b.runId
   ) {
+    return false;
+  }
+
+  const aAttachments = stableStringify(a.attachments || []);
+  const bAttachments = stableStringify(b.attachments || []);
+  if (aAttachments !== bAttachments) {
     return false;
   }
 
@@ -378,10 +505,38 @@ export function useAgentEvents() {
     console.log(`[Mission Control] Loading ${messages.length} history messages for agent ${agentId}`);
     const transformedMessages = transformGatewayHistoryMessages(messages);
 
-    setChatHistory(prev => ({
-      ...prev,
-      [agentId]: transformedMessages,
-    }));
+    setChatHistory(prev => {
+      const existing = prev[agentId] || [];
+      if (existing.length === 0) {
+        return {
+          ...prev,
+          [agentId]: transformedMessages,
+        };
+      }
+
+      const existingById = new Map(existing.map((message) => [message.id, message]));
+      const merged = transformedMessages.map((incoming) => {
+        const existingByIdMatch = existingById.get(incoming.id);
+        if (existingByIdMatch) {
+          return withPreservedAttachments(existingByIdMatch, incoming);
+        }
+
+        const optimisticMatch = existing.find((localMessage) =>
+          isLikelySameUserMessage(localMessage, incoming)
+        );
+
+        if (optimisticMatch) {
+          return withPreservedAttachments(optimisticMatch, incoming);
+        }
+
+        return incoming;
+      });
+
+      return {
+        ...prev,
+        [agentId]: merged,
+      };
+    });
   }, []);
 
   /**
@@ -439,7 +594,7 @@ export function useAgentEvents() {
 
           if (optimisticMatchIndex !== -1) {
             const previousId = next[optimisticMatchIndex].id;
-            next[optimisticMatchIndex] = incoming;
+            next[optimisticMatchIndex] = withPreservedAttachments(next[optimisticMatchIndex], incoming);
             existingIndexById.delete(previousId);
             existingIndexById.set(incoming.id, optimisticMatchIndex);
             changed = true;
@@ -453,7 +608,7 @@ export function useAgentEvents() {
         }
 
         if (!areChatMessagesEqual(next[existingIndex], incoming)) {
-          next[existingIndex] = incoming;
+          next[existingIndex] = withPreservedAttachments(next[existingIndex], incoming);
           changed = true;
         }
       });
@@ -475,6 +630,36 @@ export function useAgentEvents() {
   }, []);
 
   const handleAgentEvent = useCallback((message: any) => {
+    if (message.type === 'chat.abort.run.ack') {
+      const { agentId, ok } = message;
+      if (!agentId || !ok) return;
+
+      setActiveRuns(prev => {
+        const runId = prev[agentId];
+        if (!runId) return prev;
+
+        const next = { ...prev };
+        delete next[agentId];
+
+        const streamKey = getStreamKey(agentId, runId);
+        setChatStreams(streamPrev => {
+          const streamNext = { ...streamPrev };
+          delete streamNext[streamKey];
+          return streamNext;
+        });
+        setReasoningStreams(reasoningPrev => {
+          const reasoningNext = { ...reasoningPrev };
+          delete reasoningNext[streamKey];
+          return reasoningNext;
+        });
+        delete latestTextRef.current[streamKey];
+        clearPendingToolQueuesForRun(runId);
+
+        return next;
+      });
+      return;
+    }
+
     // Handle chat history loading
     if (message.type === 'chat_history') {
       const { agentId, messages } = message;
@@ -873,12 +1058,13 @@ export function useAgentEvents() {
     }
   }, [loadChatHistory, prependChatHistory, syncRecentChatHistory]);
 
-  const addUserMessage = useCallback((agentId: string, content: string) => {
+  const addUserMessage = useCallback((agentId: string, content: string, attachments?: Array<{fileName?: string, type: string, mimeType: string, content: string}>) => {
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ...(attachments && attachments.length > 0 && { attachments })
     };
     setChatHistory(prev => ({
       ...prev,

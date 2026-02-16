@@ -20,7 +20,7 @@ interface ChatPanelProps {
   activeRunId: string | null;
   assistantStream?: string;
   reasoningStream?: string;
-  addUserMessage: (agentId: string, message: string) => void;
+  addUserMessage: (agentId: string, message: string, attachments?: Array<{fileName?: string, type: string, mimeType: string, content: string}>) => void;
   models: any[];
   sessionSettings: Record<string, any>;
   updateSetting: (sessionKey: string, settings: any) => void;
@@ -124,14 +124,34 @@ export const ChatPanel = memo(function ChatPanel({
     return () => clearTimeout(timeoutId);
   }, [chatInput, agentId]);
 
-  const sendChatMessage = () => {
-    if (!agentId || !chatInput.trim()) return;
-    addUserMessage(agentId, chatInput);
-    sendMessage({ 
+  const sendChatMessage = (attachments?: any[]) => {
+    if (!agentId || (!chatInput.trim() && (!attachments || attachments.length === 0))) return;
+    
+    // Convert attachments to the Gateway protocol format
+    const attachmentData = attachments && attachments.length > 0 
+      ? attachments.map(att => ({
+          fileName: att.name,
+          type: 'image',
+          mimeType: att.mimeType,
+          content: att.media,
+        }))
+      : undefined;
+    
+    // Add user message with attachments
+    addUserMessage(agentId, chatInput, attachmentData);
+    
+    const messageData: any = { 
       type: 'chat.send', 
       agentId: agentId, 
       message: chatInput 
-    });
+    };
+    
+    // Add attachments if provided
+    if (attachmentData) {
+      messageData.attachments = attachmentData;
+    }
+    
+    sendMessage(messageData);
     setChatInput("");
     // Clear draft after sending
     uiStateStore.clearDraft(agentId);

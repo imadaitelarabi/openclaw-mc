@@ -15,4 +15,10 @@ export interface ChatMessage {
   };
   timestamp: number;
   runId?: string;
+  attachments?: Array<{
+    fileName?: string;
+    type: string; // e.g., "image"
+    mimeType: string;
+    content: string; // data URI with base64
+  }>;
 }

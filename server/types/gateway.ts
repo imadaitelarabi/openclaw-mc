@@ -119,11 +119,19 @@ export interface SessionPatchParams {
 }
 
 // Chat Types
+export interface ChatAttachmentPayload {
+  fileName?: string; // Optional file name
+  type: string; // e.g., "image"
+  mimeType: string;
+  content: string; // base64 data URI
+}
+
 export interface ChatSendParams {
   sessionKey: string;
   message: string;
   deliver: boolean;
   idempotencyKey: string;
+  attachments?: ChatAttachmentPayload[];
 }
 
 export interface ChatSendResponse {

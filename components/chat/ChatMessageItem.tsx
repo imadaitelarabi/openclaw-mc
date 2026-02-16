@@ -57,6 +57,24 @@ export function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
           ? 'bg-primary text-primary-foreground' 
           : 'bg-secondary/80 backdrop-blur'
       }`}>
+        {/* Display attachments if present */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {message.attachments.map((attachment, index) => (
+              <div key={`${attachment.fileName || 'attachment'}-${index}`} className="relative rounded overflow-hidden border border-white/20">
+                {/* Only render if it's a valid image data URI */}
+                {attachment.content.startsWith('data:image/') && (
+                  <img
+                    src={attachment.content}
+                    alt={attachment.fileName || 'Image attachment'}
+                    className="max-w-xs max-h-48 object-contain"
+                    title={attachment.fileName || 'Image attachment'}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <div className="markdown-content break-words select-text max-w-none">
           <ReactMarkdown 
             remarkPlugins={[remarkGfm]}

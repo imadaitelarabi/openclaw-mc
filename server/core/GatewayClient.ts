@@ -373,19 +373,29 @@ export class GatewayClient {
     return this.request(method, params);
   }
 
-  async sendChat(agentId: string, message: string): Promise<{ ok: boolean; error?: string }> {
+  async sendChat(agentId: string, message: string, attachments?: any[]): Promise<{ ok: boolean; error?: string }> {
     // Find active session for this agent
     const sessionKey = `agent:${agentId}:main`;
 
     console.log(`[Chat] Sending to ${sessionKey}: ${message.substring(0, 50)}...`);
+    if (attachments && attachments.length > 0) {
+      console.log(`[Chat] With ${attachments.length} attachment(s)`);
+    }
 
     try {
-      const res = await this.request('chat.send', {
+      const params: any = {
         sessionKey: sessionKey,
         message: message,
         deliver: true,
         idempotencyKey: uuidv4(),
-      });
+      };
+
+      // Add attachments if provided
+      if (attachments && attachments.length > 0) {
+        params.attachments = attachments;
+      }
+
+      const res = await this.request('chat.send', params);
       console.log(`[Chat] Sent successfully. RunID: ${res?.runId}`);
       return { ok: true };
     } catch (err) {
@@ -394,14 +404,15 @@ export class GatewayClient {
     }
   }
 
-  async abortChat(agentId: string): Promise<void> {
+  async abortChat(agentId: string): Promise<{ ok: boolean; error?: string }> {
     const sessionKey = `agent:${agentId}:main`;
     console.log(`[Gateway] Aborting all runs for session: ${sessionKey}`);
     try {
       await this.request('chat.abort', { sessionKey });
+      return { ok: true };
     } catch (err) {
       console.error(`[Gateway] Failed to abort chat for ${sessionKey}:`, err);
-      // Don't re-throw, as it's a best-effort action
+      return { ok: false, error: (err as Error).message || 'Abort failed' };
     }
   }
 
