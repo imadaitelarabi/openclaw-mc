@@ -8,10 +8,10 @@ import { Copy, Check } from 'lucide-react';
 
 interface ChatMessageItemProps {
   message: ChatMessage;
-  verboseMode: 'on' | 'off';
+  showTools: boolean;
 }
 
-export function ChatMessageItem({ message, verboseMode }: ChatMessageItemProps) {
+export function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
   const [copied, setCopied] = useState(false);
   const content = typeof message.content === 'string'
     ? message.content
@@ -31,8 +31,8 @@ export function ChatMessageItem({ message, verboseMode }: ChatMessageItemProps) 
   };
 
   if (message.role === 'tool') {
-    // Only show tool cards when verbose mode is 'on'
-    if (verboseMode !== 'on') {
+    // Only show tool cards when showTools is true
+    if (!showTools) {
       return null;
     }
     return (

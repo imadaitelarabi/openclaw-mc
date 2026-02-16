@@ -6,6 +6,22 @@
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
+// Workspace state interface for persistence
+export interface WorkspaceState {
+  openPanels: Array<{
+    panelId: string;
+    type: string;
+    agentId?: string;
+    title: string;
+    settings: {
+      showTools: boolean;
+      showReasoning: boolean;
+    };
+  }>;
+  activePanelId: string | null;
+  timestamp: number;
+}
+
 interface UIStateDB extends DBSchema {
   'scroll-positions': {
     key: string; // agentId
@@ -32,38 +48,55 @@ interface UIStateDB extends DBSchema {
       timestamp: number;
     };
   };
+  'workspace': {
+    key: string; // 'current'
+    value: WorkspaceState;
+  };
 }
 
 class UIStateStore {
-  private dbPromise: Promise<IDBPDatabase<UIStateDB>>;
+  private dbPromise: Promise<IDBPDatabase<UIStateDB>> | null = null;
 
-  constructor() {
-    this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 2, {
-      upgrade(db) {
-        // Create object stores if they don't exist
-        if (!db.objectStoreNames.contains('scroll-positions')) {
-          db.createObjectStore('scroll-positions');
-        }
-        if (!db.objectStoreNames.contains('drafts')) {
-          db.createObjectStore('drafts');
-        }
-        if (!db.objectStoreNames.contains('tool-cards')) {
-          db.createObjectStore('tool-cards');
-        }
-        if (!db.objectStoreNames.contains('last-seen')) {
-          db.createObjectStore('last-seen');
-        }
-        if (!db.objectStoreNames.contains('stream-states')) {
-          db.createObjectStore('stream-states');
-        }
-      },
-    });
+  private getDB(): Promise<IDBPDatabase<UIStateDB>> {
+    // Only initialize in browser environment
+    if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
+      return Promise.reject(new Error('IndexedDB not available (SSR environment)'));
+    }
+
+    if (!this.dbPromise) {
+      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 3, {
+        upgrade(db, oldVersion) {
+          // Create object stores if they don't exist
+          if (!db.objectStoreNames.contains('scroll-positions')) {
+            db.createObjectStore('scroll-positions');
+          }
+          if (!db.objectStoreNames.contains('drafts')) {
+            db.createObjectStore('drafts');
+          }
+          if (!db.objectStoreNames.contains('tool-cards')) {
+            db.createObjectStore('tool-cards');
+          }
+          if (!db.objectStoreNames.contains('last-seen')) {
+            db.createObjectStore('last-seen');
+          }
+          if (!db.objectStoreNames.contains('stream-states')) {
+            db.createObjectStore('stream-states');
+          }
+          // Add workspace store in version 3
+          if (oldVersion < 3 && !db.objectStoreNames.contains('workspace')) {
+            db.createObjectStore('workspace');
+          }
+        },
+      });
+    }
+
+    return this.dbPromise;
   }
 
   // Draft message management
   async saveDraft(agentId: string, text: string): Promise<void> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       await db.put('drafts', { text, timestamp: Date.now() }, agentId);
     } catch (err) {
       console.error('[UIState] Failed to save draft:', err);
@@ -72,7 +105,7 @@ class UIStateStore {
 
   async getDraft(agentId: string): Promise<string | null> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       const draft = await db.get('drafts', agentId);
       return draft?.text || null;
     } catch (err) {
@@ -83,7 +116,7 @@ class UIStateStore {
 
   async clearDraft(agentId: string): Promise<void> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       await db.delete('drafts', agentId);
     } catch (err) {
       console.error('[UIState] Failed to clear draft:', err);
@@ -93,7 +126,7 @@ class UIStateStore {
   // Scroll position management
   async saveScrollPosition(agentId: string, position: number): Promise<void> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       await db.put('scroll-positions', { position, timestamp: Date.now() }, agentId);
     } catch (err) {
       console.error('[UIState] Failed to save scroll position:', err);
@@ -102,7 +135,7 @@ class UIStateStore {
 
   async getScrollPosition(agentId: string): Promise<number | null> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       const pos = await db.get('scroll-positions', agentId);
       return pos?.position ?? null;
     } catch (err) {
@@ -119,7 +152,7 @@ class UIStateStore {
     expanded: boolean
   ): Promise<void> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       const key = `${agentId}:${runId}:${toolName}`;
       await db.put('tool-cards', { expanded }, key);
     } catch (err) {
@@ -133,7 +166,7 @@ class UIStateStore {
     toolName: string
   ): Promise<boolean | null> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       const key = `${agentId}:${runId}:${toolName}`;
       const state = await db.get('tool-cards', key);
       return state?.expanded ?? null;
@@ -146,7 +179,7 @@ class UIStateStore {
   // Last seen message tracking (for unread badges)
   async saveLastSeen(agentId: string, messageId: string): Promise<void> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       await db.put('last-seen', { messageId, timestamp: Date.now() }, agentId);
     } catch (err) {
       console.error('[UIState] Failed to save last seen:', err);
@@ -155,7 +188,7 @@ class UIStateStore {
 
   async getLastSeen(agentId: string): Promise<string | null> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       const lastSeen = await db.get('last-seen', agentId);
       return lastSeen?.messageId || null;
     } catch (err) {
@@ -172,7 +205,7 @@ class UIStateStore {
     reasoningStream: string
   ): Promise<void> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       await db.put(
         'stream-states',
         {
@@ -196,7 +229,7 @@ class UIStateStore {
     timestamp: number;
   }>> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       const tx = db.transaction('stream-states', 'readonly');
       const store = tx.objectStore('stream-states');
       const keys = await store.getAllKeys();
@@ -233,7 +266,7 @@ class UIStateStore {
 
   async clearStreamState(agentId: string): Promise<void> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       await db.delete('stream-states', agentId);
     } catch (err) {
       console.error('[UIState] Failed to clear stream state:', err);
@@ -243,7 +276,7 @@ class UIStateStore {
   // Clear all UI state for an agent
   async clearAgentState(agentId: string): Promise<void> {
     try {
-      const db = await this.dbPromise;
+      const db = await this.getDB();
       await Promise.all([
         db.delete('scroll-positions', agentId),
         db.delete('drafts', agentId),
@@ -265,6 +298,36 @@ class UIStateStore {
       await tx.done;
     } catch (err) {
       console.error('[UIState] Failed to clear agent state:', err);
+    }
+  }
+
+  // Workspace state management for panel persistence
+  async saveWorkspaceState(state: WorkspaceState): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.put('workspace', state, 'current');
+    } catch (err) {
+      console.error('[UIState] Failed to save workspace state:', err);
+    }
+  }
+
+  async getWorkspaceState(): Promise<WorkspaceState | null> {
+    try {
+      const db = await this.getDB();
+      const state = await db.get('workspace', 'current');
+      return state || null;
+    } catch (err) {
+      console.error('[UIState] Failed to get workspace state:', err);
+      return null;
+    }
+  }
+
+  async clearWorkspaceState(): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.delete('workspace', 'current');
+    } catch (err) {
+      console.error('[UIState] Failed to clear workspace state:', err);
     }
   }
 }

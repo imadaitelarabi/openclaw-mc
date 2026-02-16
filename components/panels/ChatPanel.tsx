@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useRef, useEffect } from 'react';
+import { memo, useState, useRef, useEffect, useMemo } from 'react';
 import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
 import { useChatHistory, useChatPolling } from '@/hooks';
 import { uiStateStore } from '@/lib/ui-state-db';
@@ -24,6 +24,10 @@ interface ChatPanelProps {
   models: any[];
   sessionSettings: Record<string, any>;
   updateSetting: (sessionKey: string, settings: any) => void;
+  
+  // Per-panel settings
+  showTools?: boolean;
+  showReasoning?: boolean;
 }
 
 export const ChatPanel = memo(function ChatPanel({
@@ -36,7 +40,9 @@ export const ChatPanel = memo(function ChatPanel({
   assistantStream,
   reasoningStream,
   addUserMessage,
-  sessionSettings
+  sessionSettings,
+  showTools = false,
+  showReasoning = true
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -55,8 +61,20 @@ export const ChatPanel = memo(function ChatPanel({
     sendMessage,
   });
 
-  // Extract verbose mode from session settings
-  const verboseMode = sessionSettings?.verbose || 'off';
+  // Filter messages based on per-panel settings
+  const filteredChatHistory = useMemo(() => {
+    return chatHistory.filter(msg => {
+      // Filter out reasoning messages if showReasoning is false
+      if (msg.role === 'reasoning' && !showReasoning) {
+        return false;
+      }
+      // Filter out tool messages if showTools is false
+      if (msg.role === 'tool' && !showTools) {
+        return false;
+      }
+      return true;
+    });
+  }, [chatHistory, showReasoning, showTools]);
 
   // Load draft on mount
   useEffect(() => {
@@ -174,13 +192,13 @@ export const ChatPanel = memo(function ChatPanel({
             />
           )}
 
-          {chatHistory.map((msg) => (
-            <ChatMessageItem key={msg.id} message={msg} verboseMode={verboseMode} />
+          {filteredChatHistory.map((msg) => (
+            <ChatMessageItem key={msg.id} message={msg} showTools={showTools} />
           ))}
           
           <StreamingIndicator 
             assistantStream={assistantStream}
-            reasoningStream={reasoningStream}
+            reasoningStream={showReasoning ? reasoningStream : undefined}
             isTyping={Boolean(activeRunId)}
           />
           

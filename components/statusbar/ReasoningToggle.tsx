@@ -2,15 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, MessageSquareText } from 'lucide-react';
 
 interface ReasoningSelectorProps {
-  value: 'off' | 'on' | 'stream';
-  onChange: (value: 'off' | 'on' | 'stream') => void;
+  value: boolean;
+  onChange: (value: boolean) => void;
   disabled?: boolean;
 }
 
 const REASONING_MODES = [
-  { value: 'off' as const, label: 'Off', desc: 'Hide reasoning' },
-  { value: 'on' as const, label: 'On', desc: 'Show reasoning blocks' },
-  { value: 'stream' as const, label: 'Stream', desc: 'Stream reasoning live' },
+  { value: true, label: 'On', desc: 'Show reasoning blocks' },
+  { value: false, label: 'Off', desc: 'Hide reasoning' },
 ];
 
 export function ReasoningToggle({ value, onChange, disabled }: ReasoningSelectorProps) {
@@ -52,7 +51,7 @@ export function ReasoningToggle({ value, onChange, disabled }: ReasoningSelector
           <div className="py-1">
             {REASONING_MODES.map(mode => (
               <button
-                key={mode.value}
+                key={mode.value.toString()}
                 onClick={() => {
                   onChange(mode.value);
                   setIsOpen(false);
