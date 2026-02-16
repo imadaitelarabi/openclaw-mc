@@ -59,7 +59,8 @@ export function useAgentEvents() {
             name: toolName,
             args: toolData.args,
             result: toolData.meta?.result,
-            status: toolData.phase
+            status: 'start',
+            startTime: Date.now()
           },
           timestamp: Date.now(),
           runId
@@ -75,12 +76,46 @@ export function useAgentEvents() {
           const currentHistory = prev[agentId] || [];
           const updated = currentHistory.map(msg => {
             if (msg.id === toolId && msg.role === 'tool') {
+              const duration = msg.tool?.startTime 
+                ? Date.now() - msg.tool.startTime 
+                : undefined;
+              
+              // Extract exit code if available (for exec tools)
+              const exitCode = toolData.meta?.exitCode !== undefined 
+                ? toolData.meta.exitCode 
+                : toolData.meta?.result?.exitCode;
+
               return {
                 ...msg,
                 tool: {
                   ...msg.tool!,
                   result: toolData.meta?.result || msg.tool?.result,
-                  status: 'end'
+                  status: 'end',
+                  duration,
+                  exitCode
+                }
+              };
+            }
+            return msg;
+          });
+          return { ...prev, [agentId]: updated };
+        });
+      } else if (toolData.phase === 'error') {
+        setChatHistory(prev => {
+          const currentHistory = prev[agentId] || [];
+          const updated = currentHistory.map(msg => {
+            if (msg.id === toolId && msg.role === 'tool') {
+              const duration = msg.tool?.startTime 
+                ? Date.now() - msg.tool.startTime 
+                : undefined;
+
+              return {
+                ...msg,
+                tool: {
+                  ...msg.tool!,
+                  status: 'error',
+                  error: toolData.error || toolData.meta?.error || 'Tool execution failed',
+                  duration
                 }
               };
             }
@@ -169,6 +204,33 @@ export function useAgentEvents() {
                 runId
               }]
             };
+          });
+        }
+        
+        // Handle pending tools gracefully when run ends/errors
+        if (data?.phase === 'error') {
+          setChatHistory(prev => {
+            const currentHistory = prev[agentId] || [];
+            const updated = currentHistory.map(msg => {
+              // Mark pending tools as interrupted
+              if (msg.runId === runId && msg.role === 'tool' && msg.tool?.status === 'start') {
+                const duration = msg.tool.startTime 
+                  ? Date.now() - msg.tool.startTime 
+                  : undefined;
+                
+                return {
+                  ...msg,
+                  tool: {
+                    ...msg.tool,
+                    status: 'error' as const,
+                    error: 'Interrupted by run failure',
+                    duration
+                  }
+                };
+              }
+              return msg;
+            });
+            return { ...prev, [agentId]: updated };
           });
         }
         
