@@ -2,7 +2,27 @@
 
 ## Overview
 
-Mission Control's backend is built with a **modular TypeScript architecture** that separates concerns into logical layers. The server handles Next.js integration, WebSocket client connections, and Gateway communication.
+Mission Control's backend follows a **"Thin Proxy" architecture** that transparently forwards OpenClaw Gateway events to the UI without server-side interpretation or formatting. The server is built with modular TypeScript components that separate concerns into logical layers: Next.js integration, WebSocket client connections, and Gateway communication.
+
+## Architectural Pattern: Thin Proxy
+
+The server acts as a **transparent WebSocket bridge** between the OpenClaw Gateway and UI clients:
+
+```
+OpenClaw Gateway <-> Mission Control Server <-> UI Client
+                     (Thin Proxy - No Event Processing)
+```
+
+**Key Principles:**
+- **No Server-Side Event Interpretation**: The server forwards raw Gateway events directly to UI clients
+- **No Event Formatting**: All event processing and rendering logic resides in the UI
+- **Generic RPC Pass-through**: The `gateway.call` method allows UI to call any Gateway RPC without server-side handlers
+- **Opt-in Persistence**: Activity logging observes events without blocking the data flow
+
+**Benefits:**
+- **Scalability**: New Gateway features only require Frontend updates
+- **Simplicity**: Reduced server-side complexity and maintenance burden
+- **Flexibility**: UI has full control over event interpretation and rendering
 
 ## Directory Structure
 
@@ -11,13 +31,13 @@ server/
 ├── index.ts                # Server entry point & Next.js integration
 ├── core/                   # Core services
 │   ├── ConfigManager.ts    # Persistent gateway configuration
-│   ├── GatewayClient.ts    # OpenClaw Gateway WebSocket client
+│   ├── GatewayClient.ts    # OpenClaw Gateway WebSocket client (Thin Proxy)
 │   └── WebSocketServer.ts  # Client connection manager
 ├── handlers/               # Message handlers (modular routing)
 │   ├── agent.handler.ts    # Agent operations (add, update, delete)
 │   ├── chat.handler.ts     # Chat message handling
 │   ├── session.handler.ts  # Session operations (list, patch)
-│   ├── gateway.handler.ts  # Gateway management (add, switch, remove)
+│   ├── gateway.handler.ts  # Gateway management (add, switch, remove, generic call)
 │   ├── models.handler.ts   # Model listing
 │   └── index.ts            # Message router/dispatcher
 ├── types/
@@ -53,16 +73,17 @@ class ConfigManager {
 }
 ```
 
-### 2. GatewayClient
+### 2. GatewayClient (Thin Proxy)
 **Location**: `server/core/GatewayClient.ts`
 
-Robust WebSocket wrapper for OpenClaw Gateway communication.
+Robust WebSocket wrapper for OpenClaw Gateway communication implementing the Thin Proxy pattern.
 
 **Key Features**:
 - Automatic reconnection with exponential backoff
 - RPC request/response management with timeout
-- Event handling and broadcasting
-- Activity log persistence
+- **Raw event broadcasting** (no server-side processing)
+- Generic `gateway.call` pass-through for any RPC method
+- Optional activity log persistence (opt-in observer)
 - Agent list caching
 - Session transformation
 
@@ -71,10 +92,11 @@ Robust WebSocket wrapper for OpenClaw Gateway communication.
 class GatewayClient {
   connect(): void
   request(method: string, params: any): Promise<any>
+  call(method: string, params: any): Promise<any>  // Generic RPC pass-through
   sendChat(agentId: string, message: string): Promise<{ok: boolean}>
   addClient(client: WebSocket): void
   removeClient(client: WebSocket): void
-  broadcast(message: any): void
+  broadcast(message: any): void  // Forwards raw Gateway events
   fetchInitialData(): Promise<void>
 }
 ```
@@ -117,11 +139,12 @@ Manages session operations:
 ### Gateway Handler
 **Location**: `server/handlers/gateway.handler.ts`
 
-Manages gateway connections:
+Manages gateway connections and provides generic RPC pass-through:
 - `gateways.list` - List configured gateways
 - `gateways.add` - Add new gateway
 - `gateways.switch` - Switch active gateway
 - `gateways.remove` - Remove gateway
+- **`gateway.call`** - Generic pass-through for any Gateway RPC method (enables new features without server changes)
 
 ### Models Handler
 **Location**: `server/handlers/models.handler.ts`
