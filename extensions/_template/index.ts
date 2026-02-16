@@ -63,7 +63,7 @@ const hooks: ExtensionHooks = {
 
   // Onboarding hook
   onboarding: {
-    isRequired: isSetupComplete,
+    isRequired: async () => !(await isSetupComplete()),
     component: OnboardingPanel,
   },
 };

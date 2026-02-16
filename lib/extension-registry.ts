@@ -264,7 +264,7 @@ class ExtensionRegistry {
    */
   isEnabled(extensionName: string): boolean {
     const entry = this.extensions.get(extensionName);
-    return entry?.loaded && entry.extension.state.enabled || false;
+    return (entry?.loaded && entry.extension.state.enabled) || false;
   }
 
   /**
