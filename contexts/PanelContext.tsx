@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { Panel, PanelType, PanelLayout } from '@/types';
+import type { Panel, PanelType, PanelLayout, PanelSettings } from '@/types';
+import { uiStateStore, type WorkspaceState } from '@/lib/ui-state-db';
 
 interface PanelContextValue {
   layout: PanelLayout;
@@ -10,6 +11,8 @@ interface PanelContextValue {
   closePanel: (panelId: string) => void;
   setActivePanel: (panelId: string) => void;
   updatePanel: (panelId: string, updates: Partial<Panel>) => void;
+  updatePanelSettings: (panelId: string, settings: Partial<PanelSettings>) => void;
+  getActivePanel: () => Panel | undefined;
 }
 
 const PanelContext = createContext<PanelContextValue | undefined>(undefined);
@@ -33,6 +36,80 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
     maxPanels,
     activePanel: null
   });
+  const [isRestored, setIsRestored] = useState(false);
+
+  // Default panel settings
+  const getDefaultSettings = (): PanelSettings => ({
+    showTools: false,     // Verbose mode off by default
+    showReasoning: true   // Reasoning on by default
+  });
+
+  // Restore workspace state on mount
+  useEffect(() => {
+    const restoreWorkspace = async () => {
+      try {
+        const state = await uiStateStore.getWorkspaceState();
+        if (state && state.openPanels && state.openPanels.length > 0) {
+          console.log('[PanelContext] Restoring workspace state:', state);
+          
+          // Reconstruct panels from saved state
+          const restoredPanels: Panel[] = state.openPanels.map(savedPanel => ({
+            id: savedPanel.panelId,
+            type: savedPanel.type as PanelType,
+            title: savedPanel.title,
+            agentId: savedPanel.agentId,
+            data: savedPanel.agentId ? { agentId: savedPanel.agentId, agentName: savedPanel.title } : {},
+            isActive: savedPanel.panelId === state.activePanelId,
+            settings: savedPanel.settings || getDefaultSettings()
+          }));
+
+          setLayout({
+            panels: restoredPanels,
+            maxPanels,
+            activePanel: state.activePanelId
+          });
+        }
+      } catch (err) {
+        console.error('[PanelContext] Failed to restore workspace:', err);
+      } finally {
+        setIsRestored(true);
+      }
+    };
+
+    restoreWorkspace();
+  }, [maxPanels]);
+
+  // Save workspace state when layout changes (debounced)
+  useEffect(() => {
+    if (!isRestored) return; // Don't save until we've restored
+
+    const timeoutId = setTimeout(() => {
+      const saveWorkspace = async () => {
+        try {
+          const state: WorkspaceState = {
+            openPanels: layout.panels.map(panel => ({
+              panelId: panel.id,
+              type: panel.type,
+              agentId: panel.agentId,
+              title: panel.title,
+              settings: panel.settings || getDefaultSettings()
+            })),
+            activePanelId: layout.activePanel,
+            timestamp: Date.now()
+          };
+          
+          await uiStateStore.saveWorkspaceState(state);
+          console.log('[PanelContext] Saved workspace state');
+        } catch (err) {
+          console.error('[PanelContext] Failed to save workspace:', err);
+        }
+      };
+
+      saveWorkspace();
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [layout, isRestored]);
 
   const openPanel = useCallback((type: PanelType, data?: any): string => {
     const panelId = uuidv4();
@@ -85,7 +162,8 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         title,
         agentId: data?.agentId,
         data: data || {},
-        isActive: true
+        isActive: true,
+        settings: getDefaultSettings()
       };
 
       // Set all existing panels to inactive
@@ -154,8 +232,32 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
     }));
   }, []);
 
+  const updatePanelSettings = useCallback((panelId: string, settings: Partial<PanelSettings>) => {
+    setLayout(prev => ({
+      ...prev,
+      panels: prev.panels.map(p =>
+        p.id === panelId ? { 
+          ...p, 
+          settings: { ...p.settings, ...settings } as PanelSettings
+        } : p
+      )
+    }));
+  }, []);
+
+  const getActivePanel = useCallback((): Panel | undefined => {
+    return layout.panels.find(p => p.id === layout.activePanel);
+  }, [layout]);
+
   return (
-    <PanelContext.Provider value={{ layout, openPanel, closePanel, setActivePanel, updatePanel }}>
+    <PanelContext.Provider value={{ 
+      layout, 
+      openPanel, 
+      closePanel, 
+      setActivePanel, 
+      updatePanel,
+      updatePanelSettings,
+      getActivePanel
+    }}>
       {children}
     </PanelContext.Provider>
   );

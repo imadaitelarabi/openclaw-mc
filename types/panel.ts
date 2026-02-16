@@ -1,5 +1,10 @@
 export type PanelType = 'chat' | 'create-agent' | 'update-agent' | 'agent-list';
 
+export interface PanelSettings {
+  showTools: boolean;      // Verbose mode: show/hide tool calls
+  showReasoning: boolean;  // Show/hide reasoning blocks
+}
+
 export interface Panel {
   id: string;                  // Unique panel ID (UUID)
   type: PanelType;
@@ -7,6 +12,7 @@ export interface Panel {
   agentId?: string;            // For chat/update-agent panels
   data?: Record<string, any>;  // Panel-specific data
   isActive: boolean;           // Currently focused panel
+  settings?: PanelSettings;    // Per-panel settings
 }
 
 export interface PanelLayout {

@@ -105,6 +105,8 @@ export function PanelContainer({
                 models={models}
                 sessionSettings={sessionSettings}
                 updateSetting={updateSetting}
+                showTools={panel.settings?.showTools ?? false}
+                showReasoning={panel.settings?.showReasoning ?? true}
               />
             )}
             

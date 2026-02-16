@@ -18,12 +18,17 @@ interface StatusBarProps {
   models?: any[];
   currentModel?: string;
   thinkingMode?: 'off' | 'low' | 'medium' | 'high';
-  verboseMode?: 'on' | 'off';
-  reasoningMode?: 'off' | 'on' | 'stream';
+  
+  // Per-panel settings (replaces global verboseMode/reasoningMode)
+  showTools?: boolean;
+  showReasoning?: boolean;
+  
   onModelChange?: (model: string, provider?: string) => void;
   onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
-  onVerboseChange?: (verbose: 'on' | 'off') => void;
-  onReasoningChange?: (reasoning: 'off' | 'on' | 'stream') => void;
+  
+  // Per-panel setting callbacks
+  onShowToolsChange?: (show: boolean) => void;
+  onShowReasoningChange?: (show: boolean) => void;
   
   // Gateway management
   gateways: any[];
@@ -47,12 +52,12 @@ export function StatusBar({
   models = [],
   currentModel,
   thinkingMode = 'low',
-  verboseMode = 'off',
-  reasoningMode = 'off',
+  showTools = false,
+  showReasoning = true,
   onModelChange,
   onThinkingChange,
-  onVerboseChange,
-  onReasoningChange,
+  onShowToolsChange,
+  onShowReasoningChange,
   gateways,
   activeGatewayId,
   onSwitchGateway,
@@ -105,9 +110,9 @@ export function StatusBar({
       {/* Verbose Mode Toggle */}
       {selectedAgent && (
         <VerboseToggle
-          value={verboseMode}
-          onChange={onVerboseChange || (() => {})}
-          disabled={!onVerboseChange}
+          value={showTools}
+          onChange={onShowToolsChange || (() => {})}
+          disabled={!onShowToolsChange}
         />
       )}
 
@@ -117,9 +122,9 @@ export function StatusBar({
       {/* Reasoning Mode Toggle */}
       {selectedAgent && (
         <ReasoningToggle
-          value={reasoningMode}
-          onChange={onReasoningChange || (() => {})}
-          disabled={!onReasoningChange}
+          value={showReasoning}
+          onChange={onShowReasoningChange || (() => {})}
+          disabled={!onShowReasoningChange}
         />
       )}
 

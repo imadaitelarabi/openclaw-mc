@@ -15,12 +15,12 @@ interface MobileControlPanelProps {
   models: any[];
   currentModel?: string;
   thinkingMode: 'off' | 'low' | 'medium' | 'high';
-  verboseMode: 'on' | 'off';
-  reasoningMode: 'off' | 'stream';
+  showTools: boolean;
+  showReasoning: boolean;
   onModelChange: (model: string, provider?: string) => void;
   onThinkingChange: (val: any) => void;
-  onVerboseChange: (val: any) => void;
-  onReasoningChange: (val: any) => void;
+  onShowToolsChange: (show: boolean) => void;
+  onShowReasoningChange: (show: boolean) => void;
   
   // Gateway management
   connectionStatus: ConnectionStatus;
@@ -41,12 +41,12 @@ export function MobileControlPanel({
   models,
   currentModel,
   thinkingMode,
-  verboseMode,
-  reasoningMode,
+  showTools,
+  showReasoning,
   onModelChange,
   onThinkingChange,
-  onVerboseChange,
-  onReasoningChange,
+  onShowToolsChange,
+  onShowReasoningChange,
   connectionStatus,
   gateways,
   activeGatewayId,
@@ -188,17 +188,17 @@ export function MobileControlPanel({
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase ml-1">Verbosity</label>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase ml-1">Tools</label>
                   <VerboseToggle
-                    value={verboseMode}
-                    onChange={onVerboseChange}
+                    value={showTools}
+                    onChange={onShowToolsChange}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] font-bold text-muted-foreground uppercase ml-1">Reasoning</label>
                   <ReasoningToggle
-                    value={reasoningMode}
-                    onChange={onReasoningChange}
+                    value={showReasoning}
+                    onChange={onShowReasoningChange}
                   />
                 </div>
               </div>

@@ -2,14 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Terminal } from 'lucide-react';
 
 interface VerboseSelectorProps {
-  value: 'on' | 'off';
-  onChange: (value: 'on' | 'off') => void;
+  value: boolean;
+  onChange: (value: boolean) => void;
   disabled?: boolean;
 }
 
 const VERBOSE_MODES = [
-  { value: 'on' as const, label: 'On', desc: 'Show tool calls' },
-  { value: 'off' as const, label: 'Off', desc: 'Hide tool calls' },
+  { value: true, label: 'On', desc: 'Show tool calls' },
+  { value: false, label: 'Off', desc: 'Hide tool calls' },
 ];
 
 export function VerboseToggle({ value, onChange, disabled }: VerboseSelectorProps) {

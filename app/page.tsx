@@ -20,7 +20,7 @@ export default function MissionControl() {
 }
 
 function MissionControlInner() {
-  const { layout, openPanel, closePanel, setActivePanel } = usePanels();
+  const { layout, openPanel, closePanel, setActivePanel, updatePanelSettings, getActivePanel } = usePanels();
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
   const [gateways, setGateways] = useState<any[]>([]);
@@ -59,8 +59,8 @@ function MissionControlInner() {
     onEvent: stableOnEvent
   });
 
-  // Get the active panel - needed for session settings
-  const activePanel = layout.panels.find(p => p.id === layout.activePanel);
+  // Get the active panel and its settings
+  const activePanel = getActivePanel();
   const activePanelAgentId = activePanel?.agentId;
 
   const {
@@ -189,6 +189,19 @@ function MissionControlInner() {
 
   // Calculate active panel agent for UI display
   const activePanelAgent = activePanel?.agentId ? agents.find(a => a.id === activePanel.agentId) : undefined;
+
+  // Handlers for updating per-panel settings
+  const handleShowToolsChange = useCallback((show: boolean) => {
+    if (activePanel?.id) {
+      updatePanelSettings(activePanel.id, { showTools: show });
+    }
+  }, [activePanel?.id, updatePanelSettings]);
+
+  const handleShowReasoningChange = useCallback((show: boolean) => {
+    if (activePanel?.id) {
+      updatePanelSettings(activePanel.id, { showReasoning: show });
+    }
+  }, [activePanel?.id, updatePanelSettings]);
 
   // Handler to open chat panel for an agent
   const handleSelectAgent = useCallback((agentId: string) => {
@@ -371,12 +384,12 @@ function MissionControlInner() {
           models={models}
           currentModel={sessionSettings.model}
           thinkingMode={sessionSettings.thinking || 'low'}
-          verboseMode={sessionSettings.verbose || 'off'}
-          reasoningMode={sessionSettings.reasoning || 'off'}
+          showTools={activePanel?.settings?.showTools ?? false}
+          showReasoning={activePanel?.settings?.showReasoning ?? true}
           onModelChange={sessionKey ? (model, provider) => updateSetting(sessionKey, { model, modelProvider: provider }) : undefined}
           onThinkingChange={sessionKey ? (thinking) => updateSetting(sessionKey, { thinking }) : undefined}
-          onVerboseChange={sessionKey ? (verbose) => updateSetting(sessionKey, { verbose }) : undefined}
-          onReasoningChange={sessionKey ? (reasoning) => updateSetting(sessionKey, { reasoning }) : undefined}
+          onShowToolsChange={handleShowToolsChange}
+          onShowReasoningChange={handleShowReasoningChange}
           
           gateways={gateways}
           activeGatewayId={activeGatewayId}
@@ -400,12 +413,12 @@ function MissionControlInner() {
         models={models}
         currentModel={sessionSettings.model}
         thinkingMode={sessionSettings.thinking || 'low'}
-        verboseMode={sessionSettings.verbose || 'off'}
-        reasoningMode={sessionSettings.reasoning || 'off'}
+        showTools={activePanel?.settings?.showTools ?? false}
+        showReasoning={activePanel?.settings?.showReasoning ?? true}
         onModelChange={sessionKey ? (model, provider) => updateSetting(sessionKey, { model, modelProvider: provider }) : undefined}
         onThinkingChange={sessionKey ? (thinking) => updateSetting(sessionKey, { thinking }) : undefined}
-        onVerboseChange={sessionKey ? (verbose) => updateSetting(sessionKey, { verbose }) : undefined}
-        onReasoningChange={sessionKey ? (reasoning) => updateSetting(sessionKey, { reasoning }) : undefined}
+        onShowToolsChange={handleShowToolsChange}
+        onShowReasoningChange={handleShowReasoningChange}
         
         connectionStatus={connectionStatus}
         gateways={gateways}
