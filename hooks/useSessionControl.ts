@@ -3,8 +3,14 @@
  * Provides functions to abort active runs and reset sessions
  */
 
+interface SessionControlMessage {
+  type: string;
+  agentId: string;
+  message?: string;
+}
+
 interface UseSessionControlProps {
-  sendMessage: (msg: any) => void;
+  sendMessage: (msg: SessionControlMessage) => void;
 }
 
 export function useSessionControl({ sendMessage }: UseSessionControlProps) {
