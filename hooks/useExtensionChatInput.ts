@@ -8,6 +8,55 @@ import { useState, useCallback, useEffect } from 'react';
 import { useExtensions } from '@/contexts/ExtensionContext';
 import type { ChatInputTagOption, TaggerConfig } from '@/types/extension';
 
+function optionMatchesQuery(option: ChatInputTagOption, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const haystack = [
+    option.label,
+    option.tag,
+    option.description,
+    option.value,
+    option.id,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) {
+    return true;
+  }
+
+  return tokens.some(token => haystack.includes(token));
+}
+
+function filterTagOptions(options: ChatInputTagOption[], query: string): ChatInputTagOption[] {
+  return options.reduce<ChatInputTagOption[]>((acc, option) => {
+    const hasChildren = Boolean(option.children && option.children.length > 0);
+    const filteredChildren = hasChildren ? filterTagOptions(option.children!, query) : undefined;
+    const selfMatches = optionMatchesQuery(option, query);
+
+    if (!selfMatches && (!filteredChildren || filteredChildren.length === 0)) {
+      return acc;
+    }
+
+    if (selfMatches) {
+      acc.push(option);
+      return acc;
+    }
+
+    acc.push({
+      ...option,
+      children: filteredChildren,
+    });
+
+    return acc;
+  }, []);
+}
+
 /**
  * Hook to get tag options from extensions based on query
  */
@@ -44,7 +93,7 @@ export function useExtensionChatInput() {
 
     try {
       // Remove @ and get the search term
-      const searchTerm = query.slice(1).toLowerCase();
+      const searchTerm = query.slice(1).trim();
 
       // Query all enabled extensions with chat-input hook
       const promises = enabledExtensions
@@ -62,13 +111,17 @@ export function useExtensionChatInput() {
         });
 
       await Promise.all(promises);
+
+      // Apply broad client-side filtering across labels, tags, descriptions,
+      // and nested options. Keep nested structure for submenu UX.
+      return filterTagOptions(options, searchTerm);
     } catch (error) {
       console.error('[ChatInputHook] Error searching tags:', error);
     } finally {
       setIsLoading(false);
     }
 
-    return options;
+    return [];
   }, [enabledExtensions]);
 
   /**
