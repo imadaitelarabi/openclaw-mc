@@ -30,6 +30,9 @@ interface ChatPanelProps {
   // Per-panel settings
   showTools?: boolean;
   showReasoning?: boolean;
+  
+  // Panel state
+  isActive?: boolean;
 }
 
 export const ChatPanel = memo(function ChatPanel({
@@ -45,7 +48,8 @@ export const ChatPanel = memo(function ChatPanel({
   sessionSettings,
   onAbortRun,
   showTools = false,
-  showReasoning = true
+  showReasoning = true,
+  isActive = true
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -57,12 +61,20 @@ export const ChatPanel = memo(function ChatPanel({
   // Chat history hook for loading older messages
   const { loading: historyLoading, loadMoreHistory } = useChatHistory({ sendMessage });
 
-  // Polling hook for real-time reasoning and enriched tool calls
-  useChatPolling({
+  // Polling hook for real-time reasoning and enriched tool calls with adaptive intervals
+  const { trackActivity } = useChatPolling({
     agentId,
     activeRunId,
     sendMessage,
+    isActivePanel: isActive,
   });
+
+  // Track activity when chat history changes (new messages arrive)
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      trackActivity();
+    }
+  }, [chatHistory.length, trackActivity]);
 
   // Debounced scroll position save function
   const debouncedSaveScroll = useMemo(
