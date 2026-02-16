@@ -8,10 +8,10 @@ import { Copy, Check } from 'lucide-react';
 
 interface ChatMessageItemProps {
   message: ChatMessage;
-  verboseMode?: 'on' | 'off';
+  verboseMode: 'on' | 'off';
 }
 
-export function ChatMessageItem({ message, verboseMode = 'off' }: ChatMessageItemProps) {
+export function ChatMessageItem({ message, verboseMode }: ChatMessageItemProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
