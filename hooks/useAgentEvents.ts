@@ -52,13 +52,20 @@ function toContentParts(content: unknown): Array<Record<string, unknown>> {
 }
 
 function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
-  return messages.flatMap((msg: any, index: number): ChatMessage[] => {
+  const transformed: ChatMessage[] = [];
+  const toolMessageIndexByCallId = new Map<string, number>();
+
+  const pushMessage = (message: ChatMessage) => {
+    transformed.push(message);
+    return transformed.length - 1;
+  };
+
+  messages.forEach((msg: any, index: number) => {
     const role = msg?.role;
     const timestamp = typeof msg?.timestamp === 'number' ? msg.timestamp : Date.now();
     const runId = typeof msg?.runId === 'string' ? msg.runId : undefined;
     const baseId = msg?.id || msg?.runId || `${timestamp}-${index}-${Math.random().toString(36).slice(2, 7)}`;
 
-    // Handle tool results from history payloads
     if (role === 'toolResult') {
       const details = (msg?.details && typeof msg.details === 'object') ? msg.details : {};
       const contentText = normalizeTextContent(msg?.content);
@@ -68,9 +75,34 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
         ? (details as any).durationMs
         : (typeof (details as any)?.duration === 'number' ? (details as any).duration : undefined);
       const isError = Boolean(msg?.isError);
+      const toolCallId = normalizeTextContent(msg?.toolCallId);
 
-      return [{
-        id: msg?.toolCallId || baseId,
+      if (toolCallId && toolMessageIndexByCallId.has(toolCallId)) {
+        const existingIndex = toolMessageIndexByCallId.get(toolCallId);
+        if (existingIndex !== undefined) {
+          const existingMessage = transformed[existingIndex];
+          if (existingMessage?.role === 'tool' && existingMessage.tool) {
+            transformed[existingIndex] = {
+              ...existingMessage,
+              timestamp: Math.max(existingMessage.timestamp, timestamp),
+              tool: {
+                ...existingMessage.tool,
+                status: isError ? 'error' : 'end',
+                result: aggregated || contentText || (details as any)?.result || existingMessage.tool.result,
+                error: isError
+                  ? normalizeTextContent((details as any)?.error || contentText || 'Tool execution failed')
+                  : undefined,
+                exitCode,
+                duration,
+              },
+            };
+            return;
+          }
+        }
+      }
+
+      const standaloneTool: ChatMessage = {
+        id: toolCallId || baseId,
         role: 'tool',
         content: msg?.toolName || 'tool',
         tool: {
@@ -83,13 +115,18 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
         },
         timestamp,
         runId,
-      }];
+      };
+
+      const standaloneIndex = pushMessage(standaloneTool);
+      if (toolCallId) {
+        toolMessageIndexByCallId.set(toolCallId, standaloneIndex);
+      }
+      return;
     }
 
     const parts = toContentParts(msg?.content);
     const textParts: string[] = [];
     const thinkingParts: string[] = [];
-    const toolMessages: ChatMessage[] = [];
 
     parts.forEach((part, partIndex) => {
       const partType = typeof part.type === 'string' ? part.type : '';
@@ -109,7 +146,7 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
       if (partType === 'toolCall') {
         const toolName = normalizeTextContent(part.name || 'tool');
         const toolCallId = normalizeTextContent(part.id || `${baseId}-tool-${partIndex}`);
-        toolMessages.push({
+        const toolMessage: ChatMessage = {
           id: toolCallId,
           role: 'tool',
           content: toolName,
@@ -120,7 +157,12 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
           },
           timestamp,
           runId,
-        });
+        };
+
+        const toolMessageIndex = pushMessage(toolMessage);
+        if (toolCallId) {
+          toolMessageIndexByCallId.set(toolCallId, toolMessageIndex);
+        }
         return;
       }
 
@@ -138,10 +180,9 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
 
     const textContent = textParts.filter(Boolean).join('\n\n').trim();
     const thinkingContent = thinkingParts.filter(Boolean).join('\n\n').trim();
-    const result: ChatMessage[] = [];
 
     if (thinkingContent) {
-      result.push({
+      pushMessage({
         id: `${baseId}-reasoning`,
         role: 'reasoning',
         content: thinkingContent,
@@ -151,7 +192,7 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
     }
 
     if (textContent || (normalizedRole !== 'tool' && parts.length === 0)) {
-      result.push({
+      pushMessage({
         id: String(baseId),
         role: normalizedRole,
         content: textContent || normalizeTextContent(msg?.content ?? msg?.text),
@@ -162,7 +203,7 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
     }
 
     if (normalizedRole === 'tool' && msg?.tool) {
-      result.push({
+      pushMessage({
         id: String(baseId),
         role: 'tool',
         content: normalizeTextContent(msg?.tool?.name || msg?.content || 'tool'),
@@ -180,9 +221,9 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
         runId,
       });
     }
-
-    return [...result, ...toolMessages];
   });
+
+  return transformed;
 }
 
 export function useAgentEvents() {
