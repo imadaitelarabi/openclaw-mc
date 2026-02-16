@@ -77,6 +77,23 @@ function MissionControlInner() {
   // Session control hook for abort and reset
   const { abortRun, resetSession } = useSessionControl({ sendMessage });
 
+  const handleAbortRun = useCallback((agentId: string) => {
+    if (connectionStatus !== 'connected') {
+      toast({
+        title: 'Not connected',
+        description: 'Cannot stop run while disconnected.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    abortRun(agentId);
+    toast({
+      title: 'Stop requested',
+      description: 'Sent abort request to gateway.'
+    });
+  }, [abortRun, connectionStatus, toast]);
+
   // Enhanced reset handler that also clears UI history
   const handleResetSession = useCallback((agentId: string) => {
     resetSession(agentId);
@@ -372,7 +389,7 @@ function MissionControlInner() {
             models={models}
             sessionSettings={sessionSettings}
             updateSetting={updateSetting}
-            onAbortRun={abortRun}
+            onAbortRun={handleAbortRun}
             onCreateAgent={handleCreateAgentRequest}
             onUpdateAgent={handleUpdateAgentRequest}
           />

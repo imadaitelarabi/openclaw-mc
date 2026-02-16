@@ -63,7 +63,7 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
         />
         <button
           onClick={handleButtonClick}
-          disabled={!isRunning && (!value.trim() || disabled)}
+          disabled={Boolean(disabled) || (!isRunning && !value.trim())}
           className="bg-primary text-primary-foreground p-2.5 md:px-4 md:py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           title={isRunning ? 'Stop generation' : 'Send message'}
         >
