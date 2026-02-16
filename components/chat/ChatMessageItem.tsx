@@ -61,13 +61,16 @@ export function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
         {message.attachments && message.attachments.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {message.attachments.map((attachment, index) => (
-              <div key={index} className="relative rounded overflow-hidden border border-white/20">
-                <img
-                  src={attachment.media}
-                  alt={attachment.name}
-                  className="max-w-xs max-h-48 object-contain"
-                  title={attachment.name}
-                />
+              <div key={`${attachment.name}-${index}`} className="relative rounded overflow-hidden border border-white/20">
+                {/* Only render if it's a valid image data URI */}
+                {attachment.media.startsWith('data:image/') && (
+                  <img
+                    src={attachment.media}
+                    alt={attachment.name}
+                    className="max-w-xs max-h-48 object-contain"
+                    title={attachment.name}
+                  />
+                )}
               </div>
             ))}
           </div>
