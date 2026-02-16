@@ -82,6 +82,7 @@ export function useChatPolling({
   const isPollingRef = useRef<boolean>(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendMessageRef = useRef(sendMessage);
+  const isCleanedUpRef = useRef<boolean>(false);
   const activityRef = useRef<ActivityState>({
     lastEventTime: Date.now(),
     eventCount: 0,
@@ -205,6 +206,7 @@ export function useChatPolling({
         timeoutRef.current = null;
       }
       isPollingRef.current = false;
+      isCleanedUpRef.current = false;
       return;
     }
 
@@ -212,22 +214,21 @@ export function useChatPolling({
       console.log(`[ChatPolling] Starting adaptive polling for ${agentId} (runId: ${activeRunId})`);
     }
 
-    // Adaptive polling with setTimeout instead of setInterval
-    // This allows us to adjust the interval dynamically
-    let isCleanedUp = false;
+    // Reset cleanup flag when starting polling
+    isCleanedUpRef.current = false;
 
     const schedulePoll = () => {
-      if (isCleanedUp) return;
+      if (isCleanedUpRef.current) return;
       
       pollHistory();
       
       // Check again after poll completes in case cleanup happened during poll
-      if (isCleanedUp) return;
+      if (isCleanedUpRef.current) return;
       
       // Schedule next poll with adaptive interval
       const interval = getCurrentInterval();
       intervalRef.current = setTimeout(() => {
-        if (!isCleanedUp) {
+        if (!isCleanedUpRef.current) {
           schedulePoll();
         }
       }, interval);
@@ -238,7 +239,7 @@ export function useChatPolling({
 
     // Cleanup on unmount or when run ends
     return () => {
-      isCleanedUp = true;
+      isCleanedUpRef.current = true;
       if (DEBUG) {
         console.log(`[ChatPolling] Cleanup - stopping polling for ${agentId}`);
       }
@@ -252,10 +253,7 @@ export function useChatPolling({
       }
       isPollingRef.current = false;
     };
-    // pollHistory and getCurrentInterval are intentionally excluded to avoid unnecessary restarts
-    // when dependencies change. The latest values will be captured by the closures.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId, activeRunId, isActivePanel]);
+  }, [agentId, activeRunId, isActivePanel, pollHistory, getCurrentInterval]);
 
   // Note: isPolling is a ref value and won't trigger re-renders when it changes.
   // This is intentional for now to avoid unnecessary re-renders. When UI indicators

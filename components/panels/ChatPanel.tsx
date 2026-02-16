@@ -73,7 +73,8 @@ export const ChatPanel = memo(function ChatPanel({
   // Track activity when chat history length increases (new messages arrive)
   useEffect(() => {
     const currentLength = chatHistory.length;
-    if (currentLength > previousChatLengthRef.current) {
+    // Only track activity if length increases and it's not the initial population
+    if (currentLength > previousChatLengthRef.current && previousChatLengthRef.current > 0) {
       trackActivity();
     }
     previousChatLengthRef.current = currentLength;
