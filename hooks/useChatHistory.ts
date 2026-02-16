@@ -1,8 +1,12 @@
 import { useCallback, useState } from 'react';
 
 interface UseChatHistoryProps {
-  sendMessage: (message: any) => void;
+  sendMessage: (message: Record<string, unknown>) => void;
 }
+
+// Constants
+const DEFAULT_HISTORY_PAGE_SIZE = 50;
+const HISTORY_LOAD_TIMEOUT_MS = 5000;
 
 export function useChatHistory({ sendMessage }: UseChatHistoryProps) {
   const [loading, setLoading] = useState<Record<string, boolean>>({});
@@ -15,7 +19,7 @@ export function useChatHistory({ sendMessage }: UseChatHistoryProps) {
    * @param before - Message ID to paginate from (optional)
    */
   const loadMoreHistory = useCallback(
-    (agentId: string, limit: number = 50, before?: string) => {
+    (agentId: string, limit: number = DEFAULT_HISTORY_PAGE_SIZE, before?: string) => {
       setLoading((prev) => ({ ...prev, [agentId]: true }));
 
       try {
@@ -44,7 +48,7 @@ export function useChatHistory({ sendMessage }: UseChatHistoryProps) {
       // Reset loading state after a timeout as fallback
       setTimeout(() => {
         setLoading((prev) => ({ ...prev, [agentId]: false }));
-      }, 5000);
+      }, HISTORY_LOAD_TIMEOUT_MS);
     },
     [sendMessage]
   );

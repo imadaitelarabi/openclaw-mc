@@ -7,6 +7,11 @@ import { getStreamKey } from '@/lib/gateway-utils';
 import { uiStateStore } from '@/lib/ui-state-db';
 import type { Agent } from '@/types';
 
+// Constants
+const HISTORY_PAGE_SIZE = 50;
+const DRAFT_SAVE_DEBOUNCE_MS = 500;
+const SCROLL_RESTORE_DELAY_MS = 100;
+
 interface ChatPanelProps {
   agentId: string;
   agent?: Agent;
@@ -72,7 +77,7 @@ export function ChatPanel({
             const isAtBottom = scrollHeight - position - clientHeight < 50;
             shouldAutoScrollRef.current = isAtBottom;
           }
-        }, 100);
+        }, SCROLL_RESTORE_DELAY_MS);
       }
     };
     restoreScroll();
@@ -86,7 +91,7 @@ export function ChatPanel({
       } else {
         uiStateStore.clearDraft(agentId);
       }
-    }, 500); // Debounce 500ms
+    }, DRAFT_SAVE_DEBOUNCE_MS);
 
     return () => clearTimeout(timeoutId);
   }, [chatInput, agentId]);
@@ -139,7 +144,7 @@ export function ChatPanel({
     const beforeId = oldestMessage?.id;
     
     if (beforeId) {
-      await loadMoreHistory(agentId, 50, beforeId);
+      await loadMoreHistory(agentId, HISTORY_PAGE_SIZE, beforeId);
     }
   };
 

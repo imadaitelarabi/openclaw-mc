@@ -255,7 +255,7 @@ export class GatewayClient {
       // Auto-subscribe to active sessions for event stream resumption
       if (sessions?.sessions && Array.isArray(sessions.sessions)) {
         console.log('[Gateway] Auto-subscribing to active sessions for reconnection...');
-        sessions.sessions.forEach((session: any) => {
+        sessions.sessions.forEach((session: Session) => {
           try {
             // Subscribe to each session to resume event streams
             this.request('chat.subscribe', { sessionKey: session.key }).catch((err) => {

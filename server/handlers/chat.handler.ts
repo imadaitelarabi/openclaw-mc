@@ -6,6 +6,16 @@
 import type { ExtendedWebSocket } from '../types/internal';
 import type { GatewayClient } from '../core/GatewayClient';
 
+interface ChatHistoryLoadMessage {
+  type: 'chat.history.load';
+  agentId: string;
+  params: {
+    sessionKey: string;
+    limit?: number;
+    before?: string;
+  };
+}
+
 export async function handleChatSend(
   msg: any,
   ws: ExtendedWebSocket,
@@ -18,7 +28,7 @@ export async function handleChatSend(
 }
 
 export async function handleChatHistoryLoad(
-  msg: any,
+  msg: ChatHistoryLoadMessage,
   ws: ExtendedWebSocket,
   gateway: GatewayClient
 ): Promise<void> {
