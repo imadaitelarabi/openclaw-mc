@@ -63,7 +63,8 @@ export function validateFile(
       if (type.startsWith('.')) {
         return file.name.toLowerCase().endsWith(type.toLowerCase());
       }
-      return file.type.match(new RegExp(type.replace('*', '.*')));
+      // Replace all asterisks for wildcard matching (not just first occurrence)
+      return file.type.match(new RegExp(type.replace(/\*/g, '.*')));
     });
     
     if (!isAllowed) {
