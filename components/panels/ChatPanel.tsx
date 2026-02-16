@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { memo, useState, useRef, useEffect } from 'react';
 import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
 import { useChatHistory, useChatPolling } from '@/hooks';
-import { getStreamKey } from '@/lib/gateway-utils';
 import { uiStateStore } from '@/lib/ui-state-db';
 import type { Agent } from '@/types';
 
@@ -18,24 +17,24 @@ interface ChatPanelProps {
   sendMessage: (msg: any) => void;
   connectionStatus: string;
   chatHistory: any[];
-  chatStream: Record<string, string>;
-  reasoningStream: Record<string, string>;
-  activeRuns: Record<string, string>;
+  activeRunId: string | null;
+  assistantStream?: string;
+  reasoningStream?: string;
   addUserMessage: (agentId: string, message: string) => void;
   models: any[];
   sessionSettings: Record<string, any>;
   updateSetting: (sessionKey: string, settings: any) => void;
 }
 
-export function ChatPanel({
+export const ChatPanel = memo(function ChatPanel({
   agentId,
   agent,
   sendMessage,
   connectionStatus,
   chatHistory,
-  chatStream,
+  activeRunId,
+  assistantStream,
   reasoningStream,
-  activeRuns,
   addUserMessage,
   sessionSettings
 }: ChatPanelProps) {
@@ -50,10 +49,9 @@ export function ChatPanel({
   const { loading: historyLoading, loadMoreHistory } = useChatHistory({ sendMessage });
 
   // Polling hook for real-time reasoning and enriched tool calls
-  const currentRunId = activeRuns[agentId] || null;
-  const { isPolling } = useChatPolling({
+  useChatPolling({
     agentId,
-    activeRunId: currentRunId,
+    activeRunId,
     sendMessage,
   });
 
@@ -135,9 +133,9 @@ export function ChatPanel({
   useEffect(() => {
     // Only scroll if we're supposed to auto-scroll and this is our own content
     if (shouldAutoScrollRef.current && chatEndRef.current && scrollContainerRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      chatEndRef.current.scrollIntoView({ behavior: 'auto' });
     }
-  }, [chatHistory, chatStream, agentId]);
+  }, [chatHistory, assistantStream, agentId]);
 
   const scrollToBottom = () => {
     if (chatEndRef.current) {
@@ -157,13 +155,6 @@ export function ChatPanel({
       await loadMoreHistory(agentId, HISTORY_PAGE_SIZE, beforeId);
     }
   };
-
-  const currentStreamKey = agentId && activeRuns[agentId] 
-    ? getStreamKey(agentId, activeRuns[agentId])
-    : null;
-  
-  const assistantStream = currentStreamKey ? chatStream[currentStreamKey] : undefined;
-  const reasoningStreamData = currentStreamKey ? reasoningStream[currentStreamKey] : undefined;
 
   return (
     <div className="flex flex-col h-full">
@@ -189,8 +180,8 @@ export function ChatPanel({
           
           <StreamingIndicator 
             assistantStream={assistantStream}
-            reasoningStream={reasoningStreamData}
-            isTyping={!!(agentId && activeRuns[agentId])}
+            reasoningStream={reasoningStream}
+            isTyping={Boolean(activeRunId)}
           />
           
           <div ref={chatEndRef} />
@@ -210,4 +201,6 @@ export function ChatPanel({
       />
     </div>
   );
-}
+});
+
+ChatPanel.displayName = 'ChatPanel';

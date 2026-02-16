@@ -1,6 +1,7 @@
 "use client";
 
 import type { Panel } from '@/types';
+import { getStreamKey } from '@/lib/gateway-utils';
 import { PanelHeader } from './PanelHeader';
 import { ChatPanel } from './ChatPanel';
 import { CreateAgentPanel } from './CreateAgentPanel';
@@ -89,9 +90,17 @@ export function PanelContainer({
                 sendMessage={sendMessage}
                 connectionStatus={connectionStatus}
                 chatHistory={chatHistory[panel.agentId] || []}
-                chatStream={chatStreams}
-                reasoningStream={reasoningStreams}
-                activeRuns={activeRuns}
+                activeRunId={activeRuns[panel.agentId] || null}
+                assistantStream={
+                  activeRuns[panel.agentId]
+                    ? chatStreams[getStreamKey(panel.agentId, activeRuns[panel.agentId])]
+                    : undefined
+                }
+                reasoningStream={
+                  activeRuns[panel.agentId]
+                    ? reasoningStreams[getStreamKey(panel.agentId, activeRuns[panel.agentId])]
+                    : undefined
+                }
                 addUserMessage={addUserMessage}
                 models={models}
                 sessionSettings={sessionSettings}

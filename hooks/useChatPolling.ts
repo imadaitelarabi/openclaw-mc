@@ -46,6 +46,11 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isPollingRef = useRef<boolean>(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sendMessageRef = useRef(sendMessage);
+
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
 
   /**
    * Poll chat history for reasoning blocks and enriched tool calls
@@ -67,7 +72,7 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
 
     try {
       // Request minimal data (last 10 messages)
-      sendMessage({
+      sendMessageRef.current({
         type: 'chat.history.load',
         agentId,
         params: {
@@ -96,7 +101,7 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
         console.log(`[ChatPolling] Poll cooldown complete for ${agentId}`);
       }
     }, POLL_COOLDOWN_MS);
-  }, [agentId, sendMessage]);
+  }, [agentId]);
 
   useEffect(() => {
     // Only poll when this agent has an active run
@@ -114,6 +119,7 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
+      isPollingRef.current = false;
       return;
     }
 
@@ -138,6 +144,7 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
+      isPollingRef.current = false;
     };
     // pollHistory is intentionally excluded to avoid unnecessary interval restarts
     // when sendMessage reference changes. The latest sendMessage will be captured
