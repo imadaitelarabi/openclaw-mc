@@ -126,8 +126,16 @@ export const ChatMessageItem = memo(function ChatMessageItem({ message, showTool
     return false;
   }
   
+  // Check if tool existence changed
+  const prevHasTool = !!prevProps.message.tool;
+  const nextHasTool = !!nextProps.message.tool;
+  if (prevHasTool !== nextHasTool) {
+    return false;
+  }
+  
   // Check if tool status changed (e.g., from 'running' to 'complete')
-  if (prevProps.message.tool?.status !== nextProps.message.tool?.status) {
+  if (prevHasTool && nextHasTool && 
+      prevProps.message.tool!.status !== nextProps.message.tool!.status) {
     return false;
   }
   

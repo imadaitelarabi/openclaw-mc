@@ -72,6 +72,13 @@ export const ChatPanel = memo(function ChatPanel({
     []
   );
 
+  // Cleanup debounced function on unmount
+  useEffect(() => {
+    return () => {
+      debouncedSaveScroll.cancel();
+    };
+  }, [debouncedSaveScroll]);
+
   // Filter messages based on per-panel settings
   const filteredChatHistory = useMemo(() => {
     return chatHistory.filter(msg => {
