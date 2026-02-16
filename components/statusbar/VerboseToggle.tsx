@@ -2,22 +2,21 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 interface VerboseSelectorProps {
-  value: 'on' | 'off' | 'inherit';
-  onChange: (value: 'on' | 'off' | 'inherit') => void;
+  value: 'on' | 'off';
+  onChange: (value: 'on' | 'off') => void;
   disabled?: boolean;
 }
 
 const VERBOSE_MODES = [
-  { value: 'on' as const, label: 'On', desc: 'Show all tool calls' },
+  { value: 'on' as const, label: 'On', desc: 'Show tool calls' },
   { value: 'off' as const, label: 'Off', desc: 'Hide tool calls' },
-  { value: 'inherit' as const, label: 'Auto', desc: 'Use agent default' },
 ];
 
 export function VerboseToggle({ value, onChange, disabled }: VerboseSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentMode = VERBOSE_MODES.find(m => m.value === value) || VERBOSE_MODES[1];
+  const currentMode = VERBOSE_MODES.find(m => m.value === value) || VERBOSE_MODES[1]; // Default to 'Off'
 
   // Close on click outside
   useEffect(() => {

@@ -2,14 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 interface ReasoningSelectorProps {
-  value: 'off' | 'on' | 'stream';
-  onChange: (value: 'off' | 'on' | 'stream') => void;
+  value: 'off' | 'stream';
+  onChange: (value: 'off' | 'stream') => void;
   disabled?: boolean;
 }
 
 const REASONING_MODES = [
   { value: 'off' as const, label: 'Off', desc: 'Hide reasoning' },
-  { value: 'on' as const, label: 'On', desc: 'Show reasoning blocks' },
   { value: 'stream' as const, label: 'Stream', desc: 'Stream reasoning live' },
 ];
 
