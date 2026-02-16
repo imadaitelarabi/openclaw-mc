@@ -37,6 +37,7 @@ export type ClientMessage =
   | { type: 'gateways.add'; name: string; url: string; token: string }
   | { type: 'gateways.switch'; id: string }
   | { type: 'gateways.remove'; id: string }
+  | { type: 'gateway.call'; method: string; params?: any; requestId?: string }
   | { type: 'chat.send'; agentId: string; message: string }
   | { type: 'models.list' }
   | { type: 'sessions.list' }
@@ -79,6 +80,8 @@ export type ServerMessage =
   | { type: 'gateways.add.ack' }
   | { type: 'gateways.switch.ack' }
   | { type: 'gateways.remove.ack' }
+  | { type: 'gateway.call.response'; requestId?: string; result: any }
+  | { type: 'gateway.call.error'; requestId?: string; error: string }
   | { type: 'error'; message: string; requestId?: string }
   | { type: 'agents'; data: TransformedAgent[] }
   | { type: 'agent_definitions'; data: Agent[] }
