@@ -15,4 +15,9 @@ export interface ChatMessage {
   };
   timestamp: number;
   runId?: string;
+  attachments?: Array<{
+    name: string;
+    mimeType: string;
+    media: string; // data URI with base64
+  }>;
 }

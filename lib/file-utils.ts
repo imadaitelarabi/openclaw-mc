@@ -68,9 +68,13 @@ export function validateFile(
     });
     
     if (!isAllowed) {
+      // Provide more specific error message for image-only restriction
+      const isImageOnlyConfig = config.allowedTypes?.length === 1 && config.allowedTypes[0] === 'image/*';
       return {
         valid: false,
-        error: `File type not allowed: ${file.type || 'unknown'}`,
+        error: isImageOnlyConfig 
+          ? 'Only image files are allowed' 
+          : `File type not allowed: ${file.type || 'unknown'}`,
       };
     }
   }

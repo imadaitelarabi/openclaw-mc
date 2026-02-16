@@ -165,6 +165,7 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
             ref={fileInputRef}
             type="file"
             multiple
+            accept="image/*"
             onChange={handleFileSelect}
             className="hidden"
             disabled={disabled}
@@ -175,7 +176,7 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled}
             className="bg-secondary/50 border border-border p-2.5 md:px-3 md:py-3 rounded-lg hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-            title={`Attach files (max ${DEFAULT_ATTACHMENT_CONFIG.maxSizeMb}MB)`}
+            title={`Attach images (max ${DEFAULT_ATTACHMENT_CONFIG.maxSizeMb}MB)`}
           >
             <Paperclip className="w-5 h-5" />
           </button>

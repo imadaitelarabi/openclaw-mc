@@ -29,5 +29,5 @@ export interface AttachmentConfig {
 // Default configuration
 export const DEFAULT_ATTACHMENT_CONFIG: AttachmentConfig = {
   maxSizeMb: 10, // 10MB default (safe for WebSocket frames)
-  allowedTypes: undefined, // Allow all types by default
+  allowedTypes: ['image/*'], // Only images allowed
 };

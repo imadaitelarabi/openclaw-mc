@@ -20,7 +20,7 @@ interface ChatPanelProps {
   activeRunId: string | null;
   assistantStream?: string;
   reasoningStream?: string;
-  addUserMessage: (agentId: string, message: string) => void;
+  addUserMessage: (agentId: string, message: string, attachments?: Array<{name: string, mimeType: string, media: string}>) => void;
   models: any[];
   sessionSettings: Record<string, any>;
   updateSetting: (sessionKey: string, settings: any) => void;
@@ -126,7 +126,18 @@ export const ChatPanel = memo(function ChatPanel({
 
   const sendChatMessage = (attachments?: any[]) => {
     if (!agentId || (!chatInput.trim() && (!attachments || attachments.length === 0))) return;
-    addUserMessage(agentId, chatInput);
+    
+    // Convert attachments to the format for both local display and Gateway
+    const attachmentData = attachments && attachments.length > 0 
+      ? attachments.map(att => ({
+          name: att.name,
+          mimeType: att.mimeType,
+          media: att.media,
+        }))
+      : undefined;
+    
+    // Add user message with attachments
+    addUserMessage(agentId, chatInput, attachmentData);
     
     const messageData: any = { 
       type: 'chat.send', 
@@ -135,13 +146,8 @@ export const ChatPanel = memo(function ChatPanel({
     };
     
     // Add attachments if provided
-    if (attachments && attachments.length > 0) {
-      // Convert attachments to the format expected by Gateway
-      messageData.attachments = attachments.map(att => ({
-        name: att.name,
-        mimeType: att.mimeType,
-        media: att.media,
-      }));
+    if (attachmentData) {
+      messageData.attachments = attachmentData;
     }
     
     sendMessage(messageData);

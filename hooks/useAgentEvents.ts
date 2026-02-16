@@ -903,12 +903,13 @@ export function useAgentEvents() {
     }
   }, [loadChatHistory, prependChatHistory, syncRecentChatHistory]);
 
-  const addUserMessage = useCallback((agentId: string, content: string) => {
+  const addUserMessage = useCallback((agentId: string, content: string, attachments?: Array<{name: string, mimeType: string, media: string}>) => {
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ...(attachments && attachments.length > 0 && { attachments })
     };
     setChatHistory(prev => ({
       ...prev,
