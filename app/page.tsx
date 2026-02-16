@@ -77,6 +77,19 @@ function MissionControlInner() {
   // Session control hook for abort and reset
   const { abortRun, resetSession } = useSessionControl({ sendMessage });
 
+  const handleAbortRun = useCallback((agentId: string) => {
+    if (connectionStatus !== 'connected') {
+      toast({
+        title: 'Not connected',
+        description: 'Cannot stop run while disconnected.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    abortRun(agentId);
+  }, [abortRun, connectionStatus, toast]);
+
   // Enhanced reset handler that also clears UI history
   const handleResetSession = useCallback((agentId: string) => {
     resetSession(agentId);
@@ -155,6 +168,19 @@ function MissionControlInner() {
       } else if (message.type === 'gateways.switch.ack' || message.type === 'gateways.remove.ack') {
         sendMessage({ type: 'gateways.list' });
         setShowSetup(false);
+      } else if (message.type === 'chat.abort.run.ack') {
+        if (message.ok) {
+          toast({
+            title: 'Run stopped',
+            description: 'Generation was aborted.'
+          });
+        } else {
+          toast({
+            title: 'Stop failed',
+            description: message.error || 'Failed to abort run.',
+            variant: 'destructive'
+          });
+        }
       } else if (message.type === 'error') {
         if (message.requestId) {
           return;
@@ -372,7 +398,7 @@ function MissionControlInner() {
             models={models}
             sessionSettings={sessionSettings}
             updateSetting={updateSetting}
-            onAbortRun={abortRun}
+            onAbortRun={handleAbortRun}
             onCreateAgent={handleCreateAgentRequest}
             onUpdateAgent={handleUpdateAgentRequest}
           />

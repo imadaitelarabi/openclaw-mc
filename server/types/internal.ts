@@ -91,6 +91,7 @@ export type ServerMessage =
   | { type: 'agents.add.ack'; requestId?: string; agentId: string }
   | { type: 'agents.update.ack'; requestId?: string; agentId: string; name: string }
   | { type: 'agents.delete.ack'; requestId?: string; agentId: string; removed: boolean }
+  | { type: 'chat.abort.run.ack'; agentId: string; ok: boolean; error?: string }
   | { type: 'chat_history'; agentId: string; messages: unknown[] }
   | { type: 'chat_history_more'; agentId: string; messages: unknown[]; before?: string }
   | { type: 'event'; event: string; payload: Record<string, unknown> };

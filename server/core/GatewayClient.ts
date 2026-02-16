@@ -404,14 +404,15 @@ export class GatewayClient {
     }
   }
 
-  async abortChat(agentId: string): Promise<void> {
+  async abortChat(agentId: string): Promise<{ ok: boolean; error?: string }> {
     const sessionKey = `agent:${agentId}:main`;
     console.log(`[Gateway] Aborting all runs for session: ${sessionKey}`);
     try {
       await this.request('chat.abort', { sessionKey });
+      return { ok: true };
     } catch (err) {
       console.error(`[Gateway] Failed to abort chat for ${sessionKey}:`, err);
-      // Don't re-throw, as it's a best-effort action
+      return { ok: false, error: (err as Error).message || 'Abort failed' };
     }
   }
 
