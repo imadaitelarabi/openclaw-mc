@@ -3,3 +3,4 @@ export * from './message';
 export * from './gateway';
 export * from './panel';
 export * from './attachment';
+export * from './extension';
