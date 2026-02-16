@@ -64,8 +64,13 @@ export async function getStatusBarData(api: GitHubAPI): Promise<StatusBarItem | 
         );
 
         const sortedRepoItems = repoEntries
+          .filter(entry => entry.latestPrUpdatedAt > 0)
           .sort((a, b) => b.latestPrUpdatedAt - a.latestPrUpdatedAt)
           .map(entry => entry.item);
+
+        if (sortedRepoItems.length === 0) {
+          return null;
+        }
 
         const latestOrgPrUpdatedAt = repoEntries.reduce(
           (latest, repoEntry) => (repoEntry.latestPrUpdatedAt > latest ? repoEntry.latestPrUpdatedAt : latest),
@@ -85,6 +90,8 @@ export async function getStatusBarData(api: GitHubAPI): Promise<StatusBarItem | 
     );
 
     const items: StatusBarDropdownItem[] = orgEntries
+      .filter(Boolean)
+      .filter((entry): entry is { latestOrgPrUpdatedAt: number; item: StatusBarDropdownItem } => Boolean(entry))
       .sort((a, b) => b.latestOrgPrUpdatedAt - a.latestOrgPrUpdatedAt)
       .map(entry => entry.item);
 

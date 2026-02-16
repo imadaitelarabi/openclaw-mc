@@ -73,8 +73,13 @@ export async function getChatInputOptions(
           }
 
           const children = validRepoGroups
+            .filter(entry => entry.latestPrUpdatedAt > 0)
             .sort((a, b) => b.latestPrUpdatedAt - a.latestPrUpdatedAt)
             .map(entry => entry.option);
+
+          if (children.length === 0) {
+            return null;
+          }
 
           const latestOrgPrUpdatedAt = validRepoGroups.reduce(
             (latest, repoEntry) => (repoEntry.latestPrUpdatedAt > latest ? repoEntry.latestPrUpdatedAt : latest),
@@ -152,8 +157,13 @@ export async function getChatInputOptions(
           }
 
           const children = validRepoGroups
+            .filter(entry => entry.latestPrUpdatedAt > 0)
             .sort((a, b) => b.latestPrUpdatedAt - a.latestPrUpdatedAt)
             .map(entry => entry.option);
+
+          if (children.length === 0) {
+            return null;
+          }
 
           const latestOrgPrUpdatedAt = validRepoGroups.reduce(
             (latest, repoEntry) => (repoEntry.latestPrUpdatedAt > latest ? repoEntry.latestPrUpdatedAt : latest),
@@ -257,8 +267,13 @@ export async function getChatInputOptions(
           }
 
           const children = validRepoGroups
+            .filter(entry => entry.latestPrUpdatedAt > 0)
             .sort((a, b) => b.latestPrUpdatedAt - a.latestPrUpdatedAt)
             .map(entry => entry.option);
+
+          if (children.length === 0) {
+            return null;
+          }
 
           const latestOrgPrUpdatedAt = validRepoGroups.reduce(
             (latest, repoEntry) => (repoEntry.latestPrUpdatedAt > latest ? repoEntry.latestPrUpdatedAt : latest),
