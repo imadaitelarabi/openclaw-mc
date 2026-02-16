@@ -39,6 +39,25 @@ function normalizeTextContent(value: unknown): string {
   return String(value);
 }
 
+function computeStableHash(input: string): string {
+  let hash = 5381;
+  for (let index = 0; index < input.length; index += 1) {
+    hash = (hash * 33) ^ input.charCodeAt(index);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function buildFallbackHistoryId(msg: any): string {
+  const role = typeof msg?.role === 'string' ? msg.role : 'unknown';
+  const timestamp = typeof msg?.timestamp === 'number' ? msg.timestamp : 0;
+  const runId = typeof msg?.runId === 'string' ? msg.runId : '';
+  const toolCallId = normalizeTextContent(msg?.toolCallId || '');
+  const toolName = normalizeTextContent(msg?.toolName || msg?.tool?.name || '');
+  const content = normalizeTextContent(msg?.content ?? msg?.text ?? '').slice(0, 500);
+  const signature = `${role}|${timestamp}|${runId}|${toolCallId}|${toolName}|${content}`;
+  return `hist-${computeStableHash(signature)}`;
+}
+
 function stripAssistantFinalEnvelope(text: string): string {
   const finalMatch = text.match(/<final>([\s\S]*?)<\/final>/i);
   const withoutEnvelope = finalMatch ? finalMatch[1] : text;
@@ -70,7 +89,7 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
     return transformed.length - 1;
   };
 
-  messages.forEach((msg: any, index: number) => {
+  messages.forEach((msg: any) => {
     // Validate message has minimum required structure
     if (!isValidGatewayMessage(msg)) {
       console.warn('[transformGatewayHistoryMessages] Invalid message structure:', msg);
@@ -80,7 +99,7 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
     const role = msg?.role;
     const timestamp = typeof msg?.timestamp === 'number' ? msg.timestamp : Date.now();
     const runId = typeof msg?.runId === 'string' ? msg.runId : undefined;
-    const baseId = msg?.id || msg?.runId || `${timestamp}-${index}-${Math.random().toString(36).slice(2, 7)}`;
+    const baseId = normalizeTextContent(msg?.id || msg?.runId || buildFallbackHistoryId(msg));
 
     if (isToolResultMessage(msg)) {
       const details = (msg?.details && typeof msg.details === 'object') ? msg.details : {};
@@ -242,6 +261,59 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
   return transformed;
 }
 
+function areChatMessagesEqual(a: ChatMessage, b: ChatMessage): boolean {
+  const stableStringify = (value: unknown): string => {
+    if (value == null) return '';
+    if (typeof value !== 'object') return String(value);
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  };
+
+  if (
+    a.id !== b.id ||
+    a.role !== b.role ||
+    a.content !== b.content ||
+    a.thinking !== b.thinking ||
+    a.timestamp !== b.timestamp ||
+    a.runId !== b.runId
+  ) {
+    return false;
+  }
+
+  const aTool = a.tool;
+  const bTool = b.tool;
+
+  if (!aTool && !bTool) return true;
+  if (!aTool || !bTool) return false;
+
+  return (
+    aTool.name === bTool.name &&
+    aTool.status === bTool.status &&
+    aTool.result === bTool.result &&
+    aTool.error === bTool.error &&
+    aTool.duration === bTool.duration &&
+    aTool.exitCode === bTool.exitCode &&
+    stableStringify(aTool.args) === stableStringify(bTool.args)
+  );
+}
+
+function isLikelySameUserMessage(localMessage: ChatMessage, incomingMessage: ChatMessage): boolean {
+  if (localMessage.role !== 'user' || incomingMessage.role !== 'user') return false;
+
+  const localContent = localMessage.content.trim();
+  const incomingContent = incomingMessage.content.trim();
+  if (!localContent || localContent !== incomingContent) return false;
+
+  if (localMessage.runId && incomingMessage.runId && localMessage.runId !== incomingMessage.runId) {
+    return false;
+  }
+
+  return Math.abs(localMessage.timestamp - incomingMessage.timestamp) <= 15000;
+}
+
 export function useAgentEvents() {
   const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({});
   const [chatStreams, setChatStreams] = useState<Record<string, string>>({});
@@ -335,6 +407,73 @@ export function useAgentEvents() {
     });
   }, []);
 
+  /**
+   * Sync latest history window from polling without replacing full panel history.
+   * - Updates existing messages in-place when enriched metadata arrives
+   * - Appends genuinely new recent messages
+   * - Avoids state updates when nothing changed
+   */
+  const syncRecentChatHistory = useCallback((agentId: string, messages: any[]) => {
+    const transformedMessages = transformGatewayHistoryMessages(messages);
+
+    setChatHistory(prev => {
+      const existing = prev[agentId] || [];
+      if (existing.length === 0) {
+        return {
+          ...prev,
+          [agentId]: transformedMessages,
+        };
+      }
+
+      const existingIndexById = new Map(existing.map((msg, index) => [msg.id, index]));
+      const next = [...existing];
+      let changed = false;
+
+      transformedMessages.forEach((incoming) => {
+        const existingIndex = existingIndexById.get(incoming.id);
+
+        if (existingIndex === undefined) {
+          const optimisticMatchIndex = next.findIndex((existingMessage) =>
+            isLikelySameUserMessage(existingMessage, incoming)
+          );
+
+          if (optimisticMatchIndex !== -1) {
+            const previousId = next[optimisticMatchIndex].id;
+            next[optimisticMatchIndex] = incoming;
+            existingIndexById.delete(previousId);
+            existingIndexById.set(incoming.id, optimisticMatchIndex);
+            changed = true;
+            return;
+          }
+
+          next.push(incoming);
+          existingIndexById.set(incoming.id, next.length - 1);
+          changed = true;
+          return;
+        }
+
+        if (!areChatMessagesEqual(next[existingIndex], incoming)) {
+          next[existingIndex] = incoming;
+          changed = true;
+        }
+      });
+
+      if (!changed) return prev;
+
+      next.sort((a, b) => {
+        if (a.timestamp !== b.timestamp) {
+          return a.timestamp - b.timestamp;
+        }
+        return a.id.localeCompare(b.id);
+      });
+
+      return {
+        ...prev,
+        [agentId]: next,
+      };
+    });
+  }, []);
+
   const handleAgentEvent = useCallback((message: any) => {
     // Handle chat history loading
     if (message.type === 'chat_history') {
@@ -347,9 +486,13 @@ export function useAgentEvents() {
 
     // Handle loading more history (pagination)
     if (message.type === 'chat_history_more') {
-      const { agentId, messages } = message;
+      const { agentId, messages, before } = message;
       if (agentId && Array.isArray(messages)) {
-        prependChatHistory(agentId, messages);
+        if (before) {
+          prependChatHistory(agentId, messages);
+        } else {
+          syncRecentChatHistory(agentId, messages);
+        }
       }
       return;
     }
@@ -728,7 +871,7 @@ export function useAgentEvents() {
         }
       }
     }
-  }, [loadChatHistory, prependChatHistory]);
+  }, [loadChatHistory, prependChatHistory, syncRecentChatHistory]);
 
   const addUserMessage = useCallback((agentId: string, content: string) => {
     const userMsg: ChatMessage = {

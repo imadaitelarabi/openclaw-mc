@@ -52,6 +52,7 @@ export async function handleChatHistoryLoad(
         type: 'chat_history_more',
         agentId,
         messages,
+        before: params.before,
       })
     );
   } catch (err) {
