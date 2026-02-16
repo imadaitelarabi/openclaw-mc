@@ -1,0 +1,29 @@
+{
+  "name": "github",
+  "version": "1.0.0",
+  "description": "GitHub PR and issue quick access integration",
+  "permissions": [
+    "github:read"
+  ],
+  "hooks": [
+    "status-bar",
+    "chat-input",
+    "onboarding"
+  ],
+  "taggers": [
+    {
+      "prefix": "PR",
+      "description": "Pull requests",
+      "returnFields": ["tag", "value"]
+    },
+    {
+      "prefix": "issue",
+      "description": "Issues",
+      "returnFields": ["tag", "value"]
+    }
+  ],
+  "statusBar": {
+    "icon": "Github",
+    "actions": ["copy", "open"]
+  }
+}
