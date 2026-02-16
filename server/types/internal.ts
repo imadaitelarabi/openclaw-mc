@@ -3,7 +3,7 @@
  * Types for internal server state and client communication
  */
 
-import type { Agent, Session } from './gateway';
+import type { Agent, Session, ModelsListResponse } from './gateway';
 import type WebSocket from 'ws';
 
 // Gateway Configuration
@@ -20,16 +20,6 @@ export interface ServerConfig {
   activeGatewayId: string | null;
 }
 
-// Activity Log
-export interface Activity {
-  id: string;
-  agentId: string;
-  agentName: string;
-  message: string;
-  timestamp: number;
-  type: string;
-}
-
 // Client WebSocket Messages
 export type ClientMessage =
   | { type: 'ping' }
@@ -37,6 +27,7 @@ export type ClientMessage =
   | { type: 'gateways.add'; name: string; url: string; token: string }
   | { type: 'gateways.switch'; id: string }
   | { type: 'gateways.remove'; id: string }
+  | { type: 'gateway.call'; method: string; params?: Record<string, unknown>; requestId?: string }
   | { type: 'chat.send'; agentId: string; message: string }
   | { type: 'models.list' }
   | { type: 'sessions.list' }
@@ -57,7 +48,7 @@ export type ClientMessage =
       workspace?: string;
       model?: string;
       tools?: string[];
-      sandbox?: any;
+      sandbox?: Record<string, unknown>;
     }
   | {
       type: 'agents.update';
@@ -79,19 +70,18 @@ export type ServerMessage =
   | { type: 'gateways.add.ack' }
   | { type: 'gateways.switch.ack' }
   | { type: 'gateways.remove.ack' }
+  | { type: 'gateway.call.response'; requestId?: string; result: unknown }
+  | { type: 'gateway.call.error'; requestId?: string; error: string }
   | { type: 'error'; message: string; requestId?: string }
   | { type: 'agents'; data: TransformedAgent[] }
   | { type: 'agent_definitions'; data: Agent[] }
-  | { type: 'crons'; data: CronJob[] }
   | { type: 'sessions'; data: { sessions: Session[] } }
   | { type: 'sessions.patch.ack' }
-  | { type: 'models'; data: any }
+  | { type: 'models'; data: ModelsListResponse }
   | { type: 'agents.add.ack'; requestId?: string; agentId: string }
   | { type: 'agents.update.ack'; requestId?: string; agentId: string; name: string }
   | { type: 'agents.delete.ack'; requestId?: string; agentId: string; removed: boolean }
-  | { type: 'activity'; data: Activity }
-  | { type: 'activities'; data: Activity[] }
-  | { type: 'event'; event: string; payload: any };
+  | { type: 'event'; event: string; payload: Record<string, unknown> };
 
 // Transformed types for client display
 export interface TransformedAgent {
@@ -101,13 +91,6 @@ export interface TransformedAgent {
   emoji?: string;
   status: 'active' | 'idle';
   model?: string;
-}
-
-export interface CronJob {
-  id: string;
-  name: string;
-  schedule: string;
-  status: 'active' | 'error';
 }
 
 // WebSocket Client with custom properties

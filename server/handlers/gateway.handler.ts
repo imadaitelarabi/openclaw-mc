@@ -64,3 +64,45 @@ export async function handleGatewaysRemove(
   gateway.connect();
   ws.send(JSON.stringify({ type: 'gateways.remove.ack' }));
 }
+
+/**
+ * Generic gateway RPC call pass-through
+ * Allows UI to call any Gateway method without specific server handlers
+ */
+export async function handleGatewayCall(
+  msg: any,
+  ws: ExtendedWebSocket,
+  gateway: GatewayClient
+): Promise<void> {
+  const { method, params, requestId } = msg;
+  
+  if (!method) {
+    ws.send(
+      JSON.stringify({
+        type: 'gateway.call.error',
+        requestId,
+        error: 'Missing method parameter',
+      })
+    );
+    return;
+  }
+
+  try {
+    const result = await gateway.call(method, params || {});
+    ws.send(
+      JSON.stringify({
+        type: 'gateway.call.response',
+        requestId,
+        result,
+      })
+    );
+  } catch (err) {
+    ws.send(
+      JSON.stringify({
+        type: 'gateway.call.error',
+        requestId,
+        error: (err as Error).message || 'Gateway call failed',
+      })
+    );
+  }
+}

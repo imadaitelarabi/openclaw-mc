@@ -5,8 +5,6 @@
  */
 
 import WebSocket from 'ws';
-import * as fs from 'fs';
-import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import type {
   GatewayRequest,
@@ -17,19 +15,12 @@ import type {
   Session,
 } from '../types/gateway';
 import type {
-  Activity,
   PendingRequest,
   ConnectWaiter,
   ExtendedWebSocket,
   TransformedAgent,
-  CronJob,
 } from '../types/internal';
 import { ConfigManager } from './ConfigManager';
-import { processEvent } from '../utils/event-processor';
-
-// Use process.cwd() for project root instead of relative paths from __dirname
-const DATA_DIR = path.join(process.cwd(), 'data');
-const ACTIVITY_LOG_PATH = path.join(DATA_DIR, 'activity-history.json');
 
 export class GatewayClient {
   private url: string | null = null;
@@ -41,51 +32,15 @@ export class GatewayClient {
   private clients: Set<ExtendedWebSocket> = new Set();
   private reconnectTimer: NodeJS.Timeout | null = null;
   private agentsList: Agent[] = [];
-  private activityLog: Activity[] = [];
-  private saveTimer: NodeJS.Timeout | null = null;
   private connectWaiters: ConnectWaiter[] = [];
   private configManager: ConfigManager;
   private debugGatewayEvents: boolean = false;
 
   constructor(configManager: ConfigManager) {
     this.configManager = configManager;
-    this.ensureDataDir();
-    this.loadActivityLog();
     this.updateFromConfig();
     // Read DEBUG_GATEWAY_EVENTS from environment
     this.debugGatewayEvents = process.env.DEBUG_GATEWAY_EVENTS === 'true';
-  }
-
-  private ensureDataDir(): void {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-  }
-
-  private loadActivityLog(): void {
-    try {
-      if (fs.existsSync(ACTIVITY_LOG_PATH)) {
-        const data = fs.readFileSync(ACTIVITY_LOG_PATH, 'utf8');
-        this.activityLog = JSON.parse(data);
-        console.log(`[Persistence] Loaded ${this.activityLog.length} activities`);
-      }
-    } catch (err) {
-      console.error('[Persistence] Failed to load activity log:', err);
-      this.activityLog = [];
-    }
-  }
-
-  private saveActivityLog(): void {
-    if (this.saveTimer) clearTimeout(this.saveTimer);
-
-    this.saveTimer = setTimeout(() => {
-      try {
-        fs.writeFileSync(ACTIVITY_LOG_PATH, JSON.stringify(this.activityLog, null, 2));
-        console.log('[Persistence] Saved activity log');
-      } catch (err) {
-        console.error('[Persistence] Failed to save activity log:', err);
-      }
-    }, 2000); // Debounce saves by 2 seconds
   }
 
   updateFromConfig(): void {
@@ -177,8 +132,17 @@ export class GatewayClient {
     this.ws.on('message', (data: WebSocket.Data) => {
       try {
         const msg = JSON.parse(data.toString());
-        if (msg.type === 'event') {
-          console.log(`[Gateway] Event: ${msg.event} (stream: ${msg.payload?.stream})`);
+        if (
+          msg?.type === 'res' &&
+          msg?.ok === true &&
+          msg?.payload?.sessions &&
+          Array.isArray(msg.payload.sessions)
+        ) {
+          console.log(
+            `[Gateway] Received sessions response: ${msg.payload.sessions.length} sessions`
+          );
+        } else {
+          console.log('[Gateway] Received message:', JSON.stringify(msg, null, 2));
         }
         this.handleGatewayMessage(msg);
       } catch (err) {
@@ -206,7 +170,6 @@ export class GatewayClient {
 
   private async handleGatewayMessage(msg: GatewayResponse | GatewayEvent): Promise<void> {
     if (msg.type === 'event' && (msg as GatewayEvent).event === 'connect.challenge') {
-      console.log('[Gateway] Received challenge:', JSON.stringify((msg as GatewayEvent).payload));
       await this.authenticate((msg as GatewayEvent).payload);
       return;
     }
@@ -253,7 +216,7 @@ export class GatewayClient {
         auth: {
           token: this.token!,
         },
-        caps: [],
+        caps: ["tool-events"],
         userAgent: 'Mission-Control/2.0',
         locale: 'en-US',
       };
@@ -298,120 +261,17 @@ export class GatewayClient {
     return agent ? agent.name : id;
   }
 
-  /**
-   * Log Gateway Event with comprehensive details
-   * Captures event name, run ID, session key, payload size, and timestamp
-   */
-  private logGatewayEvent(msg: GatewayEvent): void {
-    const timestamp = new Date().toISOString();
-    const eventName = msg.event;
-    const payload = msg.payload || {};
-    
-    // Extract key identifiers from payload
-    const runId = payload.runId || payload.run_id || null;
-    const sessionKey = payload.sessionKey || payload.session_key || null;
-    
-    // Calculate payload size (compact stringification)
-    const payloadSize = JSON.stringify(payload).length;
-    
-    // Basic log entry (always shown)
-    const logEntry = {
-      timestamp,
-      event: eventName,
-      runId,
-      sessionKey,
-      payloadSize: `${payloadSize} bytes`,
-    };
-    
-    console.log(`[Gateway Event] ${JSON.stringify(logEntry)}`);
-    
-    // Detailed payload logging with pretty-printing (only if DEBUG_GATEWAY_EVENTS is enabled)
-    // Note: We stringify twice here for clarity: once for size (compact), once for readability (formatted)
-    if (this.debugGatewayEvents) {
-      console.log(`[Gateway Event Payload] ${eventName}:`, JSON.stringify(payload, null, 2));
-    }
-  }
-
+  
   private async handleGatewayEvent(msg: GatewayEvent): Promise<void> {
-    // 1. Log all gateway events with comprehensive details
-    this.logGatewayEvent(msg);
 
-    // 2. Broadcast ALL events to connected clients (Inclusive approach)
+
+
+    // 2. Broadcast ALL events to connected clients (Thin Proxy approach)
     this.broadcast({
       type: 'event',
       event: msg.event,
       payload: msg.payload,
     });
-
-    // 3. Process specific events through the pipeline for enhanced formatting
-    if (msg.event === 'chat' || msg.event === 'agent') {
-      if (msg.event === 'agent' && msg.payload.stream === 'tool') {
-        console.log(`[Gateway] TOOL EVENT DETECTED:`, JSON.stringify(msg.payload, null, 2));
-      }
-      
-      // Process event through pipeline
-      const processed = processEvent(msg.event, msg.payload);
-      
-      // Forward processed event with formatted messages
-      if (processed.formattedMessages.length > 0 || processed.thinkingDelta) {
-        this.broadcast({
-          type: 'event.processed',
-          eventType: processed.type,
-          agentId: processed.agentId,
-          runId: processed.runId,
-          sessionKey: processed.sessionKey,
-          formattedMessages: processed.formattedMessages,
-          thinkingDelta: processed.thinkingDelta,
-          thinkingComplete: processed.thinkingComplete,
-        });
-      }
-    }
-
-    // 4. Handle specific event types for internal processing
-    switch (msg.event) {
-      case 'chat':
-      case 'agent':
-        if (msg.payload?.sessionKey) {
-          const parts = (msg.payload.sessionKey || '').split(':');
-          const agentId = parts.length >= 2 ? parts[1] : 'unknown';
-          const agentName = this.getAgentName(agentId);
-
-          let messageText = `${msg.event} activity`;
-          if (msg.event === 'agent' && msg.payload.tool) {
-            messageText = `Used tool: ${msg.payload.tool}`;
-          } else if (msg.event === 'chat') {
-            messageText = `Chat message`;
-          }
-
-          const activity: Activity = {
-            id: uuidv4(),
-            agentId: agentId,
-            agentName: agentName,
-            message: messageText,
-            timestamp: Date.now(),
-            type: msg.event,
-          };
-
-          // Add to log and persist
-          this.activityLog.unshift(activity);
-          if (this.activityLog.length > 500) {
-            this.activityLog = this.activityLog.slice(0, 500);
-          }
-          this.saveActivityLog();
-
-          // Broadcast to connected clients
-          this.broadcast({
-            type: 'activity',
-            data: activity,
-          });
-        }
-        break;
-
-      case 'cron':
-        // Refresh data when cron events occur
-        await this.fetchInitialData();
-        break;
-    }
   }
 
   private transformAndBroadcastSessions(data: any): void {
@@ -419,10 +279,8 @@ export class GatewayClient {
 
     const activeSessions = new Set<string>();
     data.sessions.forEach((s: Session) => {
-      if (s.kind !== 'cron') {
-        const parts = s.key.split(':');
-        if (parts.length >= 2) activeSessions.add(parts[1]);
-      }
+      const parts = s.key.split(':');
+      if (parts.length >= 2) activeSessions.add(parts[1]);
     });
 
     const agents: TransformedAgent[] = this.agentsList.map((a) => ({
@@ -434,17 +292,7 @@ export class GatewayClient {
       model: a.model,
     }));
 
-    const crons: CronJob[] = data.sessions
-      .filter((s: Session) => s.kind === 'cron')
-      .map((s: Session) => ({
-        id: s.sessionId,
-        name: s.key.split(':').pop() || 'Unknown',
-        schedule: 'Active',
-        status: s.abortedLastRun ? 'error' : 'active',
-      }));
-
     this.broadcast({ type: 'agents', data: agents });
-    this.broadcast({ type: 'crons', data: crons });
   }
 
   request(method: string, params: any): Promise<any> {
@@ -473,6 +321,14 @@ export class GatewayClient {
         }
       }, 30000);
     });
+  }
+
+  /**
+   * Generic gateway RPC call - allows UI to call any Gateway method
+   * without needing a specific server-side handler
+   */
+  async call(method: string, params: any = {}): Promise<any> {
+    return this.request(method, params);
   }
 
   async sendChat(agentId: string, message: string): Promise<{ ok: boolean; error?: string }> {
@@ -506,16 +362,6 @@ export class GatewayClient {
       if (this.agentsList.length > 0) {
         this.broadcast({ type: 'agent_definitions', data: this.agentsList });
         this.fetchInitialData();
-      }
-
-      // Send activity history
-      if (this.activityLog.length > 0) {
-        client.send(
-          JSON.stringify({
-            type: 'activities',
-            data: this.activityLog.slice(0, 100), // Send last 100 on connect
-          })
-        );
       }
     } else {
       client.send(JSON.stringify({ type: 'status', status: 'connecting' }));
