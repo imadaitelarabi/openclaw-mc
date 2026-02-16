@@ -68,7 +68,7 @@ export function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
                     src={attachment.content}
                     alt={attachment.fileName || 'Image attachment'}
                     className="max-w-xs max-h-48 object-contain"
-                    title={attachment.fileName}
+                    title={attachment.fileName || 'Image attachment'}
                   />
                 )}
               </div>
