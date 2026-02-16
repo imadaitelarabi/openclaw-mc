@@ -7,14 +7,14 @@ export interface GatewayRequest {
   type: 'req';
   id: string;
   method: string;
-  params: any;
+  params: Record<string, unknown>;
 }
 
 export interface GatewayResponse {
   type: 'res';
   id: string;
   ok: boolean;
-  payload?: any;
+  payload?: unknown;
   error?: {
     message: string;
     code?: string;
@@ -24,13 +24,13 @@ export interface GatewayResponse {
 export interface GatewayEvent {
   type: 'event';
   event: string;
-  payload: any;
+  payload: Record<string, unknown>;
 }
 
 // Connect Protocol
 export interface ConnectChallenge {
   event: 'connect.challenge';
-  payload: any;
+  payload: Record<string, unknown>;
 }
 
 export interface ConnectParams {
@@ -62,7 +62,7 @@ export interface Agent {
   workspace?: string;
   model?: string;
   tools?: string[];
-  sandbox?: any;
+  sandbox?: Record<string, unknown>;
 }
 
 export interface AgentCreateParams {
@@ -143,7 +143,7 @@ export interface ConfigGetResponse {
   path?: string;
   exists?: boolean;
   hash?: string;
-  config?: any;
+  config?: Record<string, unknown>;
 }
 
 export interface ConfigPatchParams {
