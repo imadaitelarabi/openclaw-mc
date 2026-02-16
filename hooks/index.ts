@@ -5,3 +5,5 @@ export * from './useToast';
 export * from './useChatHistory';
 export * from './useChatPolling';
 export * from './useSessionControl';
+export * from './useExtensionStatusBar';
+export * from './useExtensionChatInput';

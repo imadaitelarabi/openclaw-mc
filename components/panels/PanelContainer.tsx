@@ -6,6 +6,7 @@ import { PanelHeader } from './PanelHeader';
 import { ChatPanel } from './ChatPanel';
 import { CreateAgentPanel } from './CreateAgentPanel';
 import { UpdateAgentPanel } from './UpdateAgentPanel';
+import { ExtensionOnboardingPanel } from './ExtensionOnboardingPanel';
 
 interface PanelContainerProps {
   panels: Panel[];
@@ -130,6 +131,13 @@ export function PanelContainer({
                 agentId={panel.agentId}
                 initialName={panel.data?.agentName || agents.find(a => a.id === panel.agentId)?.name || panel.agentId}
                 onUpdateAgent={onUpdateAgent}
+                onClose={() => onPanelClose(panel.id)}
+              />
+            )}
+
+            {panel.type === 'extension-onboarding' && panel.data?.extensionName && (
+              <ExtensionOnboardingPanel
+                extensionName={panel.data.extensionName}
                 onClose={() => onPanelClose(panel.id)}
               />
             )}

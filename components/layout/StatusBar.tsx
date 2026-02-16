@@ -1,8 +1,11 @@
-import { Wifi, WifiOff } from 'lucide-react';
 import type { Agent, ConnectionStatus } from '@/types';
 import { AgentSelector } from '../agents';
 import { ModelSelector, ThinkingToggle, VerboseToggle, ReasoningToggle } from '../statusbar';
 import { GatewaySwitcher } from '../gateway/GatewaySwitcher';
+import { ExtensionStatusBarItem, ExtensionsDropdown } from '../extensions';
+import { useExtensionStatusBar } from '@/hooks';
+import { useOptionalExtensions } from '@/contexts/ExtensionContext';
+import { useToast } from '@/hooks/useToast';
 
 interface StatusBarProps {
   agents: Agent[];
@@ -36,6 +39,9 @@ interface StatusBarProps {
   onSwitchGateway: (id: string) => void;
   onAddGateway: () => void;
   onRemoveGateway: (id: string) => void;
+
+  // Extension onboarding
+  onOpenExtensionOnboarding?: (extensionName: string) => void;
 }
 
 export function StatusBar({
@@ -62,8 +68,41 @@ export function StatusBar({
   activeGatewayId,
   onSwitchGateway,
   onAddGateway,
-  onRemoveGateway
+  onRemoveGateway,
+  onOpenExtensionOnboarding
 }: StatusBarProps) {
+  const { statusBarItems } = useExtensionStatusBar();
+  const { toast } = useToast();
+  const extensionContext = useOptionalExtensions();
+
+  const availableExtensions = (() => {
+    if (!extensionContext) {
+      return [] as Array<{ name: string; description?: string; enabled: boolean }>;
+    }
+
+    const enabledExtensionNames = new Set(
+      extensionContext.enabledExtensions.map(ext => ext.manifest.name)
+    );
+
+    return extensionContext.extensions.map(ext => ({
+      name: ext.manifest.name,
+      description: ext.manifest.description,
+      enabled: enabledExtensionNames.has(ext.manifest.name),
+    }));
+  })();
+
+  const handleCopy = (value: string) => {
+    navigator.clipboard.writeText(value);
+    toast({
+      title: 'Copied to clipboard',
+      description: value,
+      variant: 'success',
+    });
+  };
+
+  const handleOpen = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className="h-8 bg-secondary border-t border-border flex items-center px-3 text-xs select-none relative z-50 gap-3">
@@ -130,6 +169,30 @@ export function StatusBar({
       )}
 
       <div className="flex-1" />
+
+      <ExtensionsDropdown
+        extensions={availableExtensions}
+        onSelectExtension={onOpenExtensionOnboarding}
+      />
+
+      <div className="h-4 w-px bg-border" />
+
+      {/* Extension Status Bar Items */}
+      {statusBarItems.size > 0 && (
+        <>
+          {Array.from(statusBarItems.entries()).map(([extensionName, item]) => (
+            <ExtensionStatusBarItem
+              key={extensionName}
+              extensionName={extensionName}
+              item={item}
+              onCopy={handleCopy}
+              onOpen={handleOpen}
+            />
+          ))}
+
+          <div className="h-4 w-px bg-border" />
+        </>
+      )}
 
       {/* Right: System Status */}
       <div className="flex items-center gap-3">

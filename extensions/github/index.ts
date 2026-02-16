@@ -1,0 +1,83 @@
+/**
+ * GitHub Extension Entry Point
+ */
+
+import type { Extension, ExtensionHooks } from '@/types/extension';
+import manifest from './manifest.json';
+import { initialize, cleanup, isSetupComplete } from './setup';
+import { getStatusBarData } from './ui/status-bar';
+import { getChatInputOptions } from './ui/chat-input';
+import { OnboardingPanel } from './ui/onboarding';
+import { GitHubAPI } from './api';
+
+// API instance (initialized on setup)
+let apiInstance: GitHubAPI | null = null;
+
+/**
+ * Extension setup function
+ */
+async function setup(): Promise<void> {
+  console.log('[GitHub] Setting up extension...');
+  
+  apiInstance = await initialize();
+  
+  if (!apiInstance) {
+    throw new Error('Failed to initialize GitHub extension');
+  }
+}
+
+/**
+ * Extension cleanup function
+ */
+async function cleanupExtension(): Promise<void> {
+  console.log('[GitHub] Cleaning up extension...');
+  
+  await cleanup();
+  apiInstance = null;
+}
+
+/**
+ * Extension hooks implementation
+ */
+const hooks: ExtensionHooks = {
+  // Status bar hook - show PR count
+  statusBar: async () => {
+    if (!apiInstance) {
+      return null;
+    }
+    return getStatusBarData(apiInstance);
+  },
+
+  // Chat input hook - provide PR/issue tagging
+  chatInput: async (query: string) => {
+    if (!apiInstance) {
+      return [];
+    }
+    return getChatInputOptions(apiInstance, query);
+  },
+
+  // Onboarding hook - setup wizard
+  onboarding: {
+    isRequired: async () => !(await isSetupComplete()),
+    component: OnboardingPanel,
+  },
+};
+
+/**
+ * GitHub Extension instance
+ */
+export const githubExtension: Extension = {
+  manifest,
+  state: {
+    name: manifest.name,
+    enabled: false,
+    onboarded: false,
+    lastUpdated: Date.now(),
+  },
+  hooks,
+  setup,
+  cleanup: cleanupExtension,
+};
+
+// Default export
+export default githubExtension;

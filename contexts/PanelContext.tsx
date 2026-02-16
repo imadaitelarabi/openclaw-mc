@@ -152,6 +152,9 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         case 'agent-list':
           title = 'Agents';
           break;
+        case 'extension-onboarding':
+          title = `${data?.extensionName || 'Extension'} Setup`;
+          break;
         default:
           title = type;
       }

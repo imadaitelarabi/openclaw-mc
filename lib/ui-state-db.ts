@@ -5,6 +5,7 @@
  */
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import type { ExtensionState } from '@/types/extension';
 
 // Workspace state interface for persistence
 export interface WorkspaceState {
@@ -52,6 +53,14 @@ interface UIStateDB extends DBSchema {
     key: string; // 'current'
     value: WorkspaceState;
   };
+  'extension-states': {
+    key: string; // extension name
+    value: ExtensionState;
+  };
+  'extension-configs': {
+    key: string; // extension name
+    value: { config: any; timestamp: number };
+  };
 }
 
 class UIStateStore {
@@ -64,7 +73,7 @@ class UIStateStore {
     }
 
     if (!this.dbPromise) {
-      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 3, {
+      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 4, {
         upgrade(db, oldVersion) {
           // Create object stores if they don't exist
           if (!db.objectStoreNames.contains('scroll-positions')) {
@@ -85,6 +94,15 @@ class UIStateStore {
           // Add workspace store in version 3
           if (oldVersion < 3 && !db.objectStoreNames.contains('workspace')) {
             db.createObjectStore('workspace');
+          }
+          // Add extension stores in version 4
+          if (oldVersion < 4) {
+            if (!db.objectStoreNames.contains('extension-states')) {
+              db.createObjectStore('extension-states');
+            }
+            if (!db.objectStoreNames.contains('extension-configs')) {
+              db.createObjectStore('extension-configs');
+            }
           }
         },
       });
@@ -328,6 +346,77 @@ class UIStateStore {
       await db.delete('workspace', 'current');
     } catch (err) {
       console.error('[UIState] Failed to clear workspace state:', err);
+    }
+  }
+
+  // Extension state management
+  async saveExtensionState(state: ExtensionState): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.put('extension-states', state, state.name);
+    } catch (err) {
+      console.error('[UIState] Failed to save extension state:', err);
+    }
+  }
+
+  async getExtensionState(extensionName: string): Promise<ExtensionState | null> {
+    try {
+      const db = await this.getDB();
+      const state = await db.get('extension-states', extensionName);
+      return state || null;
+    } catch (err) {
+      console.error('[UIState] Failed to get extension state:', err);
+      return null;
+    }
+  }
+
+  async getAllExtensionStates(): Promise<ExtensionState[]> {
+    try {
+      const db = await this.getDB();
+      const states = await db.getAll('extension-states');
+      return states;
+    } catch (err) {
+      console.error('[UIState] Failed to get all extension states:', err);
+      return [];
+    }
+  }
+
+  async deleteExtensionState(extensionName: string): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.delete('extension-states', extensionName);
+    } catch (err) {
+      console.error('[UIState] Failed to delete extension state:', err);
+    }
+  }
+
+  // Extension config management
+  async saveExtensionConfig(extensionName: string, config: any): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.put('extension-configs', { config, timestamp: Date.now() }, extensionName);
+    } catch (err) {
+      console.error('[UIState] Failed to save extension config:', err);
+    }
+  }
+
+  async getExtensionConfig(extensionName: string): Promise<any | null> {
+    try {
+      const db = await this.getDB();
+      const data = await db.get('extension-configs', extensionName);
+      return data?.config || null;
+    } catch (err) {
+      console.error('[UIState] Failed to get extension config:', err);
+      return null;
+    }
+  }
+
+  async deleteExtensionConfig(extensionName: string): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.delete('extension-configs', extensionName);
+    } catch (err) {
+      console.error('[UIState] Failed to delete extension config:', err);
     }
   }
 }

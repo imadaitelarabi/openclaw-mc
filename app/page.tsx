@@ -258,6 +258,10 @@ function MissionControlInner() {
     });
   }, [agents, openPanel]);
 
+  const handleOpenExtensionOnboarding = useCallback((extensionName: string) => {
+    openPanel('extension-onboarding', { extensionName });
+  }, [openPanel]);
+
   const handleCreateAgentRequest = useCallback(async (payload: {
     id?: string;
     name: string;
@@ -434,6 +438,7 @@ function MissionControlInner() {
           onSwitchGateway={(id) => sendMessage({ type: 'gateways.switch', id })}
           onAddGateway={() => setShowSetup(true)}
           onRemoveGateway={(id) => sendMessage({ type: 'gateways.remove', id })}
+          onOpenExtensionOnboarding={handleOpenExtensionOnboarding}
         />
       </div>
 

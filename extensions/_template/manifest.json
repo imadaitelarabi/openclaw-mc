@@ -1,0 +1,23 @@
+{
+  "name": "extension-name",
+  "version": "1.0.0",
+  "description": "Brief description of what this extension does",
+  "permissions": [
+    "read:resource"
+  ],
+  "hooks": [
+    "status-bar",
+    "chat-input"
+  ],
+  "taggers": [
+    {
+      "prefix": "TAG",
+      "description": "Description of this tagger",
+      "returnFields": ["tag", "value"]
+    }
+  ],
+  "statusBar": {
+    "icon": "Box",
+    "actions": ["copy", "open"]
+  }
+}
