@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
 import { useChatHistory } from '@/hooks';
 import { getStreamKey } from '@/lib/gateway-utils';
+import { uiStateStore } from '@/lib/ui-state-db';
 import type { Agent } from '@/types';
 
 interface ChatPanelProps {
@@ -46,6 +47,50 @@ export function ChatPanel({
   // Extract verbose mode from session settings
   const verboseMode = sessionSettings?.verbose || 'off';
 
+  // Load draft on mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      const draft = await uiStateStore.getDraft(agentId);
+      if (draft) {
+        setChatInput(draft);
+      }
+    };
+    loadDraft();
+  }, [agentId]);
+
+  // Restore scroll position on mount
+  useEffect(() => {
+    const restoreScroll = async () => {
+      const position = await uiStateStore.getScrollPosition(agentId);
+      if (position !== null && scrollContainerRef.current) {
+        // Delay slightly to ensure content is rendered
+        setTimeout(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = position;
+            // Disable auto-scroll if not at bottom
+            const { scrollHeight, clientHeight } = scrollContainerRef.current;
+            const isAtBottom = scrollHeight - position - clientHeight < 50;
+            shouldAutoScrollRef.current = isAtBottom;
+          }
+        }, 100);
+      }
+    };
+    restoreScroll();
+  }, [agentId]);
+
+  // Save draft on input change (debounced)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (chatInput) {
+        uiStateStore.saveDraft(agentId, chatInput);
+      } else {
+        uiStateStore.clearDraft(agentId);
+      }
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [chatInput, agentId]);
+
   const sendChatMessage = () => {
     if (!agentId || !chatInput.trim()) return;
     addUserMessage(agentId, chatInput);
@@ -55,6 +100,8 @@ export function ChatPanel({
       message: chatInput 
     });
     setChatInput("");
+    // Clear draft after sending
+    uiStateStore.clearDraft(agentId);
   };
 
   // Check if user has manually scrolled up
@@ -65,6 +112,9 @@ export function ChatPanel({
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
     shouldAutoScrollRef.current = isAtBottom;
     setShowScrollButton(!isAtBottom);
+    
+    // Save scroll position periodically
+    uiStateStore.saveScrollPosition(agentId, scrollTop);
   };
 
   useEffect(() => {
