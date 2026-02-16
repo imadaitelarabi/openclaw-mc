@@ -5,7 +5,8 @@ const POLL_INTERVAL_MS = 500;
 const POLL_COOLDOWN_MS = POLL_INTERVAL_MS * 2; // Timeout for race condition guard (2x interval)
 
 // Debug flag for development/troubleshooting
-const DEBUG = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_POLLING === 'true';
+// Next.js inlines NEXT_PUBLIC_* env vars at build time, so this check works in browser
+const DEBUG = process.env.NEXT_PUBLIC_DEBUG_POLLING === 'true';
 
 /**
  * Configuration for the polling hook
@@ -144,5 +145,8 @@ export function useChatPolling({ agentId, activeRunId, sendMessage }: PollConfig
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, activeRunId]);
 
+  // Note: isPolling is a ref value and won't trigger re-renders when it changes.
+  // This is intentional for now to avoid unnecessary re-renders. When UI indicators
+  // are needed in the future, convert isPollingRef to useState.
   return { isPolling: isPollingRef.current };
 }
