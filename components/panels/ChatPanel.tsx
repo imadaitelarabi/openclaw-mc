@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
-import { useChatHistory } from '@/hooks';
+import { useChatHistory, useChatPolling } from '@/hooks';
 import { getStreamKey } from '@/lib/gateway-utils';
 import { uiStateStore } from '@/lib/ui-state-db';
 import type { Agent } from '@/types';
@@ -48,6 +48,14 @@ export function ChatPanel({
 
   // Chat history hook for loading older messages
   const { loading: historyLoading, loadMoreHistory } = useChatHistory({ sendMessage });
+
+  // Polling hook for real-time reasoning and enriched tool calls
+  const currentRunId = activeRuns[agentId] || null;
+  const { isPolling } = useChatPolling({
+    agentId,
+    activeRunId: currentRunId,
+    sendMessage,
+  });
 
   // Extract verbose mode from session settings
   const verboseMode = sessionSettings?.verbose || 'off';
