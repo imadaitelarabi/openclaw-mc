@@ -71,7 +71,6 @@ export function PanelContainer({
         <div 
           key={panel.id} 
           className="flex flex-col border-r last:border-r-0 border-border min-h-0 overflow-hidden"
-          onClick={() => onPanelActivate(panel.id)}
         >
           <PanelHeader
             title={panel.title}
@@ -81,7 +80,10 @@ export function PanelContainer({
             showCloseButton={panels.length > 1}
           />
           
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div 
+            className="flex-1 min-h-0 overflow-hidden"
+            onClick={() => onPanelActivate(panel.id)}
+          >
             {panel.type === 'chat' && panel.agentId && (
               <ChatPanel
                 agentId={panel.agentId}
