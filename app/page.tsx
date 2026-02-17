@@ -231,6 +231,16 @@ function MissionControlInner() {
         if (message.requestId) {
           return;
         }
+
+        // Some server errors are emitted without requestId.
+        // Fail all pending request/ack waits immediately so UI loading states stop now,
+        // instead of waiting for timeout.
+        pendingRequestsRef.current.forEach((pending, id) => {
+          clearTimeout(pending.timeoutId);
+          pending.reject(new Error(message.message || 'Request failed'));
+          pendingRequestsRef.current.delete(id);
+        });
+
         setIsGatewayConnecting(false);
         toast({
           title: "Gateway Error",

@@ -27,17 +27,18 @@ export async function handleGatewaysAdd(
   gateway: GatewayClient,
   configManager: ConfigManager
 ): Promise<void> {
-  const { name, url, token } = msg;
+  const { requestId, name, url, token } = msg;
   configManager.addGateway(name, url, token);
   gateway.updateFromConfig();
   gateway.connect();
   try {
     await gateway.waitForAuthenticated(15000);
-    ws.send(JSON.stringify({ type: 'gateways.add.ack' }));
+    ws.send(JSON.stringify({ type: 'gateways.add.ack', requestId }));
   } catch (err) {
     ws.send(
       JSON.stringify({
         type: 'error',
+        requestId,
         message: (err as Error).message || 'Failed to connect to gateway',
       })
     );

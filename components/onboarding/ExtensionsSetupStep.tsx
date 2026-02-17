@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Puzzle, Github, Check, X } from 'lucide-react';
+import { useState } from 'react';
+import { Puzzle, Github, Check } from 'lucide-react';
 import { useExtensions } from '@/contexts/ExtensionContext';
 import { ExtensionOnboardingPanel } from '@/components/panels/ExtensionOnboardingPanel';
 
@@ -10,7 +10,7 @@ interface ExtensionsSetupStepProps {
 }
 
 export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
-  const { extensions, enableExtension, needsOnboarding } = useExtensions();
+  const { extensions, needsOnboarding } = useExtensions();
   const [selectedExtension, setSelectedExtension] = useState<string | null>(null);
 
   // Filter to only show extensions that support onboarding
@@ -23,10 +23,6 @@ export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
   };
 
   const handleExtensionComplete = () => {
-    setSelectedExtension(null);
-  };
-
-  const handleExtensionCancel = () => {
     setSelectedExtension(null);
   };
 
@@ -44,8 +40,7 @@ export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
       <div className="h-full">
         <ExtensionOnboardingPanel
           extensionName={selectedExtension}
-          onComplete={handleExtensionComplete}
-          onCancel={handleExtensionCancel}
+          onClose={handleExtensionComplete}
         />
       </div>
     );

@@ -24,7 +24,7 @@ export interface ServerConfig {
 export type ClientMessage =
   | { type: 'ping' }
   | { type: 'gateways.list' }
-  | { type: 'gateways.add'; name: string; url: string; token: string }
+  | { type: 'gateways.add'; requestId?: string; name: string; url: string; token: string }
   | { type: 'gateways.switch'; id: string }
   | { type: 'gateways.remove'; id: string }
   | { type: 'gateway.call'; method: string; params?: Record<string, unknown>; requestId?: string }
@@ -77,7 +77,7 @@ export type ServerMessage =
   | { type: 'pong' }
   | { type: 'status'; status: string; gatewayId?: string }
   | { type: 'gateways.list'; data: GatewayConfig[]; activeId: string | null }
-  | { type: 'gateways.add.ack' }
+  | { type: 'gateways.add.ack'; requestId?: string }
   | { type: 'gateways.switch.ack' }
   | { type: 'gateways.remove.ack' }
   | { type: 'gateway.call.response'; requestId?: string; result: unknown }
