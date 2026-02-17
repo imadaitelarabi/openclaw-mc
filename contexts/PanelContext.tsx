@@ -111,20 +111,20 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
     return () => clearTimeout(timeoutId);
   }, [layout, isRestored]);
 
-  const openPanel = useCallback((type: PanelType, data?: any): string => {
+  const openPanel = useCallback(async (type: PanelType, data?: any): Promise<string> => {
     const panelId = uuidv4();
     
-    // For chat panels, load persisted settings asynchronously
+    // For chat panels, load persisted settings before creating the panel
+    let panelSettings = getDefaultSettings();
     if (type === 'chat' && data?.agentId) {
-      const agentId = data.agentId;
-      uiStateStore.getPanelSettings(agentId).then(savedSettings => {
+      try {
+        const savedSettings = await uiStateStore.getPanelSettings(data.agentId);
         if (savedSettings) {
-          // Update the panel settings after it's been created
-          updatePanelSettings(panelId, savedSettings);
+          panelSettings = savedSettings;
         }
-      }).catch(err => {
+      } catch (err) {
         console.error('[PanelContext] Failed to load panel settings:', err);
-      });
+      }
     }
     
     setLayout(prev => {
@@ -179,7 +179,7 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         agentId: data?.agentId,
         data: data || {},
         isActive: true,
-        settings: getDefaultSettings()
+        settings: panelSettings
       };
 
       // Set all existing panels to inactive

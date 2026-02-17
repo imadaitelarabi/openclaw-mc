@@ -531,6 +531,39 @@ export function useAgentEvents() {
   };
 
   /**
+   * Resolve the tool ID for an active tool from activeToolsRef
+   * Tries multiple strategies: toolCallId mapping, sequence-based ID, and queue lookup
+   */
+  const resolveActiveToolId = (
+    toolCallMapKey: string | undefined,
+    hasSeq: boolean,
+    runId: string,
+    toolName: string,
+    seq?: number
+  ): string | undefined => {
+    // Try toolCallId mapping first
+    if (toolCallMapKey) {
+      const mappedId = toolCallToMessageIdRef.current[toolCallMapKey];
+      if (mappedId && activeToolsRef.current[mappedId]) {
+        return mappedId;
+      }
+    }
+    
+    // Try sequence-based ID
+    if (hasSeq && seq !== undefined) {
+      const seqToolId = getToolId(runId, toolName, seq);
+      if (activeToolsRef.current[seqToolId]) {
+        return seqToolId;
+      }
+    }
+    
+    // Fall back to queue lookup
+    const queueKey = getToolQueueKey(runId, toolName);
+    const queue = pendingToolIdsRef.current[queueKey] || [];
+    return queue.find(id => activeToolsRef.current[id]);
+  };
+
+  /**
    * Load chat history from Gateway
    */
   const loadChatHistory = useCallback((agentId: string, messages: any[]) => {
@@ -841,7 +874,8 @@ export function useAgentEvents() {
         };
 
         // Store in activeToolsRef instead of chatHistory
-        // Only add to chatHistory when tool reaches terminal state
+        // This prevents incomplete/streaming tool messages from appearing in the UI
+        // Tools will only be shown in chat history once they complete successfully or error
         if (!activeToolsRef.current[toolId]) {
           activeToolsRef.current[toolId] = toolMsg;
           enqueuePendingToolId(runId, toolName, toolId);
@@ -851,25 +885,7 @@ export function useAgentEvents() {
         }
       } else if (isUpdatePhase) {
         // Update the active tool in activeToolsRef
-        const resolvedToolId = (() => {
-          if (toolCallMapKey) {
-            const mappedId = toolCallToMessageIdRef.current[toolCallMapKey];
-            if (mappedId && activeToolsRef.current[mappedId]) {
-              return mappedId;
-            }
-          }
-          
-          if (hasSeq) {
-            const seqToolId = getToolId(runId, toolName, seq);
-            if (activeToolsRef.current[seqToolId]) {
-              return seqToolId;
-            }
-          }
-          
-          const queueKey = getToolQueueKey(runId, toolName);
-          const queue = pendingToolIdsRef.current[queueKey] || [];
-          return queue.find(id => activeToolsRef.current[id]);
-        })();
+        const resolvedToolId = resolveActiveToolId(toolCallMapKey, hasSeq, runId, toolName, seq);
         
         if (resolvedToolId && activeToolsRef.current[resolvedToolId]) {
           activeToolsRef.current[resolvedToolId] = {
@@ -883,25 +899,7 @@ export function useAgentEvents() {
         }
       } else if (isResultPhase && !isErrorPhase) {
         // Tool completed successfully - now add to chatHistory
-        const resolvedToolId = (() => {
-          if (toolCallMapKey) {
-            const mappedId = toolCallToMessageIdRef.current[toolCallMapKey];
-            if (mappedId && activeToolsRef.current[mappedId]) {
-              return mappedId;
-            }
-          }
-          
-          if (hasSeq) {
-            const seqToolId = getToolId(runId, toolName, seq);
-            if (activeToolsRef.current[seqToolId]) {
-              return seqToolId;
-            }
-          }
-          
-          const queueKey = getToolQueueKey(runId, toolName);
-          const queue = pendingToolIdsRef.current[queueKey] || [];
-          return queue.find(id => activeToolsRef.current[id]);
-        })();
+        const resolvedToolId = resolveActiveToolId(toolCallMapKey, hasSeq, runId, toolName, seq);
         
         if (resolvedToolId && activeToolsRef.current[resolvedToolId]) {
           const activeTool = activeToolsRef.current[resolvedToolId];
@@ -944,25 +942,7 @@ export function useAgentEvents() {
         }
       } else if (isErrorPhase) {
         // Tool errored - now add to chatHistory
-        const resolvedToolId = (() => {
-          if (toolCallMapKey) {
-            const mappedId = toolCallToMessageIdRef.current[toolCallMapKey];
-            if (mappedId && activeToolsRef.current[mappedId]) {
-              return mappedId;
-            }
-          }
-          
-          if (hasSeq) {
-            const seqToolId = getToolId(runId, toolName, seq);
-            if (activeToolsRef.current[seqToolId]) {
-              return seqToolId;
-            }
-          }
-          
-          const queueKey = getToolQueueKey(runId, toolName);
-          const queue = pendingToolIdsRef.current[queueKey] || [];
-          return queue.find(id => activeToolsRef.current[id]);
-        })();
+        const resolvedToolId = resolveActiveToolId(toolCallMapKey, hasSeq, runId, toolName, seq);
         
         if (resolvedToolId && activeToolsRef.current[resolvedToolId]) {
           const activeTool = activeToolsRef.current[resolvedToolId];
