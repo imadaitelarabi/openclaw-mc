@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { Zap, Globe, Wifi, Shield, ArrowRight, Loader2, Copy, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Zap, Globe, Wifi, Shield, ArrowRight, Loader2, Copy, Check, AlertTriangle, Info } from 'lucide-react';
 
 interface GatewayConnectionStepProps {
   onConnectGateway: (name: string, url: string, token: string) => Promise<void>;
@@ -18,6 +18,15 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
   const [isConnecting, setIsConnecting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isSecureContext, setIsSecureContext] = useState<boolean>(true);
+  const [showTroubleshooting, setShowTroubleshooting] = useState<boolean>(false);
+
+  // Check if running in a secure context
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsSecureContext(window.isSecureContext);
+    }
+  }, []);
 
   const handleCopyCommand = () => {
     navigator.clipboard.writeText('npm install -g openclaw && openclaw gateway start');
@@ -223,6 +232,66 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
         </div>
 
         <form onSubmit={handleRemoteConnect} className="space-y-4">
+          {/* Security Context Warning */}
+          {!isSecureContext && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm font-medium text-amber-500">Insecure Context Detected</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Mission Control is running over HTTP (not HTTPS). Device identity generation may be blocked by your browser, 
+                    preventing remote gateway authentication.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowTroubleshooting(!showTroubleshooting)}
+                    className="text-xs text-amber-500 hover:text-amber-400 font-medium flex items-center gap-1 transition-colors"
+                  >
+                    <Info className="w-3 h-3" />
+                    {showTroubleshooting ? 'Hide' : 'Show'} troubleshooting tips
+                  </button>
+                </div>
+              </div>
+              
+              {showTroubleshooting && (
+                <div className="mt-3 pt-3 border-t border-amber-500/20 space-y-3 text-xs text-muted-foreground">
+                  <div>
+                    <p className="font-medium text-foreground mb-1">Option 1: Use HTTPS (Recommended)</p>
+                    <ul className="space-y-1 list-disc list-inside ml-2">
+                      <li>Deploy Mission Control behind a reverse proxy (nginx, Caddy) with SSL</li>
+                      <li>Use Tailscale for secure remote access with automatic HTTPS</li>
+                      <li>This ensures browser security features work correctly</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <p className="font-medium text-foreground mb-1">Option 2: Enable Insecure Auth (Development Only)</p>
+                    <p className="mb-1">Add to your Gateway configuration:</p>
+                    <code className="block bg-background/50 rounded p-2 font-mono text-xs">
+                      gateway:<br />
+                      &nbsp;&nbsp;controlUi:<br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;allowInsecureAuth: true
+                    </code>
+                    <p className="mt-1 text-amber-500">⚠️ This disables device verification. Only use for local development.</p>
+                  </div>
+                  
+                  <div>
+                    <p className="font-medium text-foreground mb-1">Allowed Origins</p>
+                    <p>Ensure Mission Control's URL is in your Gateway's <code className="bg-background/50 px-1 rounded">allowedOrigins</code> list:</p>
+                    <code className="block bg-background/50 rounded p-2 font-mono text-xs mt-1">
+                      gateway:<br />
+                      &nbsp;&nbsp;controlUi:<br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;allowedOrigins:<br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- "http://localhost:3000"<br />
+                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- "https://your-domain.com"
+                    </code>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
               Gateway Name
@@ -292,7 +361,9 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
             )}
           </button>
           {connectionError && (
-            <p className="text-xs text-destructive text-center">{connectionError}</p>
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
+              <p className="text-xs text-destructive text-center">{connectionError}</p>
+            </div>
           )}
         </form>
       </div>
