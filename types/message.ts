@@ -2,6 +2,8 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'tool' | 'reasoning';
   content: string;
+  stopReason?: string;
+  errorMessage?: string;
   thinking?: string; // Deprecated - kept for backward compatibility
   tool?: {
     name: string;
