@@ -4,9 +4,10 @@
  * Hook for extensions to provide @ tagging functionality in chat input.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useExtensions } from '@/contexts/ExtensionContext';
 import type { ChatInputTagOption, TaggerConfig } from '@/types/extension';
+import { uiStateStore } from '@/lib/ui-state-db';
 
 function optionMatchesQuery(option: ChatInputTagOption, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
@@ -63,6 +64,25 @@ function filterTagOptions(options: ChatInputTagOption[], query: string): ChatInp
 export function useExtensionChatInput() {
   const { enabledExtensions } = useExtensions();
   const [isLoading, setIsLoading] = useState(false);
+  const cacheRef = useRef<Map<string, { data: ChatInputTagOption[]; timestamp: number }>>(new Map());
+
+  // Load cached data on mount
+  useEffect(() => {
+    const loadCache = async () => {
+      for (const ext of enabledExtensions) {
+        if (ext.manifest.hooks.includes('chat-input')) {
+          const cached = await uiStateStore.getExtensionDataCache(ext.manifest.name);
+          if (cached && cached.data) {
+            cacheRef.current.set(ext.manifest.name, {
+              data: cached.data,
+              timestamp: cached.timestamp
+            });
+          }
+        }
+      }
+    };
+    loadCache();
+  }, [enabledExtensions]);
 
   /**
    * Get available taggers from enabled extensions
@@ -81,47 +101,108 @@ export function useExtensionChatInput() {
 
   /**
    * Search for tag options based on query
-   * @param query - The search query (e.g., "@PR" or "@issue")
+   * @param query - The search query (e.g., "@" shows extensions, "@GitHub PR" shows GitHub PRs)
    */
   const searchTags = useCallback(async (query: string): Promise<ChatInputTagOption[]> => {
     if (!query || !query.startsWith('@')) {
       return [];
     }
 
-    setIsLoading(true);
-    const options: ChatInputTagOption[] = [];
+    // Remove @ and get the search term
+    const searchTerm = query.slice(1).trim();
 
-    try {
-      // Remove @ and get the search term
-      const searchTerm = query.slice(1).trim();
+    // If query is just "@" or "@" with no specific extension, show extension list
+    if (!searchTerm) {
+      const extensionOptions: ChatInputTagOption[] = enabledExtensions
+        .filter(ext => ext.manifest.hooks.includes('chat-input'))
+        .map(ext => ({
+          id: `ext-${ext.manifest.name}`,
+          label: ext.manifest.name.charAt(0).toUpperCase() + ext.manifest.name.slice(1),
+          tag: `@${ext.manifest.name}`,
+          value: ext.manifest.name,
+          description: ext.manifest.description,
+          children: [], // Will be populated when selected
+        }));
 
-      // Query all enabled extensions with chat-input hook
-      const promises = enabledExtensions
-        .filter(ext => 
-          ext.manifest.hooks.includes('chat-input') && 
-          ext.hooks.chatInput
-        )
-        .map(async (ext) => {
-          try {
-            const extOptions = await ext.hooks.chatInput!(searchTerm);
-            options.push(...extOptions);
-          } catch (error) {
-            console.error(`[ChatInputHook] Error getting options from ${ext.manifest.name}:`, error);
-          }
-        });
-
-      await Promise.all(promises);
-
-      // Apply broad client-side filtering across labels, tags, descriptions,
-      // and nested options. Keep nested structure for submenu UX.
-      return filterTagOptions(options, searchTerm);
-    } catch (error) {
-      console.error('[ChatInputHook] Error searching tags:', error);
-    } finally {
-      setIsLoading(false);
+      return extensionOptions;
     }
 
-    return [];
+    // Check if searchTerm starts with an extension name
+    const matchingExtension = enabledExtensions.find(ext => 
+      ext.manifest.hooks.includes('chat-input') &&
+      searchTerm.toLowerCase().startsWith(ext.manifest.name.toLowerCase())
+    );
+
+    if (matchingExtension) {
+      // User is querying a specific extension (e.g., "@GitHub PR" or "@GitHub ")
+      const extName = matchingExtension.manifest.name;
+      const extQuery = searchTerm.slice(extName.length).trim();
+      
+      setIsLoading(true);
+      
+      try {
+        // Check cache first
+        const cached = cacheRef.current.get(extName);
+        const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
+        const CACHE_MAX_AGE = 5 * 60 * 1000; // 5 minutes
+
+        // Return cached data immediately if fresh
+        if (cached && cacheAge < CACHE_MAX_AGE) {
+          setIsLoading(false);
+          return filterTagOptions(cached.data, extQuery);
+        }
+
+        // Fetch fresh data in background
+        if (matchingExtension.hooks.chatInput) {
+          const freshData = await matchingExtension.hooks.chatInput(extQuery);
+          
+          // Update cache
+          cacheRef.current.set(extName, {
+            data: freshData,
+            timestamp: Date.now()
+          });
+          await uiStateStore.saveExtensionDataCache(extName, freshData);
+
+          return filterTagOptions(freshData, extQuery);
+        }
+
+        // Return cached data as fallback
+        if (cached) {
+          return filterTagOptions(cached.data, extQuery);
+        }
+      } catch (error) {
+        console.error(`[ChatInputHook] Error getting options from ${extName}:`, error);
+        
+        // Return cached data on error if available
+        const cached = cacheRef.current.get(extName);
+        if (cached) {
+          setIsLoading(false);
+          return filterTagOptions(cached.data, extQuery);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+
+      return [];
+    }
+
+    // If no specific extension matched, filter extension list by query
+    const extensionOptions: ChatInputTagOption[] = enabledExtensions
+      .filter(ext => 
+        ext.manifest.hooks.includes('chat-input') &&
+        (ext.manifest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         ext.manifest.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+      .map(ext => ({
+        id: `ext-${ext.manifest.name}`,
+        label: ext.manifest.name.charAt(0).toUpperCase() + ext.manifest.name.slice(1),
+        tag: `@${ext.manifest.name}`,
+        value: ext.manifest.name,
+        description: ext.manifest.description,
+        children: [],
+      }));
+
+    return extensionOptions;
   }, [enabledExtensions]);
 
   /**

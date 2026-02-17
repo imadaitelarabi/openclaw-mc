@@ -61,6 +61,10 @@ interface UIStateDB extends DBSchema {
     key: string; // extension name
     value: { config: any; timestamp: number };
   };
+  'extension-data-cache': {
+    key: string; // extension name
+    value: { data: any; timestamp: number };
+  };
 }
 
 class UIStateStore {
@@ -73,7 +77,7 @@ class UIStateStore {
     }
 
     if (!this.dbPromise) {
-      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 4, {
+      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 5, {
         upgrade(db, oldVersion) {
           // Create object stores if they don't exist
           if (!db.objectStoreNames.contains('scroll-positions')) {
@@ -102,6 +106,12 @@ class UIStateStore {
             }
             if (!db.objectStoreNames.contains('extension-configs')) {
               db.createObjectStore('extension-configs');
+            }
+          }
+          // Add extension data cache in version 5
+          if (oldVersion < 5) {
+            if (!db.objectStoreNames.contains('extension-data-cache')) {
+              db.createObjectStore('extension-data-cache');
             }
           }
         },
@@ -417,6 +427,36 @@ class UIStateStore {
       await db.delete('extension-configs', extensionName);
     } catch (err) {
       console.error('[UIState] Failed to delete extension config:', err);
+    }
+  }
+
+  // Extension data cache management (for chat input options, etc.)
+  async saveExtensionDataCache(extensionName: string, data: any): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.put('extension-data-cache', { data, timestamp: Date.now() }, extensionName);
+    } catch (err) {
+      console.error('[UIState] Failed to save extension data cache:', err);
+    }
+  }
+
+  async getExtensionDataCache(extensionName: string): Promise<{ data: any; timestamp: number } | null> {
+    try {
+      const db = await this.getDB();
+      const cached = await db.get('extension-data-cache', extensionName);
+      return cached || null;
+    } catch (err) {
+      console.error('[UIState] Failed to get extension data cache:', err);
+      return null;
+    }
+  }
+
+  async deleteExtensionDataCache(extensionName: string): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.delete('extension-data-cache', extensionName);
+    } catch (err) {
+      console.error('[UIState] Failed to delete extension data cache:', err);
     }
   }
 }

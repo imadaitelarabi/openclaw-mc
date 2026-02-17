@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import type { ChatInputTagOption } from '@/types/extension';
 
@@ -14,6 +15,7 @@ interface ChatInputTagDropdownProps {
   onClose: () => void;
   isLoading?: boolean;
   position?: { top: number; left: number };
+  inputRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
 export function ChatInputTagDropdown({ 
@@ -21,13 +23,26 @@ export function ChatInputTagDropdown({
   onSelect, 
   onClose,
   isLoading = false,
-  position 
+  position,
+  inputRef
 }: ChatInputTagDropdownProps) {
   const PANEL_WIDTH = 280;
   const PANEL_GAP = 8;
 
   const [activePath, setActivePath] = useState<number[]>([]);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Calculate dropdown position based on input ref
+  useEffect(() => {
+    if (inputRef?.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.top - 8, // 8px gap above input
+        left: rect.left
+      });
+    }
+  }, [inputRef]);
 
   const getNodeAtPath = (source: ChatInputTagOption[], path: number[]) => {
     let current: ChatInputTagOption | null = null;
@@ -140,6 +155,10 @@ export function ChatInputTagDropdown({
     return null;
   }
 
+  if (!dropdownPosition && inputRef) {
+    return null; // Wait for position calculation
+  }
+
   const renderMenuPanel = (items: ChatInputTagOption[], parentPath: number[] = [], level = 0) => {
     return (
       <div
@@ -209,11 +228,15 @@ export function ChatInputTagDropdown({
     panels.push(panelItems);
   }
 
-  return (
+  const dropdown = (
     <div 
       ref={dropdownRef}
-      className="absolute bottom-full left-0 mb-2 z-50"
-      style={position}
+      className="fixed z-[9999]"
+      style={{
+        top: dropdownPosition ? `${dropdownPosition.top}px` : undefined,
+        left: dropdownPosition ? `${dropdownPosition.left}px` : undefined,
+        transform: 'translateY(-100%)',
+      }}
     >
       {isLoading && options.length === 0 ? (
         <div className="bg-popover border border-border rounded-md shadow-lg px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
@@ -231,4 +254,11 @@ export function ChatInputTagDropdown({
       )}
     </div>
   );
+
+  // Use Portal to render dropdown at document root level to escape panel stacking context
+  if (typeof document !== 'undefined') {
+    return createPortal(dropdown, document.body);
+  }
+
+  return null;
 }

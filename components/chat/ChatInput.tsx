@@ -280,6 +280,7 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
               onSelect={handleSelectTagOption}
               onClose={handleCloseTagDropdown}
               isLoading={isTagLoading}
+              inputRef={textareaRef}
             />
           )}
 
