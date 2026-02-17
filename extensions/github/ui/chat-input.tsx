@@ -14,6 +14,13 @@ export async function getChatInputOptions(
 ): Promise<ChatInputTagOption[]> {
   try {
     const toTimestamp = (dateValue?: string) => (dateValue ? new Date(dateValue).getTime() : 0);
+    const toRepoOption = (repoOwner: string, repoName: string, repoUrl: string): ChatInputTagOption => ({
+      id: `repo-link-${repoOwner}-${repoName}`,
+      label: 'Repository',
+      tag: `@repo ${repoOwner}/${repoName}`,
+      value: repoUrl,
+      description: `${repoOwner}/${repoName}`,
+    });
     const options: ChatInputTagOption[] = [];
     const organizations = await api.getOrganizations();
 
@@ -55,13 +62,16 @@ export async function getChatInputOptions(
                   tag: `@PR ${repoOwner}/${repo.name}`,
                   value: repo.html_url,
                   description: `${prs.length} matching pull request${prs.length === 1 ? '' : 's'}`,
-                  children: sortedPrs.map(pr => ({
-                    id: `pr-${organization.login}-${repo.name}-${pr.number}`,
-                    label: `#${pr.number}`,
-                    tag: `@PR-${repoOwner}/${repo.name}#${pr.number}`,
-                    value: pr.html_url,
-                    description: pr.title,
-                  })),
+                  children: [
+                    toRepoOption(repoOwner, repo.name, repo.html_url),
+                    ...sortedPrs.map(pr => ({
+                      id: `pr-${organization.login}-${repo.name}-${pr.number}`,
+                      label: `#${pr.number}`,
+                      tag: `@PR-${repoOwner}/${repo.name}#${pr.number}`,
+                      value: pr.html_url,
+                      description: pr.title,
+                    })),
+                  ],
                 },
               };
             })
@@ -117,7 +127,6 @@ export async function getChatInputOptions(
           const repoGroups = await Promise.all(
             repositories.map(async (repo) => {
               const repoOwner = repo.owner?.login || organization.login;
-              const orderingPrs = await api.getPullRequests(repoOwner, repo.name);
               const issues = searchTerm
                 ? await api.searchIssues(repoOwner, repo.name, searchTerm)
                 : await api.getIssues(repoOwner, repo.name);
@@ -126,52 +135,54 @@ export async function getChatInputOptions(
                 return null;
               }
 
-              const latestPrUpdatedAt = orderingPrs.reduce((latest, pr) => {
-                const updatedAt = toTimestamp(pr.updated_at);
+              const latestIssueUpdatedAt = issues.reduce((latest, issue) => {
+                const updatedAt = toTimestamp(issue.updated_at);
                 return updatedAt > latest ? updatedAt : latest;
               }, 0);
 
               return {
-                latestPrUpdatedAt,
+                latestIssueUpdatedAt,
                 option: {
                   id: `issue-repo-${organization.login}-${repo.name}`,
                   label: repo.name,
                   tag: `@issue ${repoOwner}/${repo.name}`,
                   value: repo.html_url,
                   description: `${issues.length} matching issue${issues.length === 1 ? '' : 's'}`,
-                  children: issues.map(issue => ({
-                    id: `issue-${organization.login}-${repo.name}-${issue.number}`,
-                    label: `#${issue.number}`,
-                    tag: `@issue-${repoOwner}/${repo.name}#${issue.number}`,
-                    value: issue.html_url,
-                    description: issue.title,
-                  })),
+                  children: [
+                    toRepoOption(repoOwner, repo.name, repo.html_url),
+                    ...issues.map(issue => ({
+                      id: `issue-${organization.login}-${repo.name}-${issue.number}`,
+                      label: `#${issue.number}`,
+                      tag: `@issue-${repoOwner}/${repo.name}#${issue.number}`,
+                      value: issue.html_url,
+                      description: issue.title,
+                    })),
+                  ],
                 },
               };
             })
           );
 
-          const validRepoGroups = repoGroups.filter(Boolean) as Array<{ latestPrUpdatedAt: number; option: ChatInputTagOption }>;
+          const validRepoGroups = repoGroups.filter(Boolean) as Array<{ latestIssueUpdatedAt: number; option: ChatInputTagOption }>;
           if (validRepoGroups.length === 0) {
             return null;
           }
 
           const children = validRepoGroups
-            .filter(entry => entry.latestPrUpdatedAt > 0)
-            .sort((a, b) => b.latestPrUpdatedAt - a.latestPrUpdatedAt)
+            .sort((a, b) => b.latestIssueUpdatedAt - a.latestIssueUpdatedAt)
             .map(entry => entry.option);
 
           if (children.length === 0) {
             return null;
           }
 
-          const latestOrgPrUpdatedAt = validRepoGroups.reduce(
-            (latest, repoEntry) => (repoEntry.latestPrUpdatedAt > latest ? repoEntry.latestPrUpdatedAt : latest),
+          const latestOrgIssueUpdatedAt = validRepoGroups.reduce(
+            (latest, repoEntry) => (repoEntry.latestIssueUpdatedAt > latest ? repoEntry.latestIssueUpdatedAt : latest),
             0
           );
 
           return {
-            latestOrgPrUpdatedAt,
+            latestOrgIssueUpdatedAt,
             option: {
               id: `issue-org-${organization.login}`,
               label: organization.login,
@@ -184,15 +195,76 @@ export async function getChatInputOptions(
         })
       );
 
-      const sortedOrgGroups = (orgGroups.filter(Boolean) as Array<{ latestOrgPrUpdatedAt: number; option: ChatInputTagOption }>)
-        .sort((a, b) => b.latestOrgPrUpdatedAt - a.latestOrgPrUpdatedAt)
+      const sortedOrgGroups = (orgGroups.filter(Boolean) as Array<{ latestOrgIssueUpdatedAt: number; option: ChatInputTagOption }>)
+        .sort((a, b) => b.latestOrgIssueUpdatedAt - a.latestOrgIssueUpdatedAt)
+        .map(entry => entry.option);
+
+      options.push(...sortedOrgGroups);
+    }
+
+    if (lowerQuery.startsWith('repo')) {
+      const searchTerm = query.slice(4).trim().toLowerCase();
+
+      const orgGroups = await Promise.all(
+        organizations.map(async (organization) => {
+          const repositories = await api.getRepositories(organization.login, organization.type);
+
+          const repoItems = repositories
+            .filter(repo => {
+              if (!searchTerm) return true;
+              const fullName = `${repo.owner?.login || organization.login}/${repo.name}`.toLowerCase();
+              return fullName.includes(searchTerm) || repo.name.toLowerCase().includes(searchTerm);
+            })
+            .map(repo => {
+              const repoOwner = repo.owner?.login || organization.login;
+              return {
+                sortTime: toTimestamp(repo.updated_at),
+                option: {
+                  id: `repo-only-${organization.login}-${repo.name}`,
+                  label: repo.name,
+                  tag: `@repo ${repoOwner}/${repo.name}`,
+                  value: repo.html_url,
+                  description: repo.private ? 'Private repository' : 'Repository',
+                } as ChatInputTagOption,
+              };
+            });
+
+          if (repoItems.length === 0) {
+            return null;
+          }
+
+          const children = [...repoItems]
+            .sort((a, b) => b.sortTime - a.sortTime)
+            .map(entry => entry.option);
+
+          const latestRepoUpdatedAt = repoItems.reduce(
+            (latest, entry) => (entry.sortTime > latest ? entry.sortTime : latest),
+            0
+          );
+
+          return {
+            latestRepoUpdatedAt,
+            option: {
+              id: `repo-org-${organization.login}`,
+              label: organization.login,
+              tag: `@repo ${organization.login}`,
+              value: '',
+              description: organization.type === 'User' ? 'Personal account' : 'Organization',
+              children,
+            },
+          };
+        })
+      );
+
+      const sortedOrgGroups = (orgGroups.filter(Boolean) as Array<{ latestRepoUpdatedAt: number; option: ChatInputTagOption }>)
+        .sort((a, b) => b.latestRepoUpdatedAt - a.latestRepoUpdatedAt)
         .map(entry => entry.option);
 
       options.push(...sortedOrgGroups);
     }
 
     // If no prefix, show both PRs and issues grouped
-    if (!lowerQuery.startsWith('pr') && !lowerQuery.startsWith('issue')) {
+    if (!lowerQuery.startsWith('pr') && !lowerQuery.startsWith('issue') && !lowerQuery.startsWith('repo')) {
       const orgGroups = await Promise.all(
         organizations.map(async (organization) => {
           const repositories = await api.getRepositories(organization.login, organization.type);
@@ -214,7 +286,17 @@ export async function getChatInputOptions(
                 return updatedAt > latest ? updatedAt : latest;
               }, 0);
 
+              const latestIssueUpdatedAt = issues.reduce((latest, issue) => {
+                const updatedAt = toTimestamp(issue.updated_at);
+                return updatedAt > latest ? updatedAt : latest;
+              }, 0);
+
+              const latestRepoUpdatedAt = toTimestamp(repo.updated_at);
+              const latestActivityAt = Math.max(latestPrUpdatedAt, latestIssueUpdatedAt, latestRepoUpdatedAt);
+
               const children: ChatInputTagOption[] = [];
+
+              children.push(toRepoOption(repoOwner, repo.name, repo.html_url));
 
               if (prs.length > 0) {
                 children.push({
@@ -249,7 +331,7 @@ export async function getChatInputOptions(
               }
 
               return {
-                latestPrUpdatedAt,
+                latestActivityAt,
                 option: {
                   id: `repo-${organization.login}-${repo.name}`,
                   label: repo.name,
@@ -261,27 +343,26 @@ export async function getChatInputOptions(
             })
           );
 
-          const validRepoGroups = repoGroups.filter(Boolean) as Array<{ latestPrUpdatedAt: number; option: ChatInputTagOption }>;
+          const validRepoGroups = repoGroups.filter(Boolean) as Array<{ latestActivityAt: number; option: ChatInputTagOption }>;
           if (validRepoGroups.length === 0) {
             return null;
           }
 
           const children = validRepoGroups
-            .filter(entry => entry.latestPrUpdatedAt > 0)
-            .sort((a, b) => b.latestPrUpdatedAt - a.latestPrUpdatedAt)
+            .sort((a, b) => b.latestActivityAt - a.latestActivityAt)
             .map(entry => entry.option);
 
           if (children.length === 0) {
             return null;
           }
 
-          const latestOrgPrUpdatedAt = validRepoGroups.reduce(
-            (latest, repoEntry) => (repoEntry.latestPrUpdatedAt > latest ? repoEntry.latestPrUpdatedAt : latest),
+          const latestOrgActivityAt = validRepoGroups.reduce(
+            (latest, repoEntry) => (repoEntry.latestActivityAt > latest ? repoEntry.latestActivityAt : latest),
             0
           );
 
           return {
-            latestOrgPrUpdatedAt,
+            latestOrgActivityAt,
             option: {
               id: `org-${organization.login}`,
               label: organization.login,
@@ -294,8 +375,8 @@ export async function getChatInputOptions(
         })
       );
 
-      const sortedOrgGroups = (orgGroups.filter(Boolean) as Array<{ latestOrgPrUpdatedAt: number; option: ChatInputTagOption }>)
-        .sort((a, b) => b.latestOrgPrUpdatedAt - a.latestOrgPrUpdatedAt)
+      const sortedOrgGroups = (orgGroups.filter(Boolean) as Array<{ latestOrgActivityAt: number; option: ChatInputTagOption }>)
+        .sort((a, b) => b.latestOrgActivityAt - a.latestOrgActivityAt)
         .map(entry => entry.option);
 
       options.push(...sortedOrgGroups);

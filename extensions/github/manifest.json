@@ -20,6 +20,11 @@
       "prefix": "issue",
       "description": "Issues",
       "returnFields": ["tag", "value"]
+    },
+    {
+      "prefix": "repo",
+      "description": "Repositories",
+      "returnFields": ["tag", "value"]
     }
   ],
   "statusBar": {
