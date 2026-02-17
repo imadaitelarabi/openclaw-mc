@@ -6,6 +6,59 @@
 import type { ExtendedWebSocket } from '../types/internal';
 import type { GatewayClient } from '../core/GatewayClient';
 
+function unwrapPayload(value: any): any {
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const looksLikeCronJob =
+    'schedule' in value ||
+    'sessionTarget' in value ||
+    'delivery' in value ||
+    'createdAtMs' in value ||
+    'updatedAtMs' in value;
+
+  const looksLikeCronRun =
+    'sessionKey' in value ||
+    'startedAtMs' in value ||
+    ('jobId' in value && 'status' in value);
+
+  const looksLikeCronStatus = 'enabled' in value && 'jobs' in value;
+  const looksLikeCronListPayload = Array.isArray((value as any).jobs) || Array.isArray((value as any).entries);
+  const looksLikeGatewayEnvelope = 'ok' in value || ('type' in value && 'id' in value && 'payload' in value);
+
+  if (
+    'payload' in value &&
+    (looksLikeGatewayEnvelope || (!looksLikeCronJob && !looksLikeCronRun && !looksLikeCronStatus && !looksLikeCronListPayload))
+  ) {
+    return (value as any).payload;
+  }
+
+  return value;
+}
+
+function normalizeCronJob(value: any): any {
+  const payload = unwrapPayload(value);
+  if (payload && typeof payload === 'object' && payload.id) {
+    return payload;
+  }
+  if (payload && typeof payload === 'object' && payload.job && payload.job.id) {
+    return payload.job;
+  }
+  return null;
+}
+
+function normalizeCronRuns(value: any): any[] {
+  const payload = unwrapPayload(value);
+  if (payload && Array.isArray(payload.entries)) {
+    return payload.entries;
+  }
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  return [];
+}
+
 /**
  * List all cron jobs
  */
@@ -18,11 +71,13 @@ export async function handleCronList(
   
   try {
     const result = await gateway.call('cron.list', {});
+    const payload = unwrapPayload(result);
+    const jobs = Array.isArray(payload) ? payload : payload?.jobs || [];
     ws.send(
       JSON.stringify({
         type: 'cron.list.response',
         requestId,
-        jobs: result.jobs || []
+        jobs
       })
     );
   } catch (err) {
@@ -47,7 +102,9 @@ export async function handleCronStatus(
   const { requestId } = msg;
   
   try {
-    const status = await gateway.call('cron.status', {});
+    const result = await gateway.call('cron.status', {});
+    const payload = unwrapPayload(result);
+    const status = payload?.status || payload;
     ws.send(
       JSON.stringify({
         type: 'cron.status.response',
@@ -89,11 +146,17 @@ export async function handleCronAdd(
 
   try {
     const result = await gateway.call('cron.add', job);
+    const createdJob = normalizeCronJob(result);
+
+    if (!createdJob) {
+      throw new Error('Gateway returned an invalid cron.add response');
+    }
+
     ws.send(
       JSON.stringify({
         type: 'cron.add.response',
         requestId,
-        job: result.job
+        job: createdJob
       })
     );
   } catch (err) {
@@ -130,11 +193,17 @@ export async function handleCronUpdate(
 
   try {
     const result = await gateway.call('cron.update', { jobId, patch: updates });
+    const updatedJob = normalizeCronJob(result);
+
+    if (!updatedJob) {
+      throw new Error('Gateway returned an invalid cron.update response');
+    }
+
     ws.send(
       JSON.stringify({
         type: 'cron.update.response',
         requestId,
-        job: result.job
+        job: updatedJob
       })
     );
   } catch (err) {
@@ -212,11 +281,12 @@ export async function handleCronRuns(
 
   try {
     const result = await gateway.call('cron.runs', { jobId, limit: limit || 10 });
+    const entries = normalizeCronRuns(result);
     ws.send(
       JSON.stringify({
         type: 'cron.runs.response',
         requestId,
-        entries: result.entries || []
+        entries
       })
     );
   } catch (err) {
@@ -253,11 +323,16 @@ export async function handleCronRun(
 
   try {
     const result = await gateway.call('cron.run', { jobId, mode: mode || 'force' });
+    const run = unwrapPayload(result)?.run || unwrapPayload(result);
+    if (!run || typeof run !== 'object' || !run.id) {
+      throw new Error('Gateway returned an invalid cron.run response');
+    }
+
     ws.send(
       JSON.stringify({
         type: 'cron.run.response',
         requestId,
-        run: result.run
+        run
       })
     );
   } catch (err) {

@@ -66,18 +66,32 @@ export function useCronJobs({ wsRef, connectionStatus, onEvent }: UseCronJobsPro
         }
 
         // Handle add/update/delete responses
-        if (msg.type === 'cron.add.response' && isValidCronJob(msg.job)) {
-          setJobs(prev => [...prev, msg.job]);
+        if (msg.type === 'cron.add.response') {
+          const createdJob = isValidCronJob(msg.job) ? msg.job : null;
           const pending = pendingRequestsRef.current.get(msg.requestId);
-          if (pending) {
-            pending.resolve(msg.job);
+
+          if (createdJob) {
+            setJobs(prev => [...prev, createdJob]);
+            if (pending) {
+              pending.resolve(createdJob);
+              pendingRequestsRef.current.delete(msg.requestId);
+            }
+          } else if (pending) {
+            pending.reject(new Error('Invalid cron.add.response payload'));
             pendingRequestsRef.current.delete(msg.requestId);
           }
-        } else if (msg.type === 'cron.update.response' && isValidCronJob(msg.job)) {
-          setJobs(prev => prev.map(j => j.id === msg.job.id ? msg.job : j));
+        } else if (msg.type === 'cron.update.response') {
+          const updatedJob = isValidCronJob(msg.job) ? msg.job : null;
           const pending = pendingRequestsRef.current.get(msg.requestId);
-          if (pending) {
-            pending.resolve(msg.job);
+
+          if (updatedJob) {
+            setJobs(prev => prev.map(j => j.id === updatedJob.id ? updatedJob : j));
+            if (pending) {
+              pending.resolve(updatedJob);
+              pendingRequestsRef.current.delete(msg.requestId);
+            }
+          } else if (pending) {
+            pending.reject(new Error('Invalid cron.update.response payload'));
             pendingRequestsRef.current.delete(msg.requestId);
           }
         } else if (msg.type === 'cron.delete.response') {
