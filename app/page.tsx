@@ -29,7 +29,7 @@ function MissionControlInner() {
   const [activeGatewayId, setActiveGatewayId] = useState<string | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [isGatewayConnecting, setIsGatewayConnecting] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null); // null = not checked yet
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   
   const { toast } = useToast();
@@ -129,7 +129,7 @@ function MissionControlInner() {
     }
   }, [connectionStatus, sendMessage]);
 
-  // Check onboarding status on mount
+  // Check onboarding status on mount and when connection status or gateways change
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
@@ -138,18 +138,21 @@ function MissionControlInner() {
         
         setOnboardingChecked(true);
         
-        // Show onboarding wizard for first-time users with no gateway
-        if (!hasCompletedOnboarding && gateways.length === 0) {
+        // Show onboarding wizard for first-time users with no gateway configured
+        if (!hasCompletedOnboarding && connectionStatus === 'no-config' && gateways.length === 0) {
           setShowOnboarding(true);
+        } else {
+          setShowOnboarding(false);
         }
       } catch (err) {
         console.error('Failed to check onboarding state:', err);
         setOnboardingChecked(true);
+        setShowOnboarding(false);
       }
     };
     
     checkOnboarding();
-  }, [gateways.length]);
+  }, [gateways.length, connectionStatus]);
 
   useEffect(() => {
     if (connectionStatus !== 'connected') {
@@ -355,8 +358,8 @@ function MissionControlInner() {
   // Use the active panel's agent for session key
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
 
-  // Show onboarding wizard for first-time users
-  if (showOnboarding && onboardingChecked) {
+  // Show onboarding wizard for first-time users with no config
+  if (connectionStatus === 'no-config' && !showSetup && onboardingChecked && showOnboarding === true) {
     return (
       <OnboardingWizard
         sendMessage={sendMessage}
@@ -371,7 +374,8 @@ function MissionControlInner() {
     );
   }
 
-  if (connectionStatus === 'no-config' || showSetup) {
+  // Show gateway setup for manual gateway addition or when no config and onboarding skipped/completed
+  if ((connectionStatus === 'no-config' && showOnboarding === false) || showSetup) {
     return (
       <GatewaySetup 
         isLoading={isGatewayConnecting}
