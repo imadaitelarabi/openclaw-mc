@@ -382,6 +382,14 @@ function MissionControlInner() {
     }
   }, [agents, closePanel, handleDeleteAgentRequest, layout.panels, toast]);
 
+  const handleOnboardingGatewayConnect = useCallback(async (name: string, url: string, token: string) => {
+    const ack = await sendRequestWithAck({ type: 'gateways.add', name, url, token }, 'gateways.add.ack');
+    if (ack?.ok === false) {
+      throw new Error(ack.error || 'Failed to connect to gateway');
+    }
+    sendMessage({ type: 'gateways.list' });
+  }, [sendRequestWithAck, sendMessage]);
+
   // Use the active panel's agent for session key
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
 
@@ -389,7 +397,7 @@ function MissionControlInner() {
   if (onboardingChecked && showOnboarding === true) {
     return (
       <OnboardingWizard
-        sendMessage={sendMessage}
+        onConnectGateway={handleOnboardingGatewayConnect}
         onComplete={() => {
           setShowOnboarding(false);
           sendMessage({ type: 'gateways.list' });

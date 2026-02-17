@@ -4,19 +4,20 @@ import { useState } from 'react';
 import { Zap, Globe, Wifi, Shield, ArrowRight, Loader2, Copy, Check } from 'lucide-react';
 
 interface GatewayConnectionStepProps {
-  sendMessage: (message: any) => void;
+  onConnectGateway: (name: string, url: string, token: string) => Promise<void>;
   onComplete: () => void;
 }
 
 type SetupMode = 'local' | 'remote' | null;
 
-export function GatewayConnectionStep({ sendMessage, onComplete }: GatewayConnectionStepProps) {
+export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayConnectionStepProps) {
   const [mode, setMode] = useState<SetupMode>(null);
   const [name, setName] = useState('My Gateway');
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const handleCopyCommand = () => {
     navigator.clipboard.writeText('npm install -g openclaw && openclaw gateway start');
@@ -24,37 +25,33 @@ export function GatewayConnectionStep({ sendMessage, onComplete }: GatewayConnec
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleLocalConnect = () => {
+  const handleLocalConnect = async () => {
     setIsConnecting(true);
-    // Send message to connect to localhost gateway
-    sendMessage({ 
-      type: 'gateways.add', 
-      name: 'Local Gateway',
-      url: 'ws://localhost:18789',
-      token: '' 
-    });
-    // The connection will complete via the WebSocket message handler
-    // We'll complete the step after a short delay
-    setTimeout(() => {
+    setConnectionError(null);
+    try {
+      await onConnectGateway('Local Gateway', 'ws://localhost:18789', '');
       onComplete();
-    }, 1500);
+    } catch (err) {
+      setConnectionError(err instanceof Error ? err.message : 'Failed to connect to local gateway');
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
-  const handleRemoteConnect = (e: React.FormEvent) => {
+  const handleRemoteConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url || !token) return;
 
     setIsConnecting(true);
-    sendMessage({ 
-      type: 'gateways.add', 
-      name, 
-      url, 
-      token 
-    });
-    // The connection will complete via the WebSocket message handler
-    setTimeout(() => {
+    setConnectionError(null);
+    try {
+      await onConnectGateway(name, url, token);
       onComplete();
-    }, 1500);
+    } catch (err) {
+      setConnectionError(err instanceof Error ? err.message : 'Failed to connect to gateway');
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   if (mode === null) {
@@ -195,6 +192,9 @@ export function GatewayConnectionStep({ sendMessage, onComplete }: GatewayConnec
               <p className="text-xs text-muted-foreground text-center">
                 This will connect to <code className="bg-background px-1 rounded">ws://localhost:18789</code>
               </p>
+              {connectionError && (
+                <p className="text-xs text-destructive text-center">{connectionError}</p>
+              )}
             </div>
           </div>
         </div>
@@ -291,6 +291,9 @@ export function GatewayConnectionStep({ sendMessage, onComplete }: GatewayConnec
               </>
             )}
           </button>
+          {connectionError && (
+            <p className="text-xs text-destructive text-center">{connectionError}</p>
+          )}
         </form>
       </div>
     </div>

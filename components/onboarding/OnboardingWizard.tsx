@@ -9,12 +9,12 @@ import { ExtensionsSetupStep } from './ExtensionsSetupStep';
 type OnboardingStep = 'gateway' | 'extensions';
 
 interface OnboardingWizardProps {
-  sendMessage: (message: any) => void;
+  onConnectGateway: (name: string, url: string, token: string) => Promise<void>;
   onComplete: () => void;
   onSkip: () => void;
 }
 
-export function OnboardingWizard({ sendMessage, onComplete, onSkip }: OnboardingWizardProps) {
+export function OnboardingWizard({ onConnectGateway, onComplete, onSkip }: OnboardingWizardProps) {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('gateway');
   const [gatewayConfigured, setGatewayConfigured] = useState(false);
 
@@ -91,7 +91,7 @@ export function OnboardingWizard({ sendMessage, onComplete, onSkip }: Onboarding
       <div className="flex-1 overflow-y-auto">
         {currentStep === 'gateway' && (
           <GatewayConnectionStep 
-            sendMessage={sendMessage}
+            onConnectGateway={onConnectGateway}
             onComplete={handleGatewayComplete} 
           />
         )}
