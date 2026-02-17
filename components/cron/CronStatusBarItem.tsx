@@ -6,6 +6,7 @@
 import { Clock, ChevronDown, Play } from 'lucide-react';
 import type { CronJob, CronStatus } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
+import { getCronScheduleLabel } from '@/lib/cron-schedule';
 
 interface CronStatusBarItemProps {
   jobs: CronJob[];
@@ -126,7 +127,7 @@ export function CronStatusBarItem({
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {nextRunLabel}
-                      {job.schedule.expr && ` • ${job.schedule.expr}`}
+                      {job.schedule.expr && ` • ${getCronScheduleLabel(job.schedule.expr)}`}
                     </div>
                   </button>
                 );

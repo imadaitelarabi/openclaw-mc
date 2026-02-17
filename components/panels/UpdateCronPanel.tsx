@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { CronJob } from '@/types';
+import { CRON_SCHEDULE_PRESETS } from '@/lib/cron-schedule';
 
 interface UpdateCronPanelProps {
   job: CronJob;
@@ -10,6 +11,7 @@ interface UpdateCronPanelProps {
 }
 
 export function UpdateCronPanel({ job, onUpdateCronJob, onClose }: UpdateCronPanelProps) {
+  const hasKnownPreset = CRON_SCHEDULE_PRESETS.some((preset) => preset.expr === (job.schedule.expr || ''));
   const [formData, setFormData] = useState({
     name: job.name,
     expr: job.schedule.expr || '',
@@ -98,14 +100,22 @@ export function UpdateCronPanel({ job, onUpdateCronJob, onClose }: UpdateCronPan
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Cron Expression (UTC)</label>
-              <input
-                type="text"
+              <label className="block text-sm font-medium mb-2">Schedule</label>
+              <select
                 value={formData.expr}
                 onChange={(e) => setFormData({ ...formData, expr: e.target.value })}
                 className="w-full px-4 py-2 bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 required
-              />
+              >
+                {!hasKnownPreset && formData.expr && (
+                  <option value={formData.expr}>{`Custom existing (${formData.expr})`}</option>
+                )}
+                {CRON_SCHEDULE_PRESETS.map((preset) => (
+                  <option key={preset.expr} value={preset.expr}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

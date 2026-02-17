@@ -11,6 +11,7 @@ import { ChatMessageItem, StreamingIndicator, ChatHistoryLoader } from '@/compon
 import { useCronRuns, useChatHistory } from '@/hooks';
 import type { CronJob, CronRun } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
+import { getCronScheduleLabel } from '@/lib/cron-schedule';
 
 interface CronPanelProps {
   job: CronJob;
@@ -125,7 +126,7 @@ export const CronPanel = memo(function CronPanel({
               {job.schedule.expr && (
                 <div className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  <span>{job.schedule.expr}</span>
+                  <span>{getCronScheduleLabel(job.schedule.expr)}</span>
                 </div>
               )}
               {nextRun && nextRun > 0 && (

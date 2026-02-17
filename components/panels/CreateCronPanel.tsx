@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { CronJob } from '@/types';
+import { CRON_SCHEDULE_PRESETS } from '@/lib/cron-schedule';
 
 interface CreateCronPanelProps {
   onCreateCronJob: (payload: Omit<CronJob, 'id' | 'createdAtMs' | 'updatedAtMs'>) => Promise<CronJob>;
@@ -11,7 +12,7 @@ interface CreateCronPanelProps {
 export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelProps) {
   const [formData, setFormData] = useState({
     name: 'Daily Brief',
-    expr: '0 8 * * *',
+    expr: CRON_SCHEDULE_PRESETS[2].expr,
     tz: 'UTC',
     message: 'Summarize today\'s key updates.',
     enabled: true,
@@ -121,15 +122,19 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Cron Expression (UTC)</label>
-              <input
-                type="text"
+              <label className="block text-sm font-medium mb-2">Schedule</label>
+              <select
                 value={formData.expr}
                 onChange={(e) => setFormData({ ...formData, expr: e.target.value })}
                 className="w-full px-4 py-2 bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="0 8 * * *"
                 required
-              />
+              >
+                {CRON_SCHEDULE_PRESETS.map((preset) => (
+                  <option key={preset.expr} value={preset.expr}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
