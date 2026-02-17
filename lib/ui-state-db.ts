@@ -77,8 +77,9 @@ class UIStateStore {
     }
 
     if (!this.dbPromise) {
+      // Version 5 adds extension-data-cache store for caching extension chat input data
+      // This is a non-breaking change - existing data is preserved
       this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 5, {
-        // Version 5: Added extension-data-cache store for caching extension chat input data
         upgrade(db, oldVersion) {
           // Create object stores if they don't exist
           if (!db.objectStoreNames.contains('scroll-positions')) {

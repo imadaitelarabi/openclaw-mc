@@ -193,7 +193,8 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
           textareaRef.current.focus();
           textareaRef.current.setSelectionRange(newPosition, newPosition);
           
-          // If this is an extension selection, trigger handleInput with new value
+          // If this is an extension selection (Level 1), trigger search to show Level 2 menu
+          // This allows seamless navigation from extension list to extension-specific data
           if (isExtensionOption) {
             handleInput(newValue, newPosition);
           }

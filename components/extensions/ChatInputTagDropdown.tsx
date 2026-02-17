@@ -28,8 +28,11 @@ export function ChatInputTagDropdown({
 }: ChatInputTagDropdownProps) {
   const PANEL_WIDTH = 280;
   const PANEL_GAP = 8;
-  const DROPDOWN_GAP = 8; // Gap above input element
+  const DROPDOWN_GAP = 8; // Gap above/below input element
   const DROPDOWN_Z_INDEX = 9999; // High z-index to appear above all panels
+  const ESTIMATED_ITEM_HEIGHT = 60; // Approximate height per menu item
+  const DROPDOWN_PADDING = 20; // Additional padding for borders/spacing
+  const MAX_DROPDOWN_HEIGHT = 280; // Maximum dropdown height before scrolling
 
   const [activePath, setActivePath] = useState<number[]>([]);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; positionAbove: boolean } | null>(null);
@@ -38,13 +41,18 @@ export function ChatInputTagDropdown({
   // Calculate dropdown position based on input ref
   // Note: Tracks options.length for performance - position only updates when number of options changes
   // Full options comparison would cause unnecessary recalculations on every keystroke
+  // Trade-off: If options change content but maintain same count, position won't update
+  // This is acceptable since item heights are relatively uniform
   useEffect(() => {
     const updatePosition = () => {
       if (inputRef?.current) {
         const rect = inputRef.current.getBoundingClientRect();
         
-        // Estimate dropdown height (may need adjustment based on actual content)
-        const estimatedDropdownHeight = Math.min(options.length * 60 + 20, 280);
+        // Estimate dropdown height based on number of options
+        const estimatedDropdownHeight = Math.min(
+          options.length * ESTIMATED_ITEM_HEIGHT + DROPDOWN_PADDING, 
+          MAX_DROPDOWN_HEIGHT
+        );
         
         // Check if dropdown would go off top of screen
         let top = rect.top - DROPDOWN_GAP;
