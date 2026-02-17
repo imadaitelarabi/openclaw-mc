@@ -6,8 +6,10 @@ import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useS
 import { StatusBar } from "@/components/layout";
 import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { PanelProvider, usePanels } from "@/contexts/PanelContext";
 import { PanelContainer } from "@/components/panels";
+import { uiStateStore } from "@/lib/ui-state-db";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +29,9 @@ function MissionControlInner() {
   const [activeGatewayId, setActiveGatewayId] = useState<string | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [isGatewayConnecting, setIsGatewayConnecting] = useState(false);
+  // Onboarding state: null = not yet checked, true = show wizard, false = skip wizard
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
   
   const { toast } = useToast();
   const pendingRequestsRef = useRef(new Map<string, {
@@ -118,12 +123,53 @@ function MissionControlInner() {
     });
   }, [sendMessage]);
 
+  const isOnboardingForced = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    return ['1', 'true', 'yes', 'force'].includes(
+      (new URLSearchParams(window.location.search).get('onboarding') || '').toLowerCase()
+    );
+  }, []);
+
   // Request gateways on connect
   useEffect(() => {
     if (connectionStatus === 'connected') {
       sendMessage({ type: 'gateways.list' });
     }
   }, [connectionStatus, sendMessage]);
+
+  // Check onboarding status on mount and when connection status or gateways change
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        const forceOnboarding = isOnboardingForced();
+
+        if (forceOnboarding) {
+          setOnboardingChecked(true);
+          setShowOnboarding(true);
+          setShowSetup(false);
+          return;
+        }
+
+        const state = await uiStateStore.getOnboardingState();
+        const hasCompletedOnboarding = state?.isOnboarded === true;
+        
+        setOnboardingChecked(true);
+        
+        // Show onboarding wizard for first-time users with no gateway configured
+        if (!hasCompletedOnboarding && connectionStatus === 'no-config' && gateways.length === 0) {
+          setShowOnboarding(true);
+        } else {
+          setShowOnboarding(false);
+        }
+      } catch (err) {
+        console.error('Failed to check onboarding state:', err);
+        setOnboardingChecked(true);
+        setShowOnboarding(false);
+      }
+    };
+    
+    checkOnboarding();
+  }, [gateways.length, connectionStatus, isOnboardingForced]);
 
   useEffect(() => {
     if (connectionStatus !== 'connected') {
@@ -158,7 +204,7 @@ function MissionControlInner() {
       } else if (message.type === 'gateways.list') {
         setGateways(message.data || []);
         setActiveGatewayId(message.activeId);
-        if (message.data.length === 0) {
+        if (message.data.length === 0 && !isOnboardingForced()) {
           setShowSetup(true);
         }
       } else if (message.type === 'gateways.add.ack') {
@@ -185,6 +231,16 @@ function MissionControlInner() {
         if (message.requestId) {
           return;
         }
+
+        // Some server errors are emitted without requestId.
+        // Fail all pending request/ack waits immediately so UI loading states stop now,
+        // instead of waiting for timeout.
+        pendingRequestsRef.current.forEach((pending, id) => {
+          clearTimeout(pending.timeoutId);
+          pending.reject(new Error(message.message || 'Request failed'));
+          pendingRequestsRef.current.delete(id);
+        });
+
         setIsGatewayConnecting(false);
         toast({
           title: "Gateway Error",
@@ -212,7 +268,17 @@ function MissionControlInner() {
         setLoading(false);
       }
     };
-  });
+  }, [
+    handleAgentEvent,
+    setModels,
+    activePanelAgentId,
+    setSessionSettings,
+    setLoading,
+    sendMessage,
+    toast,
+    clearChatHistory,
+    isOnboardingForced,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -326,10 +392,35 @@ function MissionControlInner() {
     }
   }, [agents, closePanel, handleDeleteAgentRequest, layout.panels, toast]);
 
+  const handleOnboardingGatewayConnect = useCallback(async (name: string, url: string, token: string) => {
+    const ack = await sendRequestWithAck({ type: 'gateways.add', name, url, token }, 'gateways.add.ack');
+    if (ack?.ok === false) {
+      throw new Error(ack.error || 'Failed to connect to gateway');
+    }
+    sendMessage({ type: 'gateways.list' });
+  }, [sendRequestWithAck, sendMessage]);
+
   // Use the active panel's agent for session key
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
 
-  if (connectionStatus === 'no-config' || showSetup) {
+  // Show onboarding wizard for first-time users with no config
+  if (onboardingChecked && showOnboarding === true) {
+    return (
+      <OnboardingWizard
+        onConnectGateway={handleOnboardingGatewayConnect}
+        onComplete={() => {
+          setShowOnboarding(false);
+          sendMessage({ type: 'gateways.list' });
+        }}
+        onSkip={() => {
+          setShowOnboarding(false);
+        }}
+      />
+    );
+  }
+
+  // Show gateway setup for manual gateway addition or when no config and onboarding skipped/completed
+  if ((connectionStatus === 'no-config' && showOnboarding === false) || showSetup) {
     return (
       <GatewaySetup 
         isLoading={isGatewayConnecting}

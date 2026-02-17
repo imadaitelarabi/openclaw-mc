@@ -73,6 +73,14 @@ interface UIStateDB extends DBSchema {
       timestamp: number;
     };
   };
+  'onboarding-state': {
+    key: string; // 'global'
+    value: {
+      isOnboarded: boolean;
+      completedAt?: number;
+      skipped?: boolean;
+    };
+  };
 }
 
 class UIStateStore {
@@ -85,9 +93,9 @@ class UIStateStore {
     }
 
     if (!this.dbPromise) {
-      // Version 6 adds panel-settings store to persist per-agent UI toggle preferences
-      // (showTools, showReasoning) across sessions. This is a non-breaking change.
-      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 6, {
+      // Version 7 adds onboarding-state store to track first-time user onboarding completion
+      // (isOnboarded, completedAt, skipped) across sessions. This is a non-breaking change.
+      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 7, {
         upgrade(db, oldVersion) {
           // Create object stores if they don't exist
           if (!db.objectStoreNames.contains('scroll-positions')) {
@@ -128,6 +136,12 @@ class UIStateStore {
           if (oldVersion < 6) {
             if (!db.objectStoreNames.contains('panel-settings')) {
               db.createObjectStore('panel-settings');
+            }
+          }
+          // Add onboarding state in version 7
+          if (oldVersion < 7) {
+            if (!db.objectStoreNames.contains('onboarding-state')) {
+              db.createObjectStore('onboarding-state');
             }
           }
         },
@@ -501,6 +515,43 @@ class UIStateStore {
       console.error('[UIState] Failed to get panel settings:', err);
       return null;
     }
+  }
+
+  // Onboarding state management
+  async getOnboardingState(): Promise<{ isOnboarded: boolean; completedAt?: number; skipped?: boolean } | null> {
+    try {
+      const db = await this.getDB();
+      const state = await db.get('onboarding-state', 'global');
+      return state || null;
+    } catch (err) {
+      console.error('[UIState] Failed to get onboarding state:', err);
+      return null;
+    }
+  }
+
+  async setOnboardingState(state: { isOnboarded: boolean; completedAt?: number; skipped?: boolean }): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.put('onboarding-state', state, 'global');
+    } catch (err) {
+      console.error('[UIState] Failed to set onboarding state:', err);
+    }
+  }
+
+  async completeOnboarding(): Promise<void> {
+    await this.setOnboardingState({
+      isOnboarded: true,
+      completedAt: Date.now(),
+      skipped: false
+    });
+  }
+
+  async skipOnboarding(): Promise<void> {
+    await this.setOnboardingState({
+      isOnboarded: true,
+      completedAt: Date.now(),
+      skipped: true
+    });
   }
 }
 

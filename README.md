@@ -54,11 +54,11 @@ Mission Control is a Next.js-based web application that provides a sleek, respon
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/openclaw-mc.git
+git clone https://github.com/imadaitelarabi/openclaw-mc.git
 cd openclaw-mc
 
 # Install dependencies
-npm install
+npm install --legacy-peer-deps
 
 # Configure your gateway (optional - can be done via UI)
 cp .env.local.example .env.local

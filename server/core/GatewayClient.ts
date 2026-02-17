@@ -449,7 +449,10 @@ export class GatewayClient {
   addClient(client: ExtendedWebSocket): void {
     this.clients.add(client);
 
-    if (this.authenticated) {
+    if (!this.url) {
+      // No gateway configured - send no-config status
+      client.send(JSON.stringify({ type: 'status', status: 'no-config' }));
+    } else if (this.authenticated) {
       client.send(JSON.stringify({ type: 'status', status: 'connected' }));
 
       // Send initial data
