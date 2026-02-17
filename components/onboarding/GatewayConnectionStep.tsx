@@ -268,24 +268,24 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
                   <div>
                     <p className="font-medium text-foreground mb-1">Option 2: Enable Insecure Auth (Development Only)</p>
                     <p className="mb-1">Add to your Gateway configuration:</p>
-                    <code className="block bg-background/50 rounded p-2 font-mono text-xs">
-                      gateway:<br />
-                      &nbsp;&nbsp;controlUi:<br />
-                      &nbsp;&nbsp;&nbsp;&nbsp;allowInsecureAuth: true
-                    </code>
+                    <pre className="bg-background/50 rounded p-2 font-mono text-xs whitespace-pre overflow-x-auto">
+{`gateway:
+  controlUi:
+    allowInsecureAuth: true`}
+                    </pre>
                     <p className="mt-1 text-amber-500">⚠️ This disables device verification. Only use for local development.</p>
                   </div>
                   
                   <div>
                     <p className="font-medium text-foreground mb-1">Allowed Origins</p>
                     <p>Ensure Mission Control's URL is in your Gateway's <code className="bg-background/50 px-1 rounded">allowedOrigins</code> list:</p>
-                    <code className="block bg-background/50 rounded p-2 font-mono text-xs mt-1">
-                      gateway:<br />
-                      &nbsp;&nbsp;controlUi:<br />
-                      &nbsp;&nbsp;&nbsp;&nbsp;allowedOrigins:<br />
-                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- "http://localhost:3000"<br />
-                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- "https://your-domain.com"
-                    </code>
+                    <pre className="bg-background/50 rounded p-2 font-mono text-xs mt-1 whitespace-pre overflow-x-auto">
+{`gateway:
+  controlUi:
+    allowedOrigins:
+      - "http://localhost:3000"
+      - "https://your-domain.com"`}
+                    </pre>
                   </div>
                 </div>
               )}
