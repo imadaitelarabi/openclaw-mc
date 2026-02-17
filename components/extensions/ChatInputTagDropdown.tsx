@@ -312,6 +312,10 @@ export function ChatInputTagDropdown({
               );
             })}
           </div>
+
+          <div className="px-3 py-2 border-t border-border text-[11px] text-muted-foreground">
+            Use ↑↓ to move, Enter/→ to open, and ← to go back.
+          </div>
         </div>
       )}
     </div>
