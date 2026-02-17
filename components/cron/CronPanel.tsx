@@ -7,9 +7,9 @@
 
 import { memo, useState, useRef, useEffect } from 'react';
 import { PlayCircle, Edit, Trash2, Calendar, Clock } from 'lucide-react';
-import { ChatMessageItem, StreamingIndicator, ChatHistoryLoader } from '@/components/chat';
+import { ChatMessageItem } from '@/components/chat';
 import { useCronRuns, useChatHistory, useToast } from '@/hooks';
-import type { CronJob, CronRun } from '@/types';
+import type { ChatMessage, CronJob } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { getCronScheduleLabel } from '@/lib/cron-schedule';
 
@@ -22,6 +22,98 @@ interface CronPanelProps {
   wsRef: React.RefObject<WebSocket | null>;
 }
 
+function normalizeTextContent(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value == null) return '';
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeTextContent(item)).filter(Boolean).join('\n');
+  }
+
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+
+    if (typeof record.text === 'string') return record.text;
+    if (typeof record.content === 'string') return record.content;
+    if (typeof record.message === 'string') return record.message;
+
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return String(value);
+}
+
+function normalizeChatMessage(raw: any, fallbackRunId?: string): ChatMessage | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const role: ChatMessage['role'] = raw.role === 'user'
+    ? 'user'
+    : raw.role === 'reasoning'
+      ? 'reasoning'
+      : raw.role === 'tool'
+        ? 'tool'
+        : 'assistant';
+
+  const runId = typeof raw.runId === 'string' ? raw.runId : fallbackRunId;
+  const timestamp = typeof raw.timestamp === 'number' ? raw.timestamp : Date.now();
+  const content = normalizeTextContent(raw.content ?? raw.text ?? raw.message ?? '');
+  const id = typeof raw.id === 'string'
+    ? raw.id
+    : `${runId || 'cron'}-${role}-${timestamp}-${Math.random().toString(36).slice(2, 7)}`;
+
+  const normalized: ChatMessage = {
+    id,
+    role,
+    content,
+    timestamp,
+    runId,
+  };
+
+  if (role === 'tool') {
+    normalized.tool = {
+      name: raw.tool?.name || raw.toolName || 'tool',
+      args: raw.tool?.args,
+      result: raw.tool?.result,
+      error: raw.tool?.error,
+      status: raw.tool?.status || 'start',
+      duration: raw.tool?.duration,
+      exitCode: raw.tool?.exitCode,
+    };
+  }
+
+  if (raw.stopReason) normalized.stopReason = raw.stopReason;
+  if (raw.errorMessage) normalized.errorMessage = raw.errorMessage;
+
+  return normalized;
+}
+
+function upsertChatMessage(prev: ChatMessage[], incoming: ChatMessage, appendContent = false): ChatMessage[] {
+  const existingIndex = prev.findIndex((message) => message.id === incoming.id);
+
+  if (existingIndex === -1) {
+    return [...prev, incoming].sort((a, b) => a.timestamp - b.timestamp);
+  }
+
+  const existing = prev[existingIndex];
+  const merged: ChatMessage = {
+    ...existing,
+    ...incoming,
+    timestamp: Math.max(existing.timestamp || 0, incoming.timestamp || 0),
+    content: appendContent
+      ? `${existing.content || ''}${incoming.content || ''}`
+      : (incoming.content || existing.content || ''),
+  };
+
+  const next = [...prev];
+  next[existingIndex] = merged;
+  return next.sort((a, b) => a.timestamp - b.timestamp);
+}
+
 export const CronPanel = memo(function CronPanel({
   job,
   sendMessage,
@@ -31,7 +123,7 @@ export const CronPanel = memo(function CronPanel({
   wsRef,
 }: CronPanelProps) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -43,6 +135,8 @@ export const CronPanel = memo(function CronPanel({
     wsRef,
     limit: 20,
   });
+  const selectedRun = runs.find(r => r.id === selectedRunId);
+  const selectedSessionKey = selectedRun?.sessionKey;
 
   // Select the latest run by default
   useEffect(() => {
@@ -60,6 +154,8 @@ export const CronPanel = memo(function CronPanel({
     const selectedRun = runs.find(r => r.id === selectedRunId);
     if (!selectedRun) return;
 
+    setChatHistory([]);
+
     // Load session history for this cron run
     const sessionKey = selectedRun.sessionKey;
     sendMessage({
@@ -71,18 +167,96 @@ export const CronPanel = memo(function CronPanel({
 
   // Handle cron event messages to update chat history
   useEffect(() => {
-    if (!wsRef.current) return;
+    if (!wsRef.current || !selectedSessionKey) return;
 
     const handleMessage = (event: MessageEvent) => {
       try {
         const msg = JSON.parse(event.data);
 
-        // Handle chat history response
-        if (msg.type === 'chat.history') {
-          const selectedRun = runs.find(r => r.id === selectedRunId);
-          if (selectedRun && msg.sessionKey === selectedRun.sessionKey) {
-            setChatHistory(msg.messages || []);
+        if (msg.type === 'chat.history' && msg.sessionKey === selectedSessionKey) {
+          const messages = Array.isArray(msg.messages)
+            ? msg.messages
+              .map((message: any) => normalizeChatMessage(message, selectedRun?.id))
+              .filter((message: ChatMessage | null): message is ChatMessage => message !== null)
+            : [];
+
+          setChatHistory(messages);
+          return;
+        }
+
+        if (msg.type !== 'event' || (msg.event !== 'agent' && msg.event !== 'chat')) {
+          return;
+        }
+
+        const payload = msg.payload || {};
+
+        if (payload.sessionKey !== selectedSessionKey) {
+          return;
+        }
+
+        if (msg.event === 'chat') {
+          const normalized = normalizeChatMessage(payload.message, payload.runId);
+          if (normalized) {
+            const shouldAppend = payload.state === 'delta' && normalized.role !== 'user';
+            setChatHistory(prev => upsertChatMessage(prev, normalized, shouldAppend));
           }
+          return;
+        }
+
+        const stream = payload.stream;
+        const data = payload.data || {};
+        const runId = payload.runId;
+        const seq = payload.seq;
+
+        if (stream === 'assistant' || stream === 'reasoning') {
+          const role: ChatMessage['role'] = stream === 'reasoning' ? 'reasoning' : 'assistant';
+          const streamContent = normalizeTextContent(data.text ?? data.delta ?? data.content ?? data.message ?? data);
+          if (!streamContent) return;
+
+          const messageId = `${runId || selectedRunId || 'cron'}-${role}-stream`;
+          setChatHistory(prev => upsertChatMessage(prev, {
+            id: messageId,
+            role,
+            content: streamContent,
+            timestamp: Date.now(),
+            runId,
+          }, true));
+          return;
+        }
+
+        if (stream === 'tool') {
+          const toolName = payload.tool || data.name || 'tool';
+          const toolCallId = data.toolCallId || `${runId || selectedRunId || 'cron'}-${toolName}-${seq || 0}`;
+          const phase = data.phase;
+
+          setChatHistory(prev => upsertChatMessage(prev, {
+            id: toolCallId,
+            role: 'tool',
+            content: toolName,
+            timestamp: Date.now(),
+            runId,
+            tool: {
+              name: toolName,
+              args: data.args,
+              result: data.result ?? data.meta?.result ?? data.meta,
+              error: data.error,
+              status: phase === 'error' ? 'error' : (phase === 'result' || phase === 'end' ? 'end' : 'start'),
+            },
+          }));
+          return;
+        }
+
+        if (stream === 'lifecycle' && data.phase === 'error') {
+          const errorMessage = normalizeTextContent(data.error || 'Run failed');
+          setChatHistory(prev => upsertChatMessage(prev, {
+            id: `${runId || selectedRunId || 'cron'}-assistant-error`,
+            role: 'assistant',
+            content: errorMessage,
+            errorMessage,
+            stopReason: 'error',
+            timestamp: Date.now(),
+            runId,
+          }));
         }
       } catch (err) {
         console.error('[CronPanel] Failed to parse message:', err);
@@ -93,7 +267,7 @@ export const CronPanel = memo(function CronPanel({
     return () => {
       wsRef.current?.removeEventListener('message', handleMessage);
     };
-  }, [wsRef, selectedRunId, runs]);
+  }, [wsRef, selectedRunId, selectedRun, selectedSessionKey]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -130,7 +304,6 @@ export const CronPanel = memo(function CronPanel({
     }
   };
 
-  const selectedRun = runs.find(r => r.id === selectedRunId);
   const nextRun = job.state?.nextRunAtMs;
 
   return (
@@ -205,7 +378,6 @@ export const CronPanel = memo(function CronPanel({
                 key={message.id || idx}
                 message={message}
                 showTools={true}
-                showReasoning={true}
               />
             ))}
             <div ref={chatEndRef} />

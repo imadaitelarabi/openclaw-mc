@@ -65,6 +65,7 @@ export interface CronRunsResponse {
 
 export interface CronEvent {
   type: 'job_added' | 'job_updated' | 'job_deleted' | 'job_started' | 'job_finished' | 'status_changed';
+  action?: 'added' | 'updated' | 'deleted' | 'started' | 'finished' | 'status_changed';
   job?: CronJob;
   jobId?: string;
   status?: CronStatus;

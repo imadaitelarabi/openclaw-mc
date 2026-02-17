@@ -99,17 +99,35 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
 
         // Handle cron events for job runs
         if (msg.type === 'event' && msg.event === 'cron') {
-          const cronEvent = msg.payload;
-          
-          if (cronEvent.type === 'job_started' && cronEvent.run?.jobId === jobId) {
-            // Add to list only if not already present (deduplicate by id)
-            setRuns(prev => {
-              const exists = prev.some(r => r.id === cronEvent.run.id);
-              if (exists) return prev;
-              return [cronEvent.run, ...prev];
-            });
-          } else if (cronEvent.type === 'job_finished' && cronEvent.run?.jobId === jobId) {
-            setRuns(prev => prev.map(r => r.id === cronEvent.run.id ? cronEvent.run : r));
+          const cronEvent = msg.payload || {};
+          const action = cronEvent.action
+            || (cronEvent.type === 'job_started' ? 'started' : cronEvent.type === 'job_finished' ? 'finished' : undefined);
+          const eventJobId = cronEvent.jobId || cronEvent.run?.jobId;
+
+          if (!action || eventJobId !== jobId) {
+            return;
+          }
+
+          if (action === 'started') {
+            if (cronEvent.run?.id) {
+              setRuns(prev => {
+                const exists = prev.some(r => r.id === cronEvent.run.id);
+                if (exists) return prev;
+                return [cronEvent.run, ...prev];
+              });
+            } else {
+              sendRequest('cron.runs', { jobId, limit }).catch((err) => {
+                console.error('[useCronRuns] Failed to refresh runs after start event:', err);
+              });
+            }
+          } else if (action === 'finished') {
+            if (cronEvent.run?.id) {
+              setRuns(prev => prev.map(r => r.id === cronEvent.run.id ? cronEvent.run : r));
+            } else {
+              sendRequest('cron.runs', { jobId, limit }).catch((err) => {
+                console.error('[useCronRuns] Failed to refresh runs after finish event:', err);
+              });
+            }
           }
         }
       } catch (err) {
@@ -121,7 +139,7 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
     return () => {
       socket.removeEventListener('message', handleMessage);
     };
-  }, [socket, jobId]);
+  }, [socket, jobId, limit]);
 
   const sendRequest = useCallback((type: string, data: any = {}): Promise<any> => {
     return new Promise((resolve, reject) => {
