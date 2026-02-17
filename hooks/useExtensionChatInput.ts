@@ -154,11 +154,11 @@ export function useExtensionChatInput() {
           return filterTagOptions(cached.data, extQuery);
         }
 
-        // Fetch fresh data in background
+        // Fetch fresh data in background (fetch all data, filter client-side)
         if (matchingExtension.hooks.chatInput) {
-          const freshData = await matchingExtension.hooks.chatInput(extQuery);
+          const freshData = await matchingExtension.hooks.chatInput('');
           
-          // Update cache
+          // Update cache with unfiltered data
           cacheRef.current.set(extName, {
             data: freshData,
             timestamp: Date.now()

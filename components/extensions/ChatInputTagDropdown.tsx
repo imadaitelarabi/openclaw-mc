@@ -32,17 +32,34 @@ export function ChatInputTagDropdown({
   const DROPDOWN_Z_INDEX = 9999; // High z-index to appear above all panels
 
   const [activePath, setActivePath] = useState<number[]>([]);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; positionAbove: boolean } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Calculate dropdown position based on input ref
+  // Note: Tracks options.length for performance - position only updates when number of options changes
+  // Full options comparison would cause unnecessary recalculations on every keystroke
   useEffect(() => {
     const updatePosition = () => {
       if (inputRef?.current) {
         const rect = inputRef.current.getBoundingClientRect();
+        
+        // Estimate dropdown height (may need adjustment based on actual content)
+        const estimatedDropdownHeight = Math.min(options.length * 60 + 20, 280);
+        
+        // Check if dropdown would go off top of screen
+        let top = rect.top - DROPDOWN_GAP;
+        let positionAbove = true;
+        
+        if (top - estimatedDropdownHeight < 0) {
+          // Position below input instead
+          top = rect.bottom + DROPDOWN_GAP;
+          positionAbove = false;
+        }
+        
         setDropdownPosition({
-          top: rect.top - DROPDOWN_GAP,
-          left: rect.left
+          top,
+          left: rect.left,
+          positionAbove
         });
       }
     };
@@ -250,7 +267,7 @@ export function ChatInputTagDropdown({
       style={{
         top: dropdownPosition ? `${dropdownPosition.top}px` : undefined,
         left: dropdownPosition ? `${dropdownPosition.left}px` : undefined,
-        transform: 'translateY(-100%)',
+        transform: dropdownPosition?.positionAbove ? 'translateY(-100%)' : undefined,
         zIndex: DROPDOWN_Z_INDEX,
       }}
     >

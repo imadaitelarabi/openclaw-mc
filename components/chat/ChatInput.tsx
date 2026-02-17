@@ -193,9 +193,9 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
           textareaRef.current.focus();
           textareaRef.current.setSelectionRange(newPosition, newPosition);
           
-          // If this is an extension selection, trigger handleInput to reopen dropdown
+          // If this is an extension selection, trigger handleInput with new value
           if (isExtensionOption) {
-            handleInput(textareaRef.current.value, newPosition);
+            handleInput(newValue, newPosition);
           }
         }
       });
