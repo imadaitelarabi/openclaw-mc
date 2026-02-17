@@ -1,8 +1,9 @@
-import type { Agent, ConnectionStatus } from '@/types';
+import type { Agent, ConnectionStatus, CronJob, CronStatus } from '@/types';
 import { AgentSelector } from '../agents';
 import { ModelSelector, ThinkingToggle, VerboseToggle, ReasoningToggle } from '../statusbar';
 import { GatewaySwitcher } from '../gateway/GatewaySwitcher';
 import { ExtensionStatusBarItem, ExtensionsDropdown } from '../extensions';
+import { CronStatusBarItem } from '../cron';
 import { useExtensionStatusBar } from '@/hooks';
 import { useOptionalExtensions } from '@/contexts/ExtensionContext';
 import { useToast } from '@/hooks/useToast';
@@ -42,6 +43,13 @@ interface StatusBarProps {
 
   // Extension onboarding
   onOpenExtensionOnboarding?: (extensionName: string) => void;
+
+  // Cron jobs
+  cronJobs?: CronJob[];
+  cronStatus?: CronStatus | null;
+  isCronMenuOpen?: boolean;
+  onToggleCronMenu?: () => void;
+  onSelectCronJob?: (jobId: string) => void;
 }
 
 export function StatusBar({
@@ -69,7 +77,12 @@ export function StatusBar({
   onSwitchGateway,
   onAddGateway,
   onRemoveGateway,
-  onOpenExtensionOnboarding
+  onOpenExtensionOnboarding,
+  cronJobs = [],
+  cronStatus = null,
+  isCronMenuOpen = false,
+  onToggleCronMenu = () => {},
+  onSelectCronJob = () => {},
 }: StatusBarProps) {
   const { statusBarItems } = useExtensionStatusBar();
   const { toast } = useToast();
@@ -169,6 +182,21 @@ export function StatusBar({
       )}
 
       <div className="flex-1" />
+
+      {/* Cron Status */}
+      {cronStatus?.enabled && cronJobs.length > 0 && (
+        <>
+          <CronStatusBarItem
+            jobs={cronJobs}
+            status={cronStatus}
+            isOpen={isCronMenuOpen}
+            onToggle={onToggleCronMenu}
+            onSelectJob={onSelectCronJob}
+          />
+
+          <div className="h-4 w-px bg-border" />
+        </>
+      )}
 
       <ExtensionsDropdown
         extensions={availableExtensions}

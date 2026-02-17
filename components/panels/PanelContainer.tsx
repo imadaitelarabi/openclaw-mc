@@ -7,6 +7,7 @@ import { ChatPanel } from './ChatPanel';
 import { CreateAgentPanel } from './CreateAgentPanel';
 import { UpdateAgentPanel } from './UpdateAgentPanel';
 import { ExtensionOnboardingPanel } from './ExtensionOnboardingPanel';
+import { CronPanel } from '../cron';
 
 interface PanelContainerProps {
   panels: Panel[];
@@ -37,6 +38,14 @@ interface PanelContainerProps {
     sandbox?: { mode: string };
   }) => Promise<{ agentId: string; agentName: string }>;
   onUpdateAgent: (payload: { agentId: string; name: string }) => Promise<{ agentId: string; name: string }>;
+  
+  // Cron-related props
+  cronJobs?: any[];
+  wsRef?: React.RefObject<WebSocket | null>;
+  onForceRun?: (jobId: string) => void;
+  onReschedule?: (jobId: string) => void;
+  onEditCronJob?: (jobId: string) => void;
+  onDeleteCronJob?: (jobId: string) => void;
 }
 
 export function PanelContainer({
@@ -58,7 +67,13 @@ export function PanelContainer({
   onAbortRun,
   onResetSession,
   onCreateAgent,
-  onUpdateAgent
+  onUpdateAgent,
+  cronJobs = [],
+  wsRef,
+  onForceRun,
+  onReschedule,
+  onEditCronJob,
+  onDeleteCronJob,
 }: PanelContainerProps) {
   if (panels.length === 0) {
     return null;
@@ -139,6 +154,18 @@ export function PanelContainer({
               <ExtensionOnboardingPanel
                 extensionName={panel.data.extensionName}
                 onClose={() => onPanelClose(panel.id)}
+              />
+            )}
+
+            {panel.type === 'cron' && panel.data?.jobId && wsRef && (
+              <CronPanel
+                job={cronJobs.find(j => j.id === panel.data.jobId)}
+                sendMessage={sendMessage}
+                wsRef={wsRef}
+                onForceRun={onForceRun}
+                onReschedule={onReschedule}
+                onEdit={onEditCronJob}
+                onDelete={onDeleteCronJob}
               />
             )}
           </div>

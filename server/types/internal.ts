@@ -70,7 +70,14 @@ export type ClientMessage =
       type: 'agents.delete';
       requestId?: string;
       agentId: string;
-    };
+    }
+  | { type: 'cron.list'; requestId?: string }
+  | { type: 'cron.status'; requestId?: string }
+  | { type: 'cron.add'; requestId?: string; job: any }
+  | { type: 'cron.update'; requestId?: string; jobId: string; updates: any }
+  | { type: 'cron.delete'; requestId?: string; jobId: string }
+  | { type: 'cron.runs'; requestId?: string; jobId: string; limit?: number }
+  | { type: 'cron.run'; requestId?: string; jobId: string; mode?: string };
 
 // Server to Client Messages
 export type ServerMessage =
