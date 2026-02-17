@@ -12,6 +12,9 @@ import { uiStateStore } from '@/lib/ui-state-db';
 // Cache TTL: 5 minutes
 const CACHE_MAX_AGE = 5 * 60 * 1000;
 
+// Extension option ID prefix for identifying extension-level options (Level 1)
+export const EXTENSION_OPTION_ID_PREFIX = 'ext-';
+
 function optionMatchesQuery(option: ChatInputTagOption, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -119,7 +122,7 @@ export function useExtensionChatInput() {
       const extensionOptions: ChatInputTagOption[] = enabledExtensions
         .filter(ext => ext.manifest.hooks.includes('chat-input'))
         .map(ext => ({
-          id: `ext-${ext.manifest.name}`,
+          id: `${EXTENSION_OPTION_ID_PREFIX}${ext.manifest.name}`,
           label: ext.manifest.name.charAt(0).toUpperCase() + ext.manifest.name.slice(1),
           tag: `@${ext.manifest.name}`,
           value: ext.manifest.name,
@@ -155,6 +158,8 @@ export function useExtensionChatInput() {
         }
 
         // Fetch fresh data and update cache (synchronous to ensure data consistency)
+        // Pass empty string to fetch all unfiltered data for caching
+        // Client-side filtering allows faster perceived performance on subsequent searches
         if (matchingExtension.hooks.chatInput) {
           const freshData = await matchingExtension.hooks.chatInput('');
           
@@ -196,7 +201,7 @@ export function useExtensionChatInput() {
          ext.manifest.description.toLowerCase().includes(searchTerm.toLowerCase()))
       )
       .map(ext => ({
-        id: `ext-${ext.manifest.name}`,
+        id: `${EXTENSION_OPTION_ID_PREFIX}${ext.manifest.name}`,
         label: ext.manifest.name.charAt(0).toUpperCase() + ext.manifest.name.slice(1),
         tag: `@${ext.manifest.name}`,
         value: ext.manifest.name,

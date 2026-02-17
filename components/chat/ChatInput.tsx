@@ -11,7 +11,7 @@ import {
   revokePreviewUrls,
 } from '@/lib/file-utils';
 import { useToast } from '@/hooks/useToast';
-import { useExtensionChatInput, useChatTagging } from '@/hooks';
+import { useExtensionChatInput, useChatTagging, EXTENSION_OPTION_ID_PREFIX } from '@/hooks';
 import type { ChatInputTagOption } from '@/types/extension';
 
 interface ChatInputProps {
@@ -183,7 +183,7 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
 
   const handleSelectTagOption = (option: ChatInputTagOption) => {
     // Check if this is an extension selection (first level)
-    const isExtensionOption = option.id.startsWith('ext-');
+    const isExtensionOption = option.id.startsWith(EXTENSION_OPTION_ID_PREFIX);
     
     const insertValue = option.value?.trim() ? option.value : option.tag;
 

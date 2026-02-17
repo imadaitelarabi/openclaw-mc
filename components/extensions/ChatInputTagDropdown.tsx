@@ -43,6 +43,7 @@ export function ChatInputTagDropdown({
   // Full options comparison would cause unnecessary recalculations on every keystroke
   // Trade-off: If options change content but maintain same count, position won't update
   // This is acceptable since item heights are relatively uniform
+  // Edge case: Loading state has different height but is temporary, so estimation is sufficient
   useEffect(() => {
     const updatePosition = () => {
       if (inputRef?.current) {
@@ -54,18 +55,18 @@ export function ChatInputTagDropdown({
           MAX_DROPDOWN_HEIGHT
         );
         
-        // Check if dropdown would go off top of screen
-        let top = rect.top - DROPDOWN_GAP;
+        // Determine vertical position: above or below input
+        let dropdownTop = rect.top - DROPDOWN_GAP;
         let positionAbove = true;
         
-        if (top - estimatedDropdownHeight < 0) {
-          // Position below input instead
-          top = rect.bottom + DROPDOWN_GAP;
+        if (dropdownTop - estimatedDropdownHeight < 0) {
+          // Not enough space above, position below input instead
+          dropdownTop = rect.bottom + DROPDOWN_GAP;
           positionAbove = false;
         }
         
         setDropdownPosition({
-          top,
+          top: dropdownTop,
           left: rect.left,
           positionAbove
         });
