@@ -13,6 +13,7 @@ interface CronStatusBarItemProps {
   isOpen: boolean;
   onToggle: () => void;
   onSelectJob: (jobId: string) => void;
+  onCreateJob?: () => void;
 }
 
 export function CronStatusBarItem({
@@ -21,6 +22,7 @@ export function CronStatusBarItem({
   isOpen,
   onToggle,
   onSelectJob,
+  onCreateJob,
 }: CronStatusBarItemProps) {
   // Find next scheduled job and running jobs
   const nextJob = jobs
@@ -47,7 +49,7 @@ export function CronStatusBarItem({
     return aNext - bNext;
   });
 
-  if (!status?.enabled || jobs.length === 0) {
+  if (!status?.enabled && jobs.length === 0) {
     return null;
   }
 
@@ -74,8 +76,16 @@ export function CronStatusBarItem({
 
       {isOpen && (
         <div className="absolute bottom-full right-0 mb-2 w-64 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
-          <div className="p-2 border-b border-border bg-muted/50 text-muted-foreground font-medium">
-            Cron Jobs ({jobs.length})
+          <div className="p-2 border-b border-border bg-muted/50 flex items-center justify-between gap-2">
+            <span className="text-muted-foreground font-medium">Cron Jobs ({jobs.length})</span>
+            {onCreateJob && (
+              <button
+                onClick={onCreateJob}
+                className="px-2 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                New
+              </button>
+            )}
           </div>
           <div className="max-h-64 overflow-y-auto py-1">
             {sortedJobs.length === 0 ? (

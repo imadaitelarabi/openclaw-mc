@@ -9,24 +9,21 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface UseCronJobsProps {
   wsRef: React.RefObject<WebSocket | null>;
+  connectionStatus?: string;
   onEvent?: (event: CronEvent) => void;
 }
 
-export function useCronJobs({ wsRef, onEvent }: UseCronJobsProps) {
+export function useCronJobs({ wsRef, connectionStatus, onEvent }: UseCronJobsProps) {
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [status, setStatus] = useState<CronStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const pendingRequestsRef = useRef<Map<string, { resolve: (value: any) => void; reject: (error: any) => void }>>(new Map());
 
-  // Load initial data
-  useEffect(() => {
-    loadJobs();
-    loadStatus();
-  }, []);
+  const socket = wsRef.current;
 
   // Handle incoming WebSocket messages
   useEffect(() => {
-    if (!wsRef.current) return;
+    if (!socket) return;
 
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -115,11 +112,11 @@ export function useCronJobs({ wsRef, onEvent }: UseCronJobsProps) {
       }
     };
 
-    wsRef.current.addEventListener('message', handleMessage);
+    socket.addEventListener('message', handleMessage);
     return () => {
-      wsRef.current?.removeEventListener('message', handleMessage);
+      socket.removeEventListener('message', handleMessage);
     };
-  }, [wsRef, onEvent]);
+  }, [socket, onEvent]);
 
   const sendRequest = useCallback((type: string, data: any = {}): Promise<any> => {
     return new Promise((resolve, reject) => {
@@ -165,6 +162,17 @@ export function useCronJobs({ wsRef, onEvent }: UseCronJobsProps) {
       console.error('[useCronJobs] Failed to load status:', err);
     }
   }, [sendRequest]);
+
+  // Load initial cron data when websocket is ready, and refresh after reconnects
+  useEffect(() => {
+    if (connectionStatus && connectionStatus !== 'connected') {
+      setLoading(false);
+      return;
+    }
+
+    loadJobs();
+    loadStatus();
+  }, [connectionStatus, loadJobs, loadStatus]);
 
   const addJob = useCallback(async (job: Omit<CronJob, 'id' | 'createdAtMs' | 'updatedAtMs'>): Promise<CronJob> => {
     return sendRequest('cron.add', { job });

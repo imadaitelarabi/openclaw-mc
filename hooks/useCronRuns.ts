@@ -11,22 +11,50 @@ interface UseCronRunsProps {
   jobId: string;
   wsRef: React.RefObject<WebSocket | null>;
   limit?: number;
+  connectionStatus?: string;
 }
 
-export function useCronRuns({ jobId, wsRef, limit = 10 }: UseCronRunsProps) {
+export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseCronRunsProps) {
   const [runs, setRuns] = useState<CronRun[]>([]);
   const [loading, setLoading] = useState(true);
   const pendingRequestsRef = useRef<Map<string, { resolve: (value: any) => void; reject: (error: any) => void }>>(new Map());
 
+  const socket = wsRef.current;
+
   // Load run history
   useEffect(() => {
-    if (!jobId) return;
-    loadRuns();
-  }, [jobId, limit]);
+    if (!jobId || (connectionStatus && connectionStatus !== 'connected')) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadInitialRuns = async () => {
+      try {
+        setLoading(true);
+        await sendRequest('cron.runs', { jobId, limit });
+      } catch (err) {
+        if (!cancelled) {
+          console.error('[useCronRuns] Failed to load runs:', err);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadInitialRuns();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, limit, connectionStatus, wsRef]);
 
   // Handle incoming WebSocket messages
   useEffect(() => {
-    if (!wsRef.current) return;
+    if (!socket) return;
 
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -80,11 +108,11 @@ export function useCronRuns({ jobId, wsRef, limit = 10 }: UseCronRunsProps) {
       }
     };
 
-    wsRef.current.addEventListener('message', handleMessage);
+    socket.addEventListener('message', handleMessage);
     return () => {
-      wsRef.current?.removeEventListener('message', handleMessage);
+      socket.removeEventListener('message', handleMessage);
     };
-  }, [wsRef, jobId]);
+  }, [socket, jobId]);
 
   const sendRequest = useCallback((type: string, data: any = {}): Promise<any> => {
     return new Promise((resolve, reject) => {

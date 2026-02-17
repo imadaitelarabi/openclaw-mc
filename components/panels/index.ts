@@ -3,4 +3,6 @@ export { PanelHeader } from './PanelHeader';
 export { ChatPanel } from './ChatPanel';
 export { CreateAgentPanel } from './CreateAgentPanel';
 export { UpdateAgentPanel } from './UpdateAgentPanel';
+export { CreateCronPanel } from './CreateCronPanel';
+export { UpdateCronPanel } from './UpdateCronPanel';
 export { ExtensionOnboardingPanel } from './ExtensionOnboardingPanel';

@@ -174,6 +174,15 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         case 'extension-onboarding':
           title = `${data?.extensionName || 'Extension'} Setup`;
           break;
+        case 'cron':
+          title = data?.jobName ? `Cron: ${data.jobName}` : 'Cron Job';
+          break;
+        case 'create-cron':
+          title = 'Create Cron Job';
+          break;
+        case 'update-cron':
+          title = data?.jobName ? `Edit ${data.jobName}` : 'Edit Cron Job';
+          break;
         default:
           title = type;
       }

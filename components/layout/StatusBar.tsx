@@ -50,6 +50,7 @@ interface StatusBarProps {
   isCronMenuOpen?: boolean;
   onToggleCronMenu?: () => void;
   onSelectCronJob?: (jobId: string) => void;
+  onCreateCronJob?: () => void;
 }
 
 export function StatusBar({
@@ -83,6 +84,7 @@ export function StatusBar({
   isCronMenuOpen = false,
   onToggleCronMenu = () => {},
   onSelectCronJob = () => {},
+  onCreateCronJob,
 }: StatusBarProps) {
   const { statusBarItems } = useExtensionStatusBar();
   const { toast } = useToast();
@@ -184,7 +186,7 @@ export function StatusBar({
       <div className="flex-1" />
 
       {/* Cron Status */}
-      {cronStatus?.enabled && cronJobs.length > 0 && (
+      {(cronStatus?.enabled || cronJobs.length > 0) && (
         <>
           <CronStatusBarItem
             jobs={cronJobs}
@@ -192,6 +194,7 @@ export function StatusBar({
             isOpen={isCronMenuOpen}
             onToggle={onToggleCronMenu}
             onSelectJob={onSelectCronJob}
+            onCreateJob={onCreateCronJob}
           />
 
           <div className="h-4 w-px bg-border" />

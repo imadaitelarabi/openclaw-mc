@@ -77,6 +77,7 @@ function MissionControlInner() {
     refreshJobs: refreshCronJobs,
   } = useCronJobs({ 
     wsRef,
+    connectionStatus,
     onEvent: (event) => {
       // Handle cron events if needed
       console.log('[App] Cron event:', event);
@@ -392,6 +393,46 @@ function MissionControlInner() {
     }
   }, [deleteCronJob, toast, layout.panels, closePanel]);
 
+  const handleOpenCreateCronPanel = useCallback(() => {
+    setIsCronMenuOpen(false);
+    openPanel('create-cron');
+  }, [openPanel]);
+
+  const handleEditCronJob = useCallback((jobId: string) => {
+    const job = cronJobs.find(j => j.id === jobId);
+    if (!job) return;
+    openPanel('update-cron', { jobId, jobName: job.name });
+  }, [cronJobs, openPanel]);
+
+  const handleCreateCronJobRequest = useCallback(async (payload: any) => {
+    const createdJob = await addCronJob({
+      ...payload,
+      payload: {
+        ...payload.payload,
+        agentId: payload.payload?.agentId || activePanelAgentId || undefined,
+      }
+    });
+
+    toast({
+      title: 'Cron job created',
+      description: `${createdJob.name} was added.`,
+    });
+
+    openPanel('cron', { jobId: createdJob.id, jobName: createdJob.name });
+    return createdJob;
+  }, [addCronJob, activePanelAgentId, openPanel, toast]);
+
+  const handleUpdateCronJobRequest = useCallback(async (payload: { jobId: string; updates: any }) => {
+    const updatedJob = await updateCronJob(payload.jobId, payload.updates);
+
+    toast({
+      title: 'Cron job updated',
+      description: `${updatedJob.name} was updated.`,
+    });
+
+    return updatedJob;
+  }, [updateCronJob, toast]);
+
   const handleCreateAgentRequest = useCallback(async (payload: {
     id?: string;
     name: string;
@@ -564,7 +605,10 @@ function MissionControlInner() {
             cronJobs={cronJobs}
             wsRef={wsRef}
             onForceRun={handleForceRunCronJob}
+            onEditCronJob={handleEditCronJob}
             onDeleteCronJob={handleDeleteCronJob}
+            onCreateCronJob={handleCreateCronJobRequest}
+            onUpdateCronJob={handleUpdateCronJobRequest}
           />
         )}
       </div>
@@ -601,8 +645,14 @@ function MissionControlInner() {
           cronJobs={cronJobs}
           cronStatus={cronStatus}
           isCronMenuOpen={isCronMenuOpen}
-          onToggleCronMenu={() => setIsCronMenuOpen(!isCronMenuOpen)}
+          onToggleCronMenu={() => {
+            if (!isCronMenuOpen) {
+              refreshCronJobs();
+            }
+            setIsCronMenuOpen(!isCronMenuOpen);
+          }}
           onSelectCronJob={handleSelectCronJob}
+          onCreateCronJob={handleOpenCreateCronPanel}
         />
       </div>
 
