@@ -9,6 +9,9 @@ import { useExtensions } from '@/contexts/ExtensionContext';
 import type { ChatInputTagOption, TaggerConfig } from '@/types/extension';
 import { uiStateStore } from '@/lib/ui-state-db';
 
+// Cache TTL: 5 minutes
+const CACHE_MAX_AGE = 5 * 60 * 1000;
+
 function optionMatchesQuery(option: ChatInputTagOption, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -144,7 +147,6 @@ export function useExtensionChatInput() {
         // Check cache first
         const cached = cacheRef.current.get(extName);
         const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
-        const CACHE_MAX_AGE = 5 * 60 * 1000; // 5 minutes
 
         // Return cached data immediately if fresh
         if (cached && cacheAge < CACHE_MAX_AGE) {

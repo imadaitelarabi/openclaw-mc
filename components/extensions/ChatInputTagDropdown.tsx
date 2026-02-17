@@ -28,6 +28,8 @@ export function ChatInputTagDropdown({
 }: ChatInputTagDropdownProps) {
   const PANEL_WIDTH = 280;
   const PANEL_GAP = 8;
+  const DROPDOWN_GAP = 8; // Gap above input element
+  const DROPDOWN_Z_INDEX = 9999; // High z-index to appear above all panels
 
   const [activePath, setActivePath] = useState<number[]>([]);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
@@ -39,7 +41,7 @@ export function ChatInputTagDropdown({
       if (inputRef?.current) {
         const rect = inputRef.current.getBoundingClientRect();
         setDropdownPosition({
-          top: rect.top - 8, // 8px gap above input
+          top: rect.top - DROPDOWN_GAP,
           left: rect.left
         });
       }
@@ -244,11 +246,12 @@ export function ChatInputTagDropdown({
   const dropdown = (
     <div 
       ref={dropdownRef}
-      className="fixed z-[9999]"
+      className="fixed"
       style={{
         top: dropdownPosition ? `${dropdownPosition.top}px` : undefined,
         left: dropdownPosition ? `${dropdownPosition.left}px` : undefined,
         transform: 'translateY(-100%)',
+        zIndex: DROPDOWN_Z_INDEX,
       }}
     >
       {isLoading && options.length === 0 ? (
