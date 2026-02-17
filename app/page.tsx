@@ -123,6 +123,13 @@ function MissionControlInner() {
     });
   }, [sendMessage]);
 
+  const isOnboardingForced = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    return ['1', 'true', 'yes', 'force'].includes(
+      (new URLSearchParams(window.location.search).get('onboarding') || '').toLowerCase()
+    );
+  }, []);
+
   // Request gateways on connect
   useEffect(() => {
     if (connectionStatus === 'connected') {
@@ -134,6 +141,15 @@ function MissionControlInner() {
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
+        const forceOnboarding = isOnboardingForced();
+
+        if (forceOnboarding) {
+          setOnboardingChecked(true);
+          setShowOnboarding(true);
+          setShowSetup(false);
+          return;
+        }
+
         const state = await uiStateStore.getOnboardingState();
         const hasCompletedOnboarding = state?.isOnboarded === true;
         
@@ -153,7 +169,7 @@ function MissionControlInner() {
     };
     
     checkOnboarding();
-  }, [gateways.length, connectionStatus]);
+  }, [gateways.length, connectionStatus, isOnboardingForced]);
 
   useEffect(() => {
     if (connectionStatus !== 'connected') {
@@ -188,7 +204,7 @@ function MissionControlInner() {
       } else if (message.type === 'gateways.list') {
         setGateways(message.data || []);
         setActiveGatewayId(message.activeId);
-        if (message.data.length === 0) {
+        if (message.data.length === 0 && !isOnboardingForced()) {
           setShowSetup(true);
         }
       } else if (message.type === 'gateways.add.ack') {
@@ -242,7 +258,17 @@ function MissionControlInner() {
         setLoading(false);
       }
     };
-  });
+  }, [
+    handleAgentEvent,
+    setModels,
+    activePanelAgentId,
+    setSessionSettings,
+    setLoading,
+    sendMessage,
+    toast,
+    clearChatHistory,
+    isOnboardingForced,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -360,7 +386,7 @@ function MissionControlInner() {
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
 
   // Show onboarding wizard for first-time users with no config
-  if (connectionStatus === 'no-config' && !showSetup && onboardingChecked && showOnboarding === true) {
+  if (onboardingChecked && showOnboarding === true) {
     return (
       <OnboardingWizard
         sendMessage={sendMessage}
