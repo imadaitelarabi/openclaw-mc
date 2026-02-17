@@ -110,6 +110,60 @@ export function useExtensionChatInput() {
     return taggers;
   }, [enabledExtensions]);
 
+  const getExtensionOptionsWithChildren = useCallback(async (searchTerm?: string): Promise<ChatInputTagOption[]> => {
+    const normalizedTerm = searchTerm?.trim().toLowerCase() ?? '';
+
+    const matchingExtensions = enabledExtensions.filter(ext => {
+      if (!ext.manifest.hooks.includes('chat-input')) {
+        return false;
+      }
+
+      if (!normalizedTerm) {
+        return true;
+      }
+
+      return (
+        ext.manifest.name.toLowerCase().includes(normalizedTerm) ||
+        ext.manifest.description.toLowerCase().includes(normalizedTerm)
+      );
+    });
+
+    const extensionOptions = await Promise.all(
+      matchingExtensions.map(async (ext): Promise<ChatInputTagOption> => {
+        const extName = ext.manifest.name;
+        const cached = cacheRef.current.get(extName);
+        const cacheAge = cached ? Date.now() - cached.timestamp : Infinity;
+
+        let children = cached?.data ?? [];
+
+        if ((!cached || cacheAge >= CACHE_MAX_AGE) && ext.hooks.chatInput) {
+          try {
+            const freshData = await ext.hooks.chatInput('');
+            children = freshData;
+            cacheRef.current.set(extName, {
+              data: freshData,
+              timestamp: Date.now()
+            });
+            await uiStateStore.saveExtensionDataCache(extName, freshData);
+          } catch (error) {
+            console.error(`[ChatInputHook] Error preloading options from ${extName}:`, error);
+          }
+        }
+
+        return {
+          id: `${EXTENSION_OPTION_ID_PREFIX}${extName}`,
+          label: extName.charAt(0).toUpperCase() + extName.slice(1),
+          tag: `@${extName}`,
+          value: extName,
+          description: ext.manifest.description,
+          children,
+        };
+      })
+    );
+
+    return extensionOptions;
+  }, [enabledExtensions]);
+
   /**
    * Search for tag options based on query
    * @param query - The search query (e.g., "@" shows extensions, "@GitHub PR" shows GitHub PRs)
@@ -124,18 +178,12 @@ export function useExtensionChatInput() {
 
     // If query is just "@" or "@" with no specific extension, show extension list
     if (!searchTerm) {
-      const extensionOptions: ChatInputTagOption[] = enabledExtensions
-        .filter(ext => ext.manifest.hooks.includes('chat-input'))
-        .map(ext => ({
-          id: `${EXTENSION_OPTION_ID_PREFIX}${ext.manifest.name}`,
-          label: ext.manifest.name.charAt(0).toUpperCase() + ext.manifest.name.slice(1),
-          tag: `@${ext.manifest.name}`,
-          value: ext.manifest.name,
-          description: ext.manifest.description,
-          children: [], // Will be populated when selected
-        }));
-
-      return extensionOptions;
+      setIsLoading(true);
+      try {
+        return await getExtensionOptionsWithChildren();
+      } finally {
+        setIsLoading(false);
+      }
     }
 
     // Check if searchTerm starts with an extension name
@@ -199,23 +247,13 @@ export function useExtensionChatInput() {
     }
 
     // If no specific extension matched, filter extension list by query
-    const extensionOptions: ChatInputTagOption[] = enabledExtensions
-      .filter(ext => 
-        ext.manifest.hooks.includes('chat-input') &&
-        (ext.manifest.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         ext.manifest.description.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-      .map(ext => ({
-        id: `${EXTENSION_OPTION_ID_PREFIX}${ext.manifest.name}`,
-        label: ext.manifest.name.charAt(0).toUpperCase() + ext.manifest.name.slice(1),
-        tag: `@${ext.manifest.name}`,
-        value: ext.manifest.name,
-        description: ext.manifest.description,
-        children: [],
-      }));
-
-    return extensionOptions;
-  }, [enabledExtensions]);
+    setIsLoading(true);
+    try {
+      return await getExtensionOptionsWithChildren(searchTerm);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [enabledExtensions, getExtensionOptionsWithChildren]);
 
   /**
    * Get suggestions for a tagger prefix (e.g., "PR", "issue")
