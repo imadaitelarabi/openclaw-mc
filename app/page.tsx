@@ -29,7 +29,8 @@ function MissionControlInner() {
   const [activeGatewayId, setActiveGatewayId] = useState<string | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [isGatewayConnecting, setIsGatewayConnecting] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null); // null = not checked yet
+  // Onboarding state: null = not yet checked, true = show wizard, false = skip wizard
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   
   const { toast } = useToast();

@@ -15,8 +15,7 @@ export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
 
   // Filter to only show extensions that support onboarding
   const onboardableExtensions = extensions.filter(ext => {
-    const hooks = ext.manifest.hooks || [];
-    return hooks.includes('onboarding');
+    return ext.manifest.hooks?.includes('onboarding');
   });
 
   const handleExtensionClick = (extensionName: string) => {
