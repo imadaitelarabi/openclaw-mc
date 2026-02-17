@@ -45,7 +45,6 @@ interface PanelContainerProps {
   // Cron-related props
   cronJobs?: CronJob[];
   wsRef?: React.RefObject<WebSocket | null>;
-  onForceRun?: (jobId: string) => void;
   onReschedule?: (jobId: string) => void;
   onEditCronJob?: (jobId: string) => void;
   onDeleteCronJob?: (jobId: string) => void;
@@ -75,7 +74,6 @@ export function PanelContainer({
   onUpdateAgent,
   cronJobs = [],
   wsRef,
-  onForceRun,
   onReschedule,
   onEditCronJob,
   onDeleteCronJob,
@@ -208,7 +206,6 @@ export function PanelContainer({
                     job={job}
                     sendMessage={sendMessage}
                     wsRef={wsRef}
-                    onForceRun={onForceRun}
                     onReschedule={onReschedule}
                     onEdit={onEditCronJob}
                     onDelete={onDeleteCronJob}

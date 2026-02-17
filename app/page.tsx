@@ -355,22 +355,6 @@ function MissionControlInner() {
     }
   }, [cronJobs, openPanel]);
 
-  const handleForceRunCronJob = useCallback(async (jobId: string) => {
-    try {
-      // This will be handled by the CronPanel component itself via the hook
-      toast({
-        title: 'Triggering run',
-        description: 'Starting cron job execution...',
-      });
-    } catch (err) {
-      toast({
-        title: 'Failed to trigger run',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-    }
-  }, [toast]);
-
   const handleDeleteCronJob = useCallback(async (jobId: string) => {
     try {
       await deleteCronJob(jobId);
@@ -604,7 +588,6 @@ function MissionControlInner() {
             onUpdateAgent={handleUpdateAgentRequest}
             cronJobs={cronJobs}
             wsRef={wsRef}
-            onForceRun={handleForceRunCronJob}
             onEditCronJob={handleEditCronJob}
             onDeleteCronJob={handleDeleteCronJob}
             onCreateCronJob={handleCreateCronJobRequest}

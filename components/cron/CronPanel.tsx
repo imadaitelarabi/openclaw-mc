@@ -8,7 +8,7 @@
 import { memo, useState, useRef, useEffect } from 'react';
 import { PlayCircle, Edit, Trash2, Calendar, Clock } from 'lucide-react';
 import { ChatMessageItem, StreamingIndicator, ChatHistoryLoader } from '@/components/chat';
-import { useCronRuns, useChatHistory } from '@/hooks';
+import { useCronRuns, useChatHistory, useToast } from '@/hooks';
 import type { CronJob, CronRun } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { getCronScheduleLabel } from '@/lib/cron-schedule';
@@ -16,7 +16,6 @@ import { getCronScheduleLabel } from '@/lib/cron-schedule';
 interface CronPanelProps {
   job: CronJob;
   sendMessage: (msg: any) => void;
-  onForceRun?: (jobId: string) => void;
   onReschedule?: (jobId: string) => void;
   onEdit?: (jobId: string) => void;
   onDelete?: (jobId: string) => void;
@@ -26,7 +25,6 @@ interface CronPanelProps {
 export const CronPanel = memo(function CronPanel({
   job,
   sendMessage,
-  onForceRun,
   onReschedule,
   onEdit,
   onDelete,
@@ -37,6 +35,7 @@ export const CronPanel = memo(function CronPanel({
   const [isRunning, setIsRunning] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   // Load runs for this job
   const { runs, loading: runsLoading, triggerRun } = useCronRuns({
@@ -102,21 +101,32 @@ export const CronPanel = memo(function CronPanel({
   }, [chatHistory]);
 
   const handleForceRun = async () => {
-    if (onForceRun) {
-      onForceRun(job.id);
-    } else if (wsRef.current) {
-      try {
-        setIsRunning(true);
-        const newRun = await triggerRun('force');
-        // Select the new run that was just triggered
-        if (newRun && newRun.id) {
-          setSelectedRunId(newRun.id);
-        }
-      } catch (err) {
-        console.error('[CronPanel] Failed to trigger run:', err);
-      } finally {
-        setIsRunning(false);
+    if (!wsRef.current) {
+      return;
+    }
+
+    try {
+      setIsRunning(true);
+      toast({
+        title: 'Triggering run',
+        description: 'Starting cron job execution...',
+      });
+
+      const newRun = await triggerRun('force');
+
+      // Select the new run that was just triggered
+      if (newRun && newRun.id) {
+        setSelectedRunId(newRun.id);
       }
+    } catch (err) {
+      console.error('[CronPanel] Failed to trigger run:', err);
+      toast({
+        title: 'Failed to trigger run',
+        description: err instanceof Error ? err.message : 'Unable to force run cron job.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRunning(false);
     }
   };
 
