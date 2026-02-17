@@ -129,7 +129,7 @@ export async function handleCronUpdate(
   }
 
   try {
-    const result = await gateway.call('cron.update', { id: jobId, ...updates });
+    const result = await gateway.call('cron.update', { jobId, patch: updates });
     ws.send(
       JSON.stringify({
         type: 'cron.update.response',
@@ -170,7 +170,7 @@ export async function handleCronDelete(
   }
 
   try {
-    await gateway.call('cron.delete', { id: jobId });
+    await gateway.call('cron.remove', { jobId });
     ws.send(
       JSON.stringify({
         type: 'cron.delete.response',

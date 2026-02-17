@@ -34,6 +34,7 @@ export const CronPanel = memo(function CronPanel({
 }: CronPanelProps) {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -105,9 +106,16 @@ export const CronPanel = memo(function CronPanel({
       onForceRun(job.id);
     } else if (wsRef.current) {
       try {
-        await triggerRun('force');
+        setIsRunning(true);
+        const newRun = await triggerRun('force');
+        // Select the new run that was just triggered
+        if (newRun && newRun.id) {
+          setSelectedRunId(newRun.id);
+        }
       } catch (err) {
         console.error('[CronPanel] Failed to trigger run:', err);
+      } finally {
+        setIsRunning(false);
       }
     }
   };
@@ -200,11 +208,11 @@ export const CronPanel = memo(function CronPanel({
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={handleForceRun}
-            disabled={!job.enabled}
+            disabled={!job.enabled || isRunning}
             className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
-            <PlayCircle className="w-4 h-4" />
-            Force Run
+            <PlayCircle className={`w-4 h-4 ${isRunning ? 'animate-spin' : ''}`} />
+            {isRunning ? 'Running...' : 'Force Run'}
           </button>
           
           {onReschedule && (

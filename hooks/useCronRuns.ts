@@ -78,8 +78,12 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
 
         // Handle cron run trigger responses
         if (msg.type === 'cron.run.response') {
-          // Add the new run to the list
-          setRuns(prev => [msg.run, ...prev]);
+          // Add the new run to the list (deduplicate by id)
+          setRuns(prev => {
+            const exists = prev.some(r => r.id === msg.run.id);
+            if (exists) return prev;
+            return [msg.run, ...prev];
+          });
           const pending = pendingRequestsRef.current.get(msg.requestId);
           if (pending) {
             pending.resolve(msg.run);
@@ -98,7 +102,12 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
           const cronEvent = msg.payload;
           
           if (cronEvent.type === 'job_started' && cronEvent.run?.jobId === jobId) {
-            setRuns(prev => [cronEvent.run, ...prev]);
+            // Add to list only if not already present (deduplicate by id)
+            setRuns(prev => {
+              const exists = prev.some(r => r.id === cronEvent.run.id);
+              if (exists) return prev;
+              return [cronEvent.run, ...prev];
+            });
           } else if (cronEvent.type === 'job_finished' && cronEvent.run?.jobId === jobId) {
             setRuns(prev => prev.map(r => r.id === cronEvent.run.id ? cronEvent.run : r));
           }
