@@ -41,6 +41,7 @@ export interface GitHubRepository {
   name: string;
   full_name: string;
   html_url: string;
+  updated_at: string;
   private: boolean;
   owner: {
     login: string;
