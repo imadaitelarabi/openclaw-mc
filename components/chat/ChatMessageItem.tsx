@@ -18,10 +18,12 @@ export const ChatMessageItem = memo(function ChatMessageItem({ message, showTool
     : message.content == null
       ? ''
       : JSON.stringify(message.content, null, 2);
+  const isAssistantError = message.role === 'assistant' && (message.stopReason === 'error' || Boolean(message.errorMessage));
+  const assistantErrorText = message.errorMessage || content || 'Request failed';
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(isAssistantError ? assistantErrorText : content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -55,7 +57,9 @@ export const ChatMessageItem = memo(function ChatMessageItem({ message, showTool
       <div className={`relative max-w-[95%] sm:max-w-[85%] rounded-lg p-3 md:p-4 group ${
         message.role === 'user' 
           ? 'bg-primary text-primary-foreground' 
-          : 'bg-secondary/80 backdrop-blur'
+          : isAssistantError
+            ? 'bg-destructive/10 border border-destructive/20 text-destructive'
+            : 'bg-secondary/80 backdrop-blur'
       }`}>
         {/* Display attachments if present */}
         {message.attachments && message.attachments.length > 0 && (
@@ -75,25 +79,35 @@ export const ChatMessageItem = memo(function ChatMessageItem({ message, showTool
             ))}
           </div>
         )}
-        <div className="markdown-content break-words select-text max-w-none">
-          <ReactMarkdown 
-            remarkPlugins={[remarkGfm]}
-            components={{
-              a: ({ node, ...props }) => (
-                <a
-                  {...props}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={message.role === 'user'
-                    ? '!text-foreground underline hover:opacity-90'
-                    : undefined}
-                />
-              )
-            }}
-          >
-            {content}
-          </ReactMarkdown>
-        </div>
+        {isAssistantError ? (
+          <div className="flex items-start gap-2 text-sm">
+            <span aria-hidden="true" className="mt-0.5">❌</span>
+            <div className="min-w-0">
+              <p className="font-medium">Request failed</p>
+              <p className="mt-1 whitespace-pre-wrap break-words opacity-90">{assistantErrorText}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="markdown-content break-words select-text max-w-none">
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={{
+                a: ({ node, ...props }) => (
+                  <a
+                    {...props}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={message.role === 'user'
+                      ? '!text-foreground underline hover:opacity-90'
+                      : undefined}
+                  />
+                )
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
+        )}
         {message.thinking && (
           <details className="mt-3 pt-3 border-t border-white/10">
             <summary className="text-xs cursor-pointer opacity-70 hover:opacity-100">
@@ -130,6 +144,14 @@ export const ChatMessageItem = memo(function ChatMessageItem({ message, showTool
   
   // For the same message ID, check if content changed (e.g., streaming updates)
   if (prevProps.message.content !== nextProps.message.content) {
+    return false;
+  }
+
+  if (prevProps.message.stopReason !== nextProps.message.stopReason) {
+    return false;
+  }
+
+  if (prevProps.message.errorMessage !== nextProps.message.errorMessage) {
     return false;
   }
   

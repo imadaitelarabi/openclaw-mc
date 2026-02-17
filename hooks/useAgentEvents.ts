@@ -325,6 +325,9 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
 
     const textContent = textParts.filter(Boolean).join('\n\n').trim();
     const thinkingContent = thinkingParts.filter(Boolean).join('\n\n').trim();
+    const stopReason = normalizeTextContent(msg?.stopReason).trim();
+    const rawErrorMessage = normalizeTextContent(msg?.errorMessage ?? msg?.error).trim();
+    const isAssistantError = normalizedRole === 'assistant' && (stopReason.toLowerCase() === 'error' || Boolean(rawErrorMessage));
 
     if (thinkingContent) {
       pushMessage({
@@ -342,15 +345,29 @@ function transformGatewayHistoryMessages(messages: any[]): ChatMessage[] {
       ...partAttachments,
     ];
 
-    if (textContent || attachments.length > 0 || (normalizedRole !== 'tool' && parts.length === 0)) {
-      const normalizedContent = textContent
-        ? textContent
-        : (attachments.length > 0 ? '' : normalizeTextContent(msg?.content ?? msg?.text));
+    const fallbackContent = normalizeTextContent(msg?.content ?? msg?.text).trim();
+    const normalizedContent = textContent
+      ? textContent
+      : (attachments.length > 0
+          ? ''
+          : (isAssistantError
+              ? (rawErrorMessage || fallbackContent || 'Request failed')
+              : fallbackContent));
+
+    const shouldPushMessage =
+      textContent.length > 0 ||
+      attachments.length > 0 ||
+      isAssistantError ||
+      (parts.length === 0 && normalizedContent.length > 0);
+
+    if (shouldPushMessage) {
 
       pushMessage({
         id: String(baseId),
         role: normalizedRole,
         content: normalizedContent,
+        stopReason: stopReason || undefined,
+        errorMessage: isAssistantError ? (rawErrorMessage || normalizedContent) : undefined,
         thinking: thinkingContent || undefined,
         timestamp,
         runId,
@@ -397,6 +414,8 @@ function areChatMessagesEqual(a: ChatMessage, b: ChatMessage): boolean {
     a.id !== b.id ||
     a.role !== b.role ||
     a.content !== b.content ||
+    a.stopReason !== b.stopReason ||
+    a.errorMessage !== b.errorMessage ||
     a.thinking !== b.thinking ||
     a.timestamp !== b.timestamp ||
     a.runId !== b.runId
@@ -1150,7 +1169,9 @@ export function useAgentEvents() {
               [agentId]: [...currentHistory, {
                 id: `${runId}-error`,
                 role: 'assistant',
-                content: `❌ Error: ${errorMsg}`,
+                content: errorMsg,
+                stopReason: 'error',
+                errorMessage: errorMsg,
                 timestamp: Date.now(),
                 runId
               }]
