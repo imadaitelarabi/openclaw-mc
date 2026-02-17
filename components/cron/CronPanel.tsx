@@ -344,7 +344,7 @@ export const CronPanel = memo(function CronPanel({
           >
             {runs.map((run, idx) => (
               <option key={run.id} value={run.id}>
-                Run #{runs.length - idx} - {new Date(run.startedAtMs).toLocaleString()} ({run.status})
+                Run #{runs.length - idx} - {new Date(Number(run.startedAtMs)).toLocaleString()} ({run.status})
               </option>
             ))}
           </select>
