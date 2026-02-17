@@ -427,18 +427,33 @@ function areChatMessagesEqual(a: ChatMessage, b: ChatMessage): boolean {
   );
 }
 
+function normalizeUserContentForDedup(content: string): string {
+  return content.replace(/\s+/g, ' ').trim();
+}
+
+function isLikelyOptimisticMessageId(id: string): boolean {
+  return /^\d{12,}$/.test(id);
+}
+
 function isLikelySameUserMessage(localMessage: ChatMessage, incomingMessage: ChatMessage): boolean {
   if (localMessage.role !== 'user' || incomingMessage.role !== 'user') return false;
 
-  const localContent = localMessage.content.trim();
-  const incomingContent = incomingMessage.content.trim();
+  const localContent = normalizeUserContentForDedup(localMessage.content);
+  const incomingContent = normalizeUserContentForDedup(incomingMessage.content);
   if (!localContent || localContent !== incomingContent) return false;
 
-  if (localMessage.runId && incomingMessage.runId && localMessage.runId !== incomingMessage.runId) {
-    return false;
+  if (localMessage.runId && incomingMessage.runId) {
+    return localMessage.runId === incomingMessage.runId;
   }
 
-  return Math.abs(localMessage.timestamp - incomingMessage.timestamp) <= 15000;
+  const timestampDelta = Math.abs(localMessage.timestamp - incomingMessage.timestamp);
+  if (timestampDelta <= 15000) return true;
+
+  const hasOptimisticId =
+    isLikelyOptimisticMessageId(localMessage.id) ||
+    isLikelyOptimisticMessageId(incomingMessage.id);
+
+  return hasOptimisticId && timestampDelta <= 180000;
 }
 
 /**
