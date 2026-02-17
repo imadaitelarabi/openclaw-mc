@@ -36,6 +36,14 @@ export interface GitHubOrganization {
   type: 'Organization' | 'User';
 }
 
+export interface GitHubUser {
+  login: string;
+  name: string | null;
+  email: string | null;
+  avatar_url: string;
+  html_url: string;
+}
+
 export interface GitHubRepository {
   id: number;
   name: string;
@@ -109,6 +117,13 @@ export class GitHubAPI {
       console.error('[GitHubAPI] Connection test failed:', error);
       return false;
     }
+  }
+
+  /**
+   * Get authenticated user information
+   */
+  async getUser(): Promise<GitHubUser> {
+    return this.request<GitHubUser>('/user');
   }
 
   /**

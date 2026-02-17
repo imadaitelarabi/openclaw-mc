@@ -7,6 +7,7 @@ import { uiStateStore } from '@/lib/ui-state-db';
 import type { GitHubConfig } from './config';
 import { defaultConfig } from './config';
 import { GitHubAPI } from './api';
+import type { ExtensionConnectionStatus } from '@/types/extension';
 
 const EXTENSION_NAME = 'github';
 
@@ -104,6 +105,46 @@ export async function initialize(): Promise<GitHubAPI | null> {
   } catch (error) {
     console.error('[GitHubSetup] Initialization failed:', error);
     return null;
+  }
+}
+
+/**
+ * Check connection status and return user info if connected
+ */
+export async function checkConnectionStatus(): Promise<ExtensionConnectionStatus> {
+  try {
+    const token = await getToken();
+    
+    if (!token) {
+      return {
+        isConnected: false,
+        error: 'No GitHub token configured'
+      };
+    }
+
+    // Create API client with the token
+    const api = new GitHubAPI({ token });
+    
+    // Test connection and get user info
+    try {
+      const user = await api.getUser();
+      return {
+        isConnected: true,
+        username: user.login
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Connection failed';
+      return {
+        isConnected: false,
+        error: message
+      };
+    }
+  } catch (error) {
+    console.error('[GitHubSetup] Failed to check connection status:', error);
+    return {
+      isConnected: false,
+      error: 'Failed to check connection status'
+    };
   }
 }
 
