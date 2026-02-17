@@ -8,7 +8,7 @@
 import { memo, useState, useRef, useEffect } from 'react';
 import { PlayCircle, Edit, Trash2, Calendar, Clock } from 'lucide-react';
 import { ChatMessageItem } from '@/components/chat';
-import { useCronRuns, useChatHistory, useToast } from '@/hooks';
+import { useCronRuns, useToast } from '@/hooks';
 import type { ChatMessage, CronJob } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { getCronScheduleLabel } from '@/lib/cron-schedule';
@@ -114,6 +114,13 @@ function upsertChatMessage(prev: ChatMessage[], incoming: ChatMessage, appendCon
   return next.sort((a, b) => a.timestamp - b.timestamp);
 }
 
+function extractAgentIdFromSessionKey(sessionKey?: string): string | null {
+  if (!sessionKey || typeof sessionKey !== 'string') return null;
+  const parts = sessionKey.split(':');
+  if (parts[0] !== 'agent' || !parts[1]) return null;
+  return parts[1];
+}
+
 export const CronPanel = memo(function CronPanel({
   job,
   sendMessage,
@@ -125,6 +132,7 @@ export const CronPanel = memo(function CronPanel({
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -137,6 +145,7 @@ export const CronPanel = memo(function CronPanel({
   });
   const selectedRun = runs.find(r => r.id === selectedRunId);
   const selectedSessionKey = selectedRun?.sessionKey;
+  const selectedAgentId = extractAgentIdFromSessionKey(selectedSessionKey);
 
   // Select the latest run by default
   useEffect(() => {
@@ -145,9 +154,6 @@ export const CronPanel = memo(function CronPanel({
     }
   }, [runs, selectedRunId]);
 
-  // Load chat history for selected run
-  const { loading: historyLoading } = useChatHistory({ sendMessage });
-
   useEffect(() => {
     if (!selectedRunId) return;
 
@@ -155,13 +161,24 @@ export const CronPanel = memo(function CronPanel({
     if (!selectedRun) return;
 
     setChatHistory([]);
+    setHistoryLoading(true);
 
     // Load session history for this cron run
     const sessionKey = selectedRun.sessionKey;
+    const agentId = extractAgentIdFromSessionKey(sessionKey);
+
+    if (!sessionKey || !agentId) {
+      setHistoryLoading(false);
+      return;
+    }
+
     sendMessage({
       type: 'chat.history.load',
-      sessionKey,
-      limit: 100,
+      agentId,
+      params: {
+        sessionKey,
+        limit: 100,
+      },
     });
   }, [selectedRunId, runs, sendMessage]);
 
@@ -181,6 +198,23 @@ export const CronPanel = memo(function CronPanel({
             : [];
 
           setChatHistory(messages);
+          setHistoryLoading(false);
+          return;
+        }
+
+        if (msg.type === 'chat_history_more' && selectedAgentId && msg.agentId === selectedAgentId) {
+          if (msg.sessionKey && msg.sessionKey !== selectedSessionKey) {
+            return;
+          }
+
+          const messages = Array.isArray(msg.messages)
+            ? msg.messages
+              .map((message: any) => normalizeChatMessage(message, selectedRun?.id))
+              .filter((message: ChatMessage | null): message is ChatMessage => message !== null)
+            : [];
+
+          setChatHistory(messages);
+          setHistoryLoading(false);
           return;
         }
 
@@ -260,6 +294,7 @@ export const CronPanel = memo(function CronPanel({
         }
       } catch (err) {
         console.error('[CronPanel] Failed to parse message:', err);
+        setHistoryLoading(false);
       }
     };
 
@@ -267,7 +302,7 @@ export const CronPanel = memo(function CronPanel({
     return () => {
       wsRef.current?.removeEventListener('message', handleMessage);
     };
-  }, [wsRef, selectedRunId, selectedRun, selectedSessionKey]);
+  }, [wsRef, selectedRunId, selectedRun, selectedSessionKey, selectedAgentId]);
 
   // Auto-scroll to bottom
   useEffect(() => {

@@ -14,6 +14,45 @@ interface UseCronRunsProps {
   connectionStatus?: string;
 }
 
+function normalizeCronRun(entry: any): CronRun {
+  const startedAtMs = Number(entry?.startedAtMs ?? entry?.runAtMs ?? entry?.ts ?? Date.now());
+  const durationMs = Number(entry?.durationMs ?? 0);
+  const finishedAtMs = Number.isFinite(durationMs) && durationMs > 0
+    ? startedAtMs + durationMs
+    : (typeof entry?.finishedAtMs === 'number' ? entry.finishedAtMs : undefined);
+
+  const id = String(
+    entry?.id
+    ?? entry?.runId
+    ?? entry?.sessionId
+    ?? `${entry?.jobId || 'cron'}:${startedAtMs}`
+  );
+
+  const status: CronRun['status'] = entry?.status === 'error'
+    ? 'error'
+    : entry?.status === 'ok'
+      ? 'ok'
+      : (entry?.action === 'started' ? 'running' : 'ok');
+
+  return {
+    id,
+    jobId: String(entry?.jobId || ''),
+    status,
+    startedAtMs,
+    finishedAtMs,
+    sessionKey: String(entry?.sessionKey || ''),
+    output: typeof entry?.output === 'string' ? entry.output : (typeof entry?.summary === 'string' ? entry.summary : undefined),
+    error: typeof entry?.error === 'string' ? entry.error : undefined,
+  };
+}
+
+function normalizeCronRuns(entries: any[] = []): CronRun[] {
+  return entries
+    .map((entry) => normalizeCronRun(entry))
+    .filter((entry) => Boolean(entry.id) && Boolean(entry.jobId))
+    .sort((a, b) => b.startedAtMs - a.startedAtMs);
+}
+
 export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseCronRunsProps) {
   const [runs, setRuns] = useState<CronRun[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,10 +101,10 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
 
         // Handle cron runs responses
         if (msg.type === 'cron.runs.response') {
-          setRuns(msg.entries || []);
+          setRuns(normalizeCronRuns(msg.entries || []));
           const pending = pendingRequestsRef.current.get(msg.requestId);
           if (pending) {
-            pending.resolve(msg.entries);
+            pending.resolve(normalizeCronRuns(msg.entries || []));
             pendingRequestsRef.current.delete(msg.requestId);
           }
         } else if (msg.type === 'cron.runs.error') {
@@ -79,14 +118,15 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
         // Handle cron run trigger responses
         if (msg.type === 'cron.run.response') {
           // Add the new run to the list (deduplicate by id)
+          const normalizedRun = normalizeCronRun(msg.run);
           setRuns(prev => {
-            const exists = prev.some(r => r.id === msg.run.id);
+            const exists = prev.some(r => r.id === normalizedRun.id);
             if (exists) return prev;
-            return [msg.run, ...prev];
+            return [normalizedRun, ...prev].sort((a, b) => b.startedAtMs - a.startedAtMs);
           });
           const pending = pendingRequestsRef.current.get(msg.requestId);
           if (pending) {
-            pending.resolve(msg.run);
+            pending.resolve(normalizedRun);
             pendingRequestsRef.current.delete(msg.requestId);
           }
         } else if (msg.type === 'cron.run.error') {
@@ -110,10 +150,11 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
 
           if (action === 'started') {
             if (cronEvent.run?.id) {
+              const normalizedRun = normalizeCronRun(cronEvent.run);
               setRuns(prev => {
-                const exists = prev.some(r => r.id === cronEvent.run.id);
+                const exists = prev.some(r => r.id === normalizedRun.id);
                 if (exists) return prev;
-                return [cronEvent.run, ...prev];
+                return [normalizedRun, ...prev].sort((a, b) => b.startedAtMs - a.startedAtMs);
               });
             } else {
               sendRequest('cron.runs', { jobId, limit }).catch((err) => {
@@ -122,7 +163,8 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
             }
           } else if (action === 'finished') {
             if (cronEvent.run?.id) {
-              setRuns(prev => prev.map(r => r.id === cronEvent.run.id ? cronEvent.run : r));
+              const normalizedRun = normalizeCronRun(cronEvent.run);
+              setRuns(prev => prev.map(r => r.id === normalizedRun.id ? normalizedRun : r));
             } else {
               sendRequest('cron.runs', { jobId, limit }).catch((err) => {
                 console.error('[useCronRuns] Failed to refresh runs after finish event:', err);
