@@ -123,8 +123,7 @@ export async function checkConnectionStatus(): Promise<ExtensionConnectionStatus
     }
 
     // Create API client with the token
-    const config = await loadConfig();
-    const api = new GitHubAPI({ ...config, token });
+    const api = new GitHubAPI({ token });
     
     // Test connection and get user info
     try {
