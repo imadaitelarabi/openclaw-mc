@@ -533,6 +533,12 @@ export function useAgentEvents() {
   /**
    * Resolve the tool ID for an active tool from activeToolsRef
    * Tries multiple strategies: toolCallId mapping, sequence-based ID, and queue lookup
+   * @param toolCallMapKey Optional mapping key for toolCallId-based lookup
+   * @param hasSeq Whether a sequence number is available
+   * @param runId The run ID associated with this tool
+   * @param toolName The name of the tool
+   * @param seq Optional sequence number for seq-based lookup
+   * @returns The resolved tool ID if found in activeToolsRef, undefined otherwise
    */
   const resolveActiveToolId = (
     toolCallMapKey: string | undefined,

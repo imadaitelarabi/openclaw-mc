@@ -85,8 +85,8 @@ class UIStateStore {
     }
 
     if (!this.dbPromise) {
-      // Version 6 adds panel-settings store for persisting per-panel UI toggles
-      // This is a non-breaking change - existing data is preserved
+      // Version 6 adds panel-settings store to persist per-agent UI toggle preferences
+      // (showTools, showReasoning) across sessions. This is a non-breaking change.
       this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 6, {
         upgrade(db, oldVersion) {
           // Create object stores if they don't exist

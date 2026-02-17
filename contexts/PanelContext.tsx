@@ -7,7 +7,7 @@ import { uiStateStore, type WorkspaceState } from '@/lib/ui-state-db';
 
 interface PanelContextValue {
   layout: PanelLayout;
-  openPanel: (type: PanelType, data?: any) => string;
+  openPanel: (type: PanelType, data?: any) => Promise<string>;
   closePanel: (panelId: string) => void;
   setActivePanel: (panelId: string) => void;
   updatePanel: (panelId: string, updates: Partial<Panel>) => void;
@@ -111,6 +111,12 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
     return () => clearTimeout(timeoutId);
   }, [layout, isRestored]);
 
+  /**
+   * Opens a new panel with the specified type and data.
+   * For chat panels, loads persisted settings from IndexedDB before panel creation
+   * to prevent UI flash with default settings.
+   * @returns Promise that resolves to the new panel's ID
+   */
   const openPanel = useCallback(async (type: PanelType, data?: any): Promise<string> => {
     const panelId = uuidv4();
     
