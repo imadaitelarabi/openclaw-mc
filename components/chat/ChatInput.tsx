@@ -184,30 +184,42 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
   const handleSelectTagOption = (option: ChatInputTagOption) => {
     // Check if this is an extension selection (first level)
     const isExtensionOption = option.id.startsWith(EXTENSION_OPTION_ID_PREFIX);
-    
-    const insertValue = option.value?.trim() ? option.value : option.tag;
 
-    const newValue = insertTag(value, insertValue, (newPosition: number) => {
+    let newPosition = 0;
+    const insertValue = isExtensionOption
+      ? option.tag
+      : (option.value?.trim() ? option.value : option.tag);
+
+    const insertedValue = insertTag(value, insertValue, (cursorPosition: number) => {
+      newPosition = cursorPosition;
+    });
+
+    if (isExtensionOption) {
+      const cursorBeforeInsertedSpace = Math.max(0, newPosition - 1);
+      const valueForLevel2 = `${insertedValue.slice(0, cursorBeforeInsertedSpace)}${insertedValue.slice(newPosition)}`;
+
+      onChange(valueForLevel2);
+
       requestAnimationFrame(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(newPosition, newPosition);
-          
-          // If this is an extension selection (Level 1), trigger search to show Level 2 menu
-          // This allows seamless navigation from extension list to extension-specific data
-          if (isExtensionOption) {
-            handleInput(newValue, newPosition);
-          }
+          textareaRef.current.setSelectionRange(cursorBeforeInsertedSpace, cursorBeforeInsertedSpace);
+          handleInput(valueForLevel2, cursorBeforeInsertedSpace);
         }
       });
-    });
 
-    onChange(newValue);
-    
-    // Don't close dropdown for extension selections
-    if (!isExtensionOption) {
-      setTagOptions([]);
+      return;
     }
+
+    onChange(insertedValue);
+    setTagOptions([]);
+
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newPosition, newPosition);
+      }
+    });
   };
 
   const handleCloseTagDropdown = () => {

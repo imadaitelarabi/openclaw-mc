@@ -273,20 +273,23 @@ export function useChatTagging() {
    * Detect @ character and start tagging mode
    */
   const handleInput = useCallback((value: string, cursorPosition: number) => {
-    // Find @ before cursor
     const beforeCursor = value.slice(0, cursorPosition);
-    const lastAtIndex = beforeCursor.lastIndexOf('@');
 
-    if (lastAtIndex !== -1) {
-      // Check if there's a space after @
-      const afterAt = beforeCursor.slice(lastAtIndex + 1);
-      if (!afterAt.includes(' ')) {
-        // We're in tagging mode
-        setIsTagging(true);
-        setTagQuery(beforeCursor.slice(lastAtIndex));
-        setTagPosition(lastAtIndex);
-        return;
-      }
+    // Match the active @ token nearest to cursor.
+    // Rules:
+    // - @ must be at start of input or preceded by whitespace
+    // - query may include spaces (supports "@github " and "@github pr")
+    // - stop at newline or another @
+    const mentionMatch = beforeCursor.match(/(?:^|\s)(@[^\n@]*)$/);
+
+    if (mentionMatch) {
+      const activeToken = mentionMatch[1];
+      const mentionStart = beforeCursor.length - activeToken.length;
+
+      setIsTagging(true);
+      setTagQuery(activeToken);
+      setTagPosition(mentionStart);
+      return;
     }
 
     // Not in tagging mode

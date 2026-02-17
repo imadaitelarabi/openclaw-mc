@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { ChatInputTagOption } from '@/types/extension';
 
 interface ChatInputTagDropdownProps {
@@ -34,7 +34,8 @@ export function ChatInputTagDropdown({
   const DROPDOWN_PADDING = 20; // Additional padding for borders/spacing
   const MAX_DROPDOWN_HEIGHT = 280; // Maximum dropdown height before scrolling
 
-  const [activePath, setActivePath] = useState<number[]>([]);
+  const [currentPath, setCurrentPath] = useState<number[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; positionAbove: boolean } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -115,11 +116,17 @@ export function ChatInputTagDropdown({
     return parentNode?.children || [];
   };
 
-  const getFirstPath = (source: ChatInputTagOption[]) => {
-    if (source.length === 0) {
-      return [] as number[];
+  const getCurrentItems = (source: ChatInputTagOption[], path: number[]) => {
+    return getItemsAtPath(source, path);
+  };
+
+  const getCurrentLabel = (source: ChatInputTagOption[], path: number[]) => {
+    if (path.length === 0) {
+      return 'Extensions';
     }
-    return [0];
+
+    const node = getNodeAtPath(source, path);
+    return node?.label ?? 'Extensions';
   };
 
   // Close on outside click
@@ -145,32 +152,32 @@ export function ChatInputTagDropdown({
         return;
       }
 
-      const path = activePath.length > 0 ? activePath : getFirstPath(options);
-      const currentNode = getNodeAtPath(options, path);
+      const currentItems = getCurrentItems(options, currentPath);
+      if (currentItems.length === 0) {
+        return;
+      }
+
+      const clampedActiveIndex = Math.min(activeIndex, currentItems.length - 1);
+      const currentNode = currentItems[clampedActiveIndex];
 
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        const parentPath = path.slice(0, -1);
-        const siblings = getItemsAtPath(options, parentPath);
-        const currentIndex = path[path.length - 1] ?? 0;
-        const nextIndex = (currentIndex + 1) % siblings.length;
-        setActivePath([...parentPath, nextIndex]);
+        setActiveIndex(prev => (prev + 1) % currentItems.length);
       } else if (event.key === 'ArrowUp') {
         event.preventDefault();
-        const parentPath = path.slice(0, -1);
-        const siblings = getItemsAtPath(options, parentPath);
-        const currentIndex = path[path.length - 1] ?? 0;
-        const nextIndex = (currentIndex - 1 + siblings.length) % siblings.length;
-        setActivePath([...parentPath, nextIndex]);
+        setActiveIndex(prev => (prev - 1 + currentItems.length) % currentItems.length);
       } else if (event.key === 'ArrowRight') {
         event.preventDefault();
         if (currentNode?.children && currentNode.children.length > 0) {
-          setActivePath([...path, 0]);
+          setCurrentPath(prev => [...prev, clampedActiveIndex]);
+          setActiveIndex(0);
         }
       } else if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        if (path.length > 1) {
-          setActivePath(path.slice(0, -1));
+        if (currentPath.length > 0) {
+          const parentIndex = currentPath[currentPath.length - 1];
+          setCurrentPath(prev => prev.slice(0, -1));
+          setActiveIndex(parentIndex);
         }
       } else if (event.key === 'Enter' || event.key === 'Tab') {
         event.preventDefault();
@@ -179,7 +186,8 @@ export function ChatInputTagDropdown({
         }
 
         if (currentNode.children && currentNode.children.length > 0) {
-          setActivePath([...path, 0]);
+          setCurrentPath(prev => [...prev, clampedActiveIndex]);
+          setActiveIndex(0);
         } else {
           onSelect(currentNode);
         }
@@ -191,12 +199,26 @@ export function ChatInputTagDropdown({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [options, activePath, onSelect, onClose]);
+  }, [options, currentPath, activeIndex, onSelect, onClose]);
 
-  // Reset active path when options change
+  // Reset navigation when options change
   useEffect(() => {
-    setActivePath(getFirstPath(options));
+    setCurrentPath([]);
+    setActiveIndex(0);
   }, [options]);
+
+  // Clamp active index when current level items change
+  useEffect(() => {
+    const currentItems = getCurrentItems(options, currentPath);
+    if (currentItems.length === 0) {
+      setActiveIndex(0);
+      return;
+    }
+
+    if (activeIndex >= currentItems.length) {
+      setActiveIndex(currentItems.length - 1);
+    }
+  }, [options, currentPath, activeIndex]);
 
   if (options.length === 0 && !isLoading) {
     return null;
@@ -206,74 +228,9 @@ export function ChatInputTagDropdown({
     return null; // Wait for position calculation
   }
 
-  const renderMenuPanel = (items: ChatInputTagOption[], parentPath: number[] = [], level = 0) => {
-    return (
-      <div
-        style={{
-          width: `${PANEL_WIDTH}px`,
-        }}
-        className="bg-popover border border-border rounded-md shadow-lg"
-      >
-        <div className="py-1 max-h-[260px] overflow-y-auto">
-          {items.map((option, index) => {
-            const currentPath = [...parentPath, index];
-            const isActive = currentPath.every((segment, i) => activePath[i] === segment) && activePath.length > 0;
-            const hasChildren = Boolean(option.children && option.children.length > 0);
-
-            return (
-              <button
-                key={option.id}
-                onMouseEnter={() => setActivePath(currentPath)}
-                onClick={() => {
-                  if (hasChildren) {
-                    setActivePath([...currentPath, 0]);
-                    return;
-                  }
-                  onSelect(option);
-                }}
-                className={`w-full text-left px-3 py-2 text-sm flex items-start gap-2 justify-between ${
-                  isActive ? 'bg-accent' : 'hover:bg-accent/50'
-                }`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-foreground truncate">{option.label}</div>
-                  {option.description && (
-                    <div className="text-xs text-muted-foreground truncate mt-0.5">
-                      {option.description}
-                    </div>
-                  )}
-                  <div className="text-xs text-muted-foreground font-mono truncate mt-0.5">
-                    {option.tag}
-                  </div>
-                </div>
-
-                {hasChildren && <ChevronRight className="w-3.5 h-3.5 mt-0.5 text-muted-foreground" />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const panels: ChatInputTagOption[][] = [];
-  let panelParentPath: number[] = [];
-  let panelItems = options;
-
-  panels.push(panelItems);
-
-  for (let depth = 0; depth < activePath.length; depth++) {
-    const index = activePath[depth];
-    const node = panelItems[index];
-
-    if (!node || !node.children || node.children.length === 0) {
-      break;
-    }
-
-    panelParentPath = [...panelParentPath, index];
-    panelItems = node.children;
-    panels.push(panelItems);
-  }
+  const currentItems = getCurrentItems(options, currentPath);
+  const currentLabel = getCurrentLabel(options, currentPath);
+  const canGoBack = currentPath.length > 0;
 
   const dropdown = (
     <div 
@@ -292,12 +249,69 @@ export function ChatInputTagDropdown({
           Loading suggestions...
         </div>
       ) : (
-        <div className="flex items-start" style={{ gap: `${PANEL_GAP}px` }}>
-          {panels.map((panelOptions, level) => (
-            <div key={`panel-${level}-${activePath.slice(0, level).join('-')}`}>
-              {renderMenuPanel(panelOptions, activePath.slice(0, level), level)}
-            </div>
-          ))}
+        <div
+          style={{
+            width: `${PANEL_WIDTH}px`,
+          }}
+          className="bg-popover border border-border rounded-md shadow-lg"
+        >
+          <div className="px-3 py-2 border-b border-border flex items-center justify-between gap-2">
+            <button
+              onClick={() => {
+                if (!canGoBack) return;
+                const parentIndex = currentPath[currentPath.length - 1];
+                setCurrentPath(prev => prev.slice(0, -1));
+                setActiveIndex(parentIndex);
+              }}
+              className={`text-xs flex items-center gap-1 ${
+                canGoBack ? 'text-foreground hover:text-foreground/80' : 'text-muted-foreground/60 cursor-default'
+              }`}
+              disabled={!canGoBack}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Back
+            </button>
+            <div className="text-xs text-muted-foreground truncate">{currentLabel}</div>
+          </div>
+
+          <div className="py-1 max-h-[260px] overflow-y-auto">
+            {currentItems.map((option, index) => {
+              const hasChildren = Boolean(option.children && option.children.length > 0);
+              const isActive = index === activeIndex;
+
+              return (
+                <button
+                  key={option.id}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => {
+                    if (hasChildren) {
+                      setCurrentPath(prev => [...prev, index]);
+                      setActiveIndex(0);
+                      return;
+                    }
+                    onSelect(option);
+                  }}
+                  className={`w-full text-left px-3 py-2 text-sm flex items-start gap-2 justify-between ${
+                    isActive ? 'bg-accent' : 'hover:bg-accent/50'
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-foreground truncate">{option.label}</div>
+                    {option.description && (
+                      <div className="text-xs text-muted-foreground truncate mt-0.5">
+                        {option.description}
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground font-mono truncate mt-0.5">
+                      {option.tag}
+                    </div>
+                  </div>
+
+                  {hasChildren && <ChevronRight className="w-3.5 h-3.5 mt-0.5 text-muted-foreground" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
