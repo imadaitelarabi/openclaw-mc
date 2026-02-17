@@ -114,6 +114,19 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
   const openPanel = useCallback((type: PanelType, data?: any): string => {
     const panelId = uuidv4();
     
+    // For chat panels, load persisted settings asynchronously
+    if (type === 'chat' && data?.agentId) {
+      const agentId = data.agentId;
+      uiStateStore.getPanelSettings(agentId).then(savedSettings => {
+        if (savedSettings) {
+          // Update the panel settings after it's been created
+          updatePanelSettings(panelId, savedSettings);
+        }
+      }).catch(err => {
+        console.error('[PanelContext] Failed to load panel settings:', err);
+      });
+    }
+    
     setLayout(prev => {
       let currentLayout = prev;
       
@@ -236,15 +249,27 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
   }, []);
 
   const updatePanelSettings = useCallback((panelId: string, settings: Partial<PanelSettings>) => {
-    setLayout(prev => ({
-      ...prev,
-      panels: prev.panels.map(p =>
-        p.id === panelId ? { 
-          ...p, 
-          settings: { ...p.settings, ...settings } as PanelSettings
-        } : p
-      )
-    }));
+    setLayout(prev => {
+      const panel = prev.panels.find(p => p.id === panelId);
+      
+      // If this is a chat panel, persist settings to IndexedDB
+      if (panel?.type === 'chat' && panel.agentId) {
+        const updatedSettings = { ...panel.settings, ...settings } as PanelSettings;
+        uiStateStore.savePanelSettings(panel.agentId, updatedSettings).catch(err => {
+          console.error('[PanelContext] Failed to save panel settings:', err);
+        });
+      }
+      
+      return {
+        ...prev,
+        panels: prev.panels.map(p =>
+          p.id === panelId ? { 
+            ...p, 
+            settings: { ...p.settings, ...settings } as PanelSettings
+          } : p
+        )
+      };
+    });
   }, []);
 
   const getActivePanel = useCallback((): Panel | undefined => {

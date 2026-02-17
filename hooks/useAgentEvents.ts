@@ -441,6 +441,37 @@ function isLikelySameUserMessage(localMessage: ChatMessage, incomingMessage: Cha
   return Math.abs(localMessage.timestamp - incomingMessage.timestamp) <= 15000;
 }
 
+/**
+ * Check if two messages are likely the same based on runId and role.
+ * This handles cases where local finalization uses runId as the message ID,
+ * but the server assigns a different UUID.
+ */
+function isLikelySameByRunIdAndRole(localMessage: ChatMessage, incomingMessage: ChatMessage): boolean {
+  // Must have both runId and role
+  if (!localMessage.runId || !incomingMessage.runId) return false;
+  if (localMessage.role !== incomingMessage.role) return false;
+  
+  // Must be the same run
+  if (localMessage.runId !== incomingMessage.runId) return false;
+  
+  // For assistant messages, check if content is similar (handles streaming finalization)
+  if (localMessage.role === 'assistant' && incomingMessage.role === 'assistant') {
+    const localContent = localMessage.content.trim();
+    const incomingContent = incomingMessage.content.trim();
+    
+    // If either is empty, they're not the same
+    if (!localContent || !incomingContent) return false;
+    
+    // Check if content is exactly the same or if one is a prefix of the other
+    // (handles cases where finalization happened mid-stream)
+    return localContent === incomingContent || 
+           localContent.startsWith(incomingContent) || 
+           incomingContent.startsWith(localContent);
+  }
+  
+  return true;
+}
+
 export function useAgentEvents() {
   const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({});
   const [chatStreams, setChatStreams] = useState<Record<string, string>>({});
@@ -452,6 +483,7 @@ export function useAgentEvents() {
   const pendingToolIdsRef = useRef<Record<string, string[]>>({});
   const toolCallToMessageIdRef = useRef<Record<string, string>>({});
   const persistedStreamAgentsRef = useRef(new Set<string>());
+  const activeToolsRef = useRef<Record<string, ChatMessage>>({});
   
   // Event deduplication tracking
   const seenEventsRef = useRef(new Set<string>());
@@ -588,6 +620,21 @@ export function useAgentEvents() {
         const existingIndex = existingIndexById.get(incoming.id);
 
         if (existingIndex === undefined) {
+          // First try to match by runId + role (handles local finalization vs server ID mismatch)
+          const runIdMatchIndex = next.findIndex((existingMessage) =>
+            isLikelySameByRunIdAndRole(existingMessage, incoming)
+          );
+
+          if (runIdMatchIndex !== -1) {
+            const previousId = next[runIdMatchIndex].id;
+            next[runIdMatchIndex] = withPreservedAttachments(next[runIdMatchIndex], incoming);
+            existingIndexById.delete(previousId);
+            existingIndexById.set(incoming.id, runIdMatchIndex);
+            changed = true;
+            return;
+          }
+
+          // Then try optimistic user message matching
           const optimisticMatchIndex = next.findIndex((existingMessage) =>
             isLikelySameUserMessage(existingMessage, incoming)
           );
@@ -793,112 +840,164 @@ export function useAgentEvents() {
           runId
         };
 
-        setChatHistory(prev => {
-          const currentHistory = prev[agentId] || [];
-          const existingByToolCallId = toolCallMapKey
-            ? currentHistory.find(m => m.id === toolCallToMessageIdRef.current[toolCallMapKey] && m.role === 'tool')
-            : undefined;
-
-          if (currentHistory.some(m => m.id === toolId) || existingByToolCallId) return prev;
-
+        // Store in activeToolsRef instead of chatHistory
+        // Only add to chatHistory when tool reaches terminal state
+        if (!activeToolsRef.current[toolId]) {
+          activeToolsRef.current[toolId] = toolMsg;
           enqueuePendingToolId(runId, toolName, toolId);
           if (toolCallMapKey) {
             toolCallToMessageIdRef.current[toolCallMapKey] = toolId;
           }
-          return { ...prev, [agentId]: [...currentHistory, toolMsg] };
-        });
+        }
       } else if (isUpdatePhase) {
-        setChatHistory(prev => {
-          const currentHistory = prev[agentId] || [];
-          const matchedToolId = resolveToolId(currentHistory);
-          if (!matchedToolId) return prev;
-
-          const updated = currentHistory.map(msg => {
-            if (msg.id === matchedToolId && msg.role === 'tool') {
-              return {
-                ...msg,
-                tool: {
-                  ...msg.tool!,
-                  status: 'start' as const,
-                  result: toolResult ?? msg.tool?.result
-                }
-              };
+        // Update the active tool in activeToolsRef
+        const resolvedToolId = (() => {
+          if (toolCallMapKey) {
+            const mappedId = toolCallToMessageIdRef.current[toolCallMapKey];
+            if (mappedId && activeToolsRef.current[mappedId]) {
+              return mappedId;
             }
-            return msg;
-          });
-
-          return { ...prev, [agentId]: updated };
-        });
+          }
+          
+          if (hasSeq) {
+            const seqToolId = getToolId(runId, toolName, seq);
+            if (activeToolsRef.current[seqToolId]) {
+              return seqToolId;
+            }
+          }
+          
+          const queueKey = getToolQueueKey(runId, toolName);
+          const queue = pendingToolIdsRef.current[queueKey] || [];
+          return queue.find(id => activeToolsRef.current[id]);
+        })();
+        
+        if (resolvedToolId && activeToolsRef.current[resolvedToolId]) {
+          activeToolsRef.current[resolvedToolId] = {
+            ...activeToolsRef.current[resolvedToolId],
+            tool: {
+              ...activeToolsRef.current[resolvedToolId].tool!,
+              status: 'start' as const,
+              result: toolResult ?? activeToolsRef.current[resolvedToolId].tool?.result
+            }
+          };
+        }
       } else if (isResultPhase && !isErrorPhase) {
-        setChatHistory(prev => {
-          const currentHistory = prev[agentId] || [];
-          const matchedToolId = resolveToolId(currentHistory);
-          if (!matchedToolId) return prev;
-
-          const updated = currentHistory.map(msg => {
-            if (msg.id === matchedToolId && msg.role === 'tool') {
-              const duration = msg.tool?.startTime 
-                ? Date.now() - msg.tool.startTime 
-                : undefined;
-              
-              // Extract exit code if available (for exec tools)
-              // Try meta.exitCode first (direct metadata), then meta.result.exitCode (nested in result)
-              const exitCode = toolData.meta?.exitCode !== undefined 
-                ? toolData.meta.exitCode 
-                : toolData.meta?.result?.exitCode ?? toolData.result?.exitCode;
-
-              return {
-                ...msg,
-                tool: {
-                  ...msg.tool!,
-                  result: toolResult ?? msg.tool?.result,
-                  status: 'end' as const,
-                  duration,
-                  exitCode
-                }
-              };
+        // Tool completed successfully - now add to chatHistory
+        const resolvedToolId = (() => {
+          if (toolCallMapKey) {
+            const mappedId = toolCallToMessageIdRef.current[toolCallMapKey];
+            if (mappedId && activeToolsRef.current[mappedId]) {
+              return mappedId;
             }
-            return msg;
+          }
+          
+          if (hasSeq) {
+            const seqToolId = getToolId(runId, toolName, seq);
+            if (activeToolsRef.current[seqToolId]) {
+              return seqToolId;
+            }
+          }
+          
+          const queueKey = getToolQueueKey(runId, toolName);
+          const queue = pendingToolIdsRef.current[queueKey] || [];
+          return queue.find(id => activeToolsRef.current[id]);
+        })();
+        
+        if (resolvedToolId && activeToolsRef.current[resolvedToolId]) {
+          const activeTool = activeToolsRef.current[resolvedToolId];
+          const duration = activeTool.tool?.startTime 
+            ? Date.now() - activeTool.tool.startTime 
+            : undefined;
+          
+          // Extract exit code if available (for exec tools)
+          const exitCode = toolData.meta?.exitCode !== undefined 
+            ? toolData.meta.exitCode 
+            : toolData.meta?.result?.exitCode ?? toolData.result?.exitCode;
+
+          const completedToolMsg: ChatMessage = {
+            ...activeTool,
+            tool: {
+              ...activeTool.tool!,
+              result: toolResult ?? activeTool.tool?.result,
+              status: 'end' as const,
+              duration,
+              exitCode
+            }
+          };
+
+          // Add to chatHistory now that it's complete
+          setChatHistory(prev => {
+            const currentHistory = prev[agentId] || [];
+            // Check if already in history
+            if (currentHistory.some(m => m.id === resolvedToolId)) {
+              return prev;
+            }
+            return { ...prev, [agentId]: [...currentHistory, completedToolMsg] };
           });
 
-          dequeuePendingToolId(runId, toolName, matchedToolId);
+          // Clean up
+          delete activeToolsRef.current[resolvedToolId];
+          dequeuePendingToolId(runId, toolName, resolvedToolId);
           if (toolCallMapKey) {
             delete toolCallToMessageIdRef.current[toolCallMapKey];
           }
-          return { ...prev, [agentId]: updated };
-        });
+        }
       } else if (isErrorPhase) {
-        setChatHistory(prev => {
-          const currentHistory = prev[agentId] || [];
-          const matchedToolId = resolveToolId(currentHistory);
-          if (!matchedToolId) return prev;
-
-          const updated = currentHistory.map(msg => {
-            if (msg.id === matchedToolId && msg.role === 'tool') {
-              const duration = msg.tool?.startTime 
-                ? Date.now() - msg.tool.startTime 
-                : undefined;
-
-              return {
-                ...msg,
-                tool: {
-                  ...msg.tool!,
-                  status: 'error' as const,
-                  error: toolData.error || toolData.meta?.error || (typeof toolResult === 'string' ? toolResult : 'Tool execution failed'),
-                  result: toolResult ?? msg.tool?.result,
-                  duration
-                }
-              };
+        // Tool errored - now add to chatHistory
+        const resolvedToolId = (() => {
+          if (toolCallMapKey) {
+            const mappedId = toolCallToMessageIdRef.current[toolCallMapKey];
+            if (mappedId && activeToolsRef.current[mappedId]) {
+              return mappedId;
             }
-            return msg;
+          }
+          
+          if (hasSeq) {
+            const seqToolId = getToolId(runId, toolName, seq);
+            if (activeToolsRef.current[seqToolId]) {
+              return seqToolId;
+            }
+          }
+          
+          const queueKey = getToolQueueKey(runId, toolName);
+          const queue = pendingToolIdsRef.current[queueKey] || [];
+          return queue.find(id => activeToolsRef.current[id]);
+        })();
+        
+        if (resolvedToolId && activeToolsRef.current[resolvedToolId]) {
+          const activeTool = activeToolsRef.current[resolvedToolId];
+          const duration = activeTool.tool?.startTime 
+            ? Date.now() - activeTool.tool.startTime 
+            : undefined;
+
+          const errorToolMsg: ChatMessage = {
+            ...activeTool,
+            tool: {
+              ...activeTool.tool!,
+              status: 'error' as const,
+              error: toolData.error || toolData.meta?.error || (typeof toolResult === 'string' ? toolResult : 'Tool execution failed'),
+              result: toolResult ?? activeTool.tool?.result,
+              duration
+            }
+          };
+
+          // Add to chatHistory now that it's errored
+          setChatHistory(prev => {
+            const currentHistory = prev[agentId] || [];
+            // Check if already in history
+            if (currentHistory.some(m => m.id === resolvedToolId)) {
+              return prev;
+            }
+            return { ...prev, [agentId]: [...currentHistory, errorToolMsg] };
           });
 
-          dequeuePendingToolId(runId, toolName, matchedToolId);
+          // Clean up
+          delete activeToolsRef.current[resolvedToolId];
+          dequeuePendingToolId(runId, toolName, resolvedToolId);
           if (toolCallMapKey) {
             delete toolCallToMessageIdRef.current[toolCallMapKey];
           }
-          return { ...prev, [agentId]: updated };
-        });
+        }
       }
     }
 
@@ -939,10 +1038,13 @@ export function useAgentEvents() {
       }
       
       if (data?.delta !== undefined) {
+        const normalizedDelta = normalizeTextContent(data.delta);
         setChatStreams(prev => ({
           ...prev,
-          [streamKey]: (prev[streamKey] || '') + normalizeTextContent(data.delta)
+          [streamKey]: (prev[streamKey] || '') + normalizedDelta
         }));
+        // Also update latestTextRef with the accumulated text
+        latestTextRef.current[streamKey] = (latestTextRef.current[streamKey] || '') + normalizedDelta;
       }
     }
 

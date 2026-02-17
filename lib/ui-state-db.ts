@@ -65,6 +65,14 @@ interface UIStateDB extends DBSchema {
     key: string; // extension name
     value: { data: any; timestamp: number };
   };
+  'panel-settings': {
+    key: string; // agentId
+    value: {
+      showTools: boolean;
+      showReasoning: boolean;
+      timestamp: number;
+    };
+  };
 }
 
 class UIStateStore {
@@ -77,9 +85,9 @@ class UIStateStore {
     }
 
     if (!this.dbPromise) {
-      // Version 5 adds extension-data-cache store for caching extension chat input data
+      // Version 6 adds panel-settings store for persisting per-panel UI toggles
       // This is a non-breaking change - existing data is preserved
-      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 5, {
+      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 6, {
         upgrade(db, oldVersion) {
           // Create object stores if they don't exist
           if (!db.objectStoreNames.contains('scroll-positions')) {
@@ -114,6 +122,12 @@ class UIStateStore {
           if (oldVersion < 5) {
             if (!db.objectStoreNames.contains('extension-data-cache')) {
               db.createObjectStore('extension-data-cache');
+            }
+          }
+          // Add panel settings in version 6
+          if (oldVersion < 6) {
+            if (!db.objectStoreNames.contains('panel-settings')) {
+              db.createObjectStore('panel-settings');
             }
           }
         },
@@ -459,6 +473,33 @@ class UIStateStore {
       await db.delete('extension-data-cache', extensionName);
     } catch (err) {
       console.error('[UIState] Failed to delete extension data cache:', err);
+    }
+  }
+
+  // Panel settings management (showTools, showReasoning per agent)
+  async savePanelSettings(agentId: string, settings: { showTools: boolean; showReasoning: boolean }): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.put('panel-settings', { ...settings, timestamp: Date.now() }, agentId);
+    } catch (err) {
+      console.error('[UIState] Failed to save panel settings:', err);
+    }
+  }
+
+  async getPanelSettings(agentId: string): Promise<{ showTools: boolean; showReasoning: boolean } | null> {
+    try {
+      const db = await this.getDB();
+      const settings = await db.get('panel-settings', agentId);
+      if (settings) {
+        return {
+          showTools: settings.showTools,
+          showReasoning: settings.showReasoning
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error('[UIState] Failed to get panel settings:', err);
+      return null;
     }
   }
 }
