@@ -55,11 +55,17 @@ export function ChatInputTagDropdown({
           MAX_DROPDOWN_HEIGHT
         );
         
-        // Determine vertical position: above or below input
-        let dropdownTop = rect.top - DROPDOWN_GAP;
-        let positionAbove = true;
+        // Determine vertical position: try above first (preferred), fall back to below
+        // When positioned above, dropdown extends upward from anchor point due to transform
+        const spaceAbove = rect.top - DROPDOWN_GAP;
+        let dropdownTop: number;
+        let positionAbove: boolean;
         
-        if (dropdownTop - estimatedDropdownHeight < 0) {
+        if (spaceAbove >= estimatedDropdownHeight) {
+          // Enough space above input for dropdown
+          dropdownTop = rect.top - DROPDOWN_GAP;
+          positionAbove = true;
+        } else {
           // Not enough space above, position below input instead
           dropdownTop = rect.bottom + DROPDOWN_GAP;
           positionAbove = false;

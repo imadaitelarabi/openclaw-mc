@@ -66,6 +66,11 @@ function filterTagOptions(options: ChatInputTagOption[], query: string): ChatInp
 
 /**
  * Hook to get tag options from extensions based on query
+ * 
+ * Note: In-memory cache (cacheRef) is per-component instance. If multiple tabs/windows are open,
+ * each maintains its own cache. IndexedDB provides persistence across sessions but not real-time
+ * synchronization between tabs. This is acceptable since cache TTL is short (5 minutes) and
+ * extension data changes infrequently.
  */
 export function useExtensionChatInput() {
   const { enabledExtensions } = useExtensions();
