@@ -4,7 +4,7 @@
 
 import type { Extension, ExtensionHooks } from '@/types/extension';
 import manifest from './manifest.json';
-import { initialize, cleanup, isSetupComplete } from './setup';
+import { initialize, cleanup, isSetupComplete, checkConnectionStatus } from './setup';
 import { getStatusBarData } from './ui/status-bar';
 import { getChatInputOptions } from './ui/chat-input';
 import { OnboardingPanel } from './ui/onboarding';
@@ -59,6 +59,7 @@ const hooks: ExtensionHooks = {
   // Onboarding hook - setup wizard
   onboarding: {
     isRequired: async () => !(await isSetupComplete()),
+    checkStatus: checkConnectionStatus,
     component: OnboardingPanel,
   },
 };

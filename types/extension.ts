@@ -167,9 +167,26 @@ export interface ExtensionHooks {
     /** Check if onboarding is needed */
     isRequired: () => Promise<boolean>;
     
+    /** Check connection status (optional) */
+    checkStatus?: () => Promise<ExtensionConnectionStatus>;
+    
     /** React component for onboarding UI */
     component: React.ComponentType<OnboardingProps>;
   };
+}
+
+/**
+ * Extension connection status
+ */
+export interface ExtensionConnectionStatus {
+  /** Whether the extension is connected */
+  isConnected: boolean;
+  
+  /** Username or identifier if connected */
+  username?: string;
+  
+  /** Error message if connection failed */
+  error?: string;
 }
 
 /**
@@ -184,6 +201,9 @@ export interface OnboardingProps {
   
   /** Callback to cancel onboarding */
   onCancel: () => void;
+  
+  /** Current connection status (if available) */
+  connectionStatus?: ExtensionConnectionStatus;
 }
 
 /**
