@@ -7,7 +7,7 @@ import { uiStateStore, type WorkspaceState } from '@/lib/ui-state-db';
 
 interface PanelContextValue {
   layout: PanelLayout;
-  openPanel: (type: PanelType, data?: any) => string;
+  openPanel: (type: PanelType, data?: any) => Promise<string>;
   closePanel: (panelId: string) => void;
   setActivePanel: (panelId: string) => void;
   updatePanel: (panelId: string, updates: Partial<Panel>) => void;
@@ -111,8 +111,27 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
     return () => clearTimeout(timeoutId);
   }, [layout, isRestored]);
 
-  const openPanel = useCallback((type: PanelType, data?: any): string => {
+  /**
+   * Opens a new panel with the specified type and data.
+   * For chat panels, loads persisted settings from IndexedDB before panel creation
+   * to prevent UI flash with default settings.
+   * @returns Promise that resolves to the new panel's ID
+   */
+  const openPanel = useCallback(async (type: PanelType, data?: any): Promise<string> => {
     const panelId = uuidv4();
+    
+    // For chat panels, load persisted settings before creating the panel
+    let panelSettings = getDefaultSettings();
+    if (type === 'chat' && data?.agentId) {
+      try {
+        const savedSettings = await uiStateStore.getPanelSettings(data.agentId);
+        if (savedSettings) {
+          panelSettings = savedSettings;
+        }
+      } catch (err) {
+        console.error('[PanelContext] Failed to load panel settings:', err);
+      }
+    }
     
     setLayout(prev => {
       let currentLayout = prev;
@@ -166,7 +185,7 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         agentId: data?.agentId,
         data: data || {},
         isActive: true,
-        settings: getDefaultSettings()
+        settings: panelSettings
       };
 
       // Set all existing panels to inactive
@@ -236,15 +255,27 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
   }, []);
 
   const updatePanelSettings = useCallback((panelId: string, settings: Partial<PanelSettings>) => {
-    setLayout(prev => ({
-      ...prev,
-      panels: prev.panels.map(p =>
-        p.id === panelId ? { 
-          ...p, 
-          settings: { ...p.settings, ...settings } as PanelSettings
-        } : p
-      )
-    }));
+    setLayout(prev => {
+      const panel = prev.panels.find(p => p.id === panelId);
+      
+      // If this is a chat panel, persist settings to IndexedDB
+      if (panel?.type === 'chat' && panel.agentId) {
+        const updatedSettings = { ...panel.settings, ...settings } as PanelSettings;
+        uiStateStore.savePanelSettings(panel.agentId, updatedSettings).catch(err => {
+          console.error('[PanelContext] Failed to save panel settings:', err);
+        });
+      }
+      
+      return {
+        ...prev,
+        panels: prev.panels.map(p =>
+          p.id === panelId ? { 
+            ...p, 
+            settings: { ...p.settings, ...settings } as PanelSettings
+          } : p
+        )
+      };
+    });
   }, []);
 
   const getActivePanel = useCallback((): Panel | undefined => {

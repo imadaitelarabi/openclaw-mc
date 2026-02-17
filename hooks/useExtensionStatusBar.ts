@@ -8,6 +8,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useExtensions } from '@/contexts/ExtensionContext';
 import type { StatusBarItem } from '@/types/extension';
 
+const STATUS_BAR_REFRESH_INTERVAL_MS = 5000;
+
 /**
  * Hook to get status bar items from all enabled extensions
  * Safe for SSR - returns empty state if context not available
@@ -63,10 +65,23 @@ export function useExtensionStatusBar() {
 
   // Refresh on mount and when extensions change
   useEffect(() => {
-    if (enabledExtensions.length > 0) {
-      refreshStatusBar();
+    if (enabledExtensions.length === 0) {
+      setStatusBarItems(new Map());
+      return;
     }
-  }, [refreshStatusBar]);
+
+    // Initial refresh
+    refreshStatusBar();
+
+    // Poll for updates (e.g. GitHub commits/PR changes)
+    const intervalId = window.setInterval(() => {
+      refreshStatusBar();
+    }, STATUS_BAR_REFRESH_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [enabledExtensions.length, refreshStatusBar]);
 
   return {
     statusBarItems,

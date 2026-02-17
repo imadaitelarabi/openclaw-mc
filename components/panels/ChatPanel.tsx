@@ -187,6 +187,9 @@ export const ChatPanel = memo(function ChatPanel({
     setChatInput("");
     // Clear draft after sending
     uiStateStore.clearDraft(agentId);
+    
+    // Scroll to bottom to show new user message
+    scrollToBottom();
   };
 
   // Check if user has manually scrolled up
@@ -229,7 +232,7 @@ export const ChatPanel = memo(function ChatPanel({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* Chat History */}
       <div 
         ref={scrollContainerRef}
