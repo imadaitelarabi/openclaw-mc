@@ -116,13 +116,13 @@ export function useCronJobs({ wsRef, connectionStatus, onEvent }: UseCronJobsPro
         if (msg.type === 'event' && msg.event === 'cron') {
           const cronEvent = msg.payload as CronEvent;
           
-          if (cronEvent.type === 'job_added' && isValidCronJob(cronEvent.job)) {
+          if (cronEvent.action === 'added' && isValidCronJob(cronEvent.job)) {
             setJobs(prev => [...prev, cronEvent.job!]);
-          } else if (cronEvent.type === 'job_updated' && isValidCronJob(cronEvent.job)) {
+          } else if (cronEvent.action === 'updated' && isValidCronJob(cronEvent.job)) {
             setJobs(prev => prev.map(j => j.id === cronEvent.job!.id ? cronEvent.job! : j));
-          } else if (cronEvent.type === 'job_deleted' && cronEvent.jobId) {
+          } else if (cronEvent.action === 'deleted' && cronEvent.jobId) {
             setJobs(prev => prev.filter(j => j.id !== cronEvent.jobId));
-          } else if (cronEvent.type === 'status_changed' && cronEvent.status) {
+          } else if (cronEvent.action === 'status_changed' && cronEvent.status) {
             setStatus(cronEvent.status);
           }
 

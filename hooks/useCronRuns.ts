@@ -101,14 +101,14 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
         if (msg.type === 'event' && msg.event === 'cron') {
           const cronEvent = msg.payload;
           
-          if (cronEvent.type === 'job_started' && cronEvent.run?.jobId === jobId) {
+          if (cronEvent.action === 'started' && cronEvent.run?.jobId === jobId) {
             // Add to list only if not already present (deduplicate by id)
             setRuns(prev => {
               const exists = prev.some(r => r.id === cronEvent.run.id);
               if (exists) return prev;
               return [cronEvent.run, ...prev];
             });
-          } else if (cronEvent.type === 'job_finished' && cronEvent.run?.jobId === jobId) {
+          } else if (cronEvent.action === 'finished' && cronEvent.run?.jobId === jobId) {
             setRuns(prev => prev.map(r => r.id === cronEvent.run.id ? cronEvent.run : r));
           }
         }
