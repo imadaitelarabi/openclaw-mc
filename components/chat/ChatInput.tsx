@@ -182,6 +182,9 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
   };
 
   const handleSelectTagOption = (option: ChatInputTagOption) => {
+    // Check if this is an extension selection (first level)
+    const isExtensionOption = option.id.startsWith('ext-');
+    
     const insertValue = option.value?.trim() ? option.value : option.tag;
 
     const newValue = insertTag(value, insertValue, (newPosition: number) => {
@@ -189,12 +192,21 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
         if (textareaRef.current) {
           textareaRef.current.focus();
           textareaRef.current.setSelectionRange(newPosition, newPosition);
+          
+          // If this is an extension selection, trigger handleInput to reopen dropdown
+          if (isExtensionOption) {
+            handleInput(textareaRef.current.value, newPosition);
+          }
         }
       });
     });
 
     onChange(newValue);
-    setTagOptions([]);
+    
+    // Don't close dropdown for extension selections
+    if (!isExtensionOption) {
+      setTagOptions([]);
+    }
   };
 
   const handleCloseTagDropdown = () => {

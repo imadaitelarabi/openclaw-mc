@@ -35,14 +35,27 @@ export function ChatInputTagDropdown({
 
   // Calculate dropdown position based on input ref
   useEffect(() => {
-    if (inputRef?.current) {
-      const rect = inputRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.top - 8, // 8px gap above input
-        left: rect.left
-      });
-    }
-  }, [inputRef]);
+    const updatePosition = () => {
+      if (inputRef?.current) {
+        const rect = inputRef.current.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.top - 8, // 8px gap above input
+          left: rect.left
+        });
+      }
+    };
+
+    updatePosition();
+    
+    // Update position on window resize or scroll
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [inputRef, options.length]);
 
   const getNodeAtPath = (source: ChatInputTagOption[], path: number[]) => {
     let current: ChatInputTagOption | null = null;
