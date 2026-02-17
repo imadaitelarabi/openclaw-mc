@@ -6,8 +6,10 @@ import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useS
 import { StatusBar } from "@/components/layout";
 import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { PanelProvider, usePanels } from "@/contexts/PanelContext";
 import { PanelContainer } from "@/components/panels";
+import { uiStateStore } from "@/lib/ui-state-db";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +29,8 @@ function MissionControlInner() {
   const [activeGatewayId, setActiveGatewayId] = useState<string | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [isGatewayConnecting, setIsGatewayConnecting] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
   
   const { toast } = useToast();
   const pendingRequestsRef = useRef(new Map<string, {
@@ -124,6 +128,28 @@ function MissionControlInner() {
       sendMessage({ type: 'gateways.list' });
     }
   }, [connectionStatus, sendMessage]);
+
+  // Check onboarding status on mount
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        const state = await uiStateStore.getOnboardingState();
+        const hasCompletedOnboarding = state?.isOnboarded === true;
+        
+        setOnboardingChecked(true);
+        
+        // Show onboarding wizard for first-time users with no gateway
+        if (!hasCompletedOnboarding && gateways.length === 0) {
+          setShowOnboarding(true);
+        }
+      } catch (err) {
+        console.error('Failed to check onboarding state:', err);
+        setOnboardingChecked(true);
+      }
+    };
+    
+    checkOnboarding();
+  }, [gateways.length]);
 
   useEffect(() => {
     if (connectionStatus !== 'connected') {
@@ -328,6 +354,22 @@ function MissionControlInner() {
 
   // Use the active panel's agent for session key
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
+
+  // Show onboarding wizard for first-time users
+  if (showOnboarding && onboardingChecked) {
+    return (
+      <OnboardingWizard
+        sendMessage={sendMessage}
+        onComplete={() => {
+          setShowOnboarding(false);
+          sendMessage({ type: 'gateways.list' });
+        }}
+        onSkip={() => {
+          setShowOnboarding(false);
+        }}
+      />
+    );
+  }
 
   if (connectionStatus === 'no-config' || showSetup) {
     return (
