@@ -25,12 +25,14 @@ export function CronStatusBarItem({
   onSelectJob,
   onCreateJob,
 }: CronStatusBarItemProps) {
+  const safeJobs = jobs.filter((job): job is CronJob => Boolean(job && job.id));
+
   // Find next scheduled job and running jobs
-  const nextJob = jobs
+  const nextJob = safeJobs
     .filter(j => j.enabled && j.state?.nextRunAtMs)
     .sort((a, b) => (a.state?.nextRunAtMs || 0) - (b.state?.nextRunAtMs || 0))[0];
 
-  const runningJobs = jobs.filter(j => j.enabled && j.state?.nextRunAtMs === 0);
+  const runningJobs = safeJobs.filter(j => j.enabled && j.state?.nextRunAtMs === 0);
   const isRunning = runningJobs.length > 0;
 
   // Format next run time
@@ -39,7 +41,7 @@ export function CronStatusBarItem({
     : 'None';
 
   // Sort jobs: running first, then by nextWake
-  const sortedJobs = [...jobs].sort((a, b) => {
+  const sortedJobs = [...safeJobs].sort((a, b) => {
     const aRunning = a.enabled && a.state?.nextRunAtMs === 0 ? 1 : 0;
     const bRunning = b.enabled && b.state?.nextRunAtMs === 0 ? 1 : 0;
     
@@ -50,7 +52,7 @@ export function CronStatusBarItem({
     return aNext - bNext;
   });
 
-  if (!status?.enabled && jobs.length === 0) {
+  if (!status?.enabled && safeJobs.length === 0) {
     return null;
   }
 
@@ -78,7 +80,7 @@ export function CronStatusBarItem({
       {isOpen && (
         <div className="absolute bottom-full right-0 mb-2 w-64 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
           <div className="p-2 border-b border-border bg-muted/50 flex items-center justify-between gap-2">
-            <span className="text-muted-foreground font-medium">Cron Jobs ({jobs.length})</span>
+            <span className="text-muted-foreground font-medium">Cron Jobs ({safeJobs.length})</span>
             {onCreateJob && (
               <button
                 onClick={onCreateJob}

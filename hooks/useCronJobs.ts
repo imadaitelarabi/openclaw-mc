@@ -21,6 +21,15 @@ export function useCronJobs({ wsRef, connectionStatus, onEvent }: UseCronJobsPro
 
   const socket = wsRef.current;
 
+  const isValidCronJob = useCallback((value: unknown): value is CronJob => {
+    return Boolean(value && typeof value === 'object' && 'id' in value);
+  }, []);
+
+  const sanitizeJobs = useCallback((value: unknown): CronJob[] => {
+    if (!Array.isArray(value)) return [];
+    return value.filter(isValidCronJob);
+  }, [isValidCronJob]);
+
   // Handle incoming WebSocket messages
   useEffect(() => {
     if (!socket) return;
@@ -31,10 +40,11 @@ export function useCronJobs({ wsRef, connectionStatus, onEvent }: UseCronJobsPro
 
         // Handle cron list responses
         if (msg.type === 'cron.list.response') {
-          setJobs(msg.jobs || []);
+          const normalizedJobs = sanitizeJobs(msg.jobs);
+          setJobs(normalizedJobs);
           const pending = pendingRequestsRef.current.get(msg.requestId);
           if (pending) {
-            pending.resolve(msg.jobs);
+            pending.resolve(normalizedJobs);
             pendingRequestsRef.current.delete(msg.requestId);
           }
         } else if (msg.type === 'cron.list.error') {
@@ -56,14 +66,14 @@ export function useCronJobs({ wsRef, connectionStatus, onEvent }: UseCronJobsPro
         }
 
         // Handle add/update/delete responses
-        if (msg.type === 'cron.add.response') {
+        if (msg.type === 'cron.add.response' && isValidCronJob(msg.job)) {
           setJobs(prev => [...prev, msg.job]);
           const pending = pendingRequestsRef.current.get(msg.requestId);
           if (pending) {
             pending.resolve(msg.job);
             pendingRequestsRef.current.delete(msg.requestId);
           }
-        } else if (msg.type === 'cron.update.response') {
+        } else if (msg.type === 'cron.update.response' && isValidCronJob(msg.job)) {
           setJobs(prev => prev.map(j => j.id === msg.job.id ? msg.job : j));
           const pending = pendingRequestsRef.current.get(msg.requestId);
           if (pending) {
@@ -92,9 +102,9 @@ export function useCronJobs({ wsRef, connectionStatus, onEvent }: UseCronJobsPro
         if (msg.type === 'event' && msg.event === 'cron') {
           const cronEvent = msg.payload as CronEvent;
           
-          if (cronEvent.type === 'job_added' && cronEvent.job) {
+          if (cronEvent.type === 'job_added' && isValidCronJob(cronEvent.job)) {
             setJobs(prev => [...prev, cronEvent.job!]);
-          } else if (cronEvent.type === 'job_updated' && cronEvent.job) {
+          } else if (cronEvent.type === 'job_updated' && isValidCronJob(cronEvent.job)) {
             setJobs(prev => prev.map(j => j.id === cronEvent.job!.id ? cronEvent.job! : j));
           } else if (cronEvent.type === 'job_deleted' && cronEvent.jobId) {
             setJobs(prev => prev.filter(j => j.id !== cronEvent.jobId));
@@ -116,7 +126,7 @@ export function useCronJobs({ wsRef, connectionStatus, onEvent }: UseCronJobsPro
     return () => {
       socket.removeEventListener('message', handleMessage);
     };
-  }, [socket, onEvent]);
+  }, [socket, onEvent, isValidCronJob, sanitizeJobs]);
 
   const sendRequest = useCallback((type: string, data: any = {}): Promise<any> => {
     return new Promise((resolve, reject) => {
