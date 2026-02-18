@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { X, Plus, RefreshCw } from 'lucide-react';
 import { ConfigDropdown } from './ConfigDropdown';
 import { ModelSelector } from '../statusbar/ModelSelector';
 import { ThinkingToggle } from '../statusbar/ThinkingToggle';
+import { ConfirmationModal } from '../modals';
 
 interface Model {
   id: string;
@@ -50,11 +52,18 @@ export function PanelHeader({
   onThinkingChange,
   onRefreshChat,
 }: PanelHeaderProps) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
   const handleResetClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onResetSession && window.confirm('Are you sure you want to start a new session? This will clear your chat history.')) {
+    setShowResetConfirm(true);
+  };
+
+  const handleConfirmReset = () => {
+    if (onResetSession) {
       onResetSession();
     }
+    setShowResetConfirm(false);
   };
 
   const handleRefreshClick = (e: React.MouseEvent) => {
@@ -148,6 +157,17 @@ export function PanelHeader({
           </button>
         )}
       </div>
+
+      <ConfirmationModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={handleConfirmReset}
+        title="Start New Session"
+        message="Are you sure you want to start a new session? This will clear your chat history."
+        confirmText="Start New Session"
+        cancelText="Cancel"
+        variant="warning"
+      />
     </div>
   );
 }
