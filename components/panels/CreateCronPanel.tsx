@@ -4,6 +4,8 @@ import { useState } from 'react';
 import type { CronJob } from '@/types';
 import { CRON_SCHEDULE_PRESETS } from '@/lib/cron-schedule';
 
+type SupportedSessionTarget = 'isolated' | 'shared';
+
 interface CreateCronPanelProps {
   onCreateCronJob: (payload: Omit<CronJob, 'id' | 'createdAtMs' | 'updatedAtMs'>) => Promise<CronJob>;
   onClose?: () => void;
@@ -16,7 +18,7 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
     tz: 'UTC',
     message: 'Summarize today\'s key updates.',
     enabled: true,
-    sessionTarget: 'last' as 'isolated' | 'shared' | 'last',
+    sessionTarget: 'shared' as SupportedSessionTarget,
     deliveryMode: 'announce' as 'announce' | 'silent',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -154,10 +156,9 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
                 <label className="block text-sm font-medium mb-2">Session Target</label>
                 <select
                   value={formData.sessionTarget}
-                  onChange={(e) => setFormData({ ...formData, sessionTarget: e.target.value as 'isolated' | 'shared' | 'last' })}
+                  onChange={(e) => setFormData({ ...formData, sessionTarget: e.target.value as SupportedSessionTarget })}
                   className="w-full px-4 py-2 bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="last">Last</option>
                   <option value="isolated">Isolated</option>
                   <option value="shared">Shared</option>
                 </select>

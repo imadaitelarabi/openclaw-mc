@@ -32,7 +32,7 @@ export interface CronJob {
   name: string;
   enabled: boolean;
   schedule: Schedule;
-  sessionTarget: 'isolated' | 'shared' | 'last';
+  sessionTarget: 'isolated' | 'shared' | 'last'; // 'last' kept for backward compatibility with persisted legacy jobs
   wakeMode?: 'now' | 'schedule';
   payload: CronPayload;
   delivery: CronDelivery;

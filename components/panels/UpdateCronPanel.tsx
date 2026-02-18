@@ -4,6 +4,13 @@ import { useState } from 'react';
 import type { CronJob } from '@/types';
 import { CRON_SCHEDULE_PRESETS } from '@/lib/cron-schedule';
 
+type SupportedSessionTarget = 'isolated' | 'shared';
+
+function normalizeSessionTarget(target: CronJob['sessionTarget'] | string | undefined): SupportedSessionTarget {
+  if (target === 'isolated') return 'isolated';
+  return 'shared';
+}
+
 interface UpdateCronPanelProps {
   job: CronJob;
   onUpdateCronJob: (payload: { jobId: string; updates: Partial<CronJob> }) => Promise<CronJob>;
@@ -18,7 +25,7 @@ export function UpdateCronPanel({ job, onUpdateCronJob, onClose }: UpdateCronPan
     tz: job.schedule.tz || 'UTC',
     message: job.payload.message,
     enabled: job.enabled,
-    sessionTarget: job.sessionTarget,
+    sessionTarget: normalizeSessionTarget(job.sessionTarget),
     deliveryMode: job.delivery.mode,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -134,10 +141,9 @@ export function UpdateCronPanel({ job, onUpdateCronJob, onClose }: UpdateCronPan
                 <label className="block text-sm font-medium mb-2">Session Target</label>
                 <select
                   value={formData.sessionTarget}
-                  onChange={(e) => setFormData({ ...formData, sessionTarget: e.target.value as CronJob['sessionTarget'] })}
+                  onChange={(e) => setFormData({ ...formData, sessionTarget: e.target.value as SupportedSessionTarget })}
                   className="w-full px-4 py-2 bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="last">Last</option>
                   <option value="isolated">Isolated</option>
                   <option value="shared">Shared</option>
                 </select>
