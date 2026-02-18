@@ -550,7 +550,7 @@ export const CronPanel = memo(function CronPanel({
       {/* Transcript Viewer */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-4"
+        className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6"
       >
         {runsLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -568,7 +568,7 @@ export const CronPanel = memo(function CronPanel({
             </div>
           </div>
         ) : (
-          <>
+          <div className="max-w-4xl mx-auto space-y-6 pb-4">
             {chatHistory.map((message, idx) => (
               <ChatMessageItem
                 key={message.id || idx}
@@ -577,7 +577,7 @@ export const CronPanel = memo(function CronPanel({
               />
             ))}
             <div ref={chatEndRef} />
-          </>
+          </div>
         )}
       </div>
 
