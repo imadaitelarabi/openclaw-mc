@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useReducer, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { ChatMessage } from '@/types';
 import { extractAgentId, getStreamKey, getToolId } from '@/lib/gateway-utils';
 import { uiStateStore } from '@/lib/ui-state-db';
@@ -506,11 +506,474 @@ function isLikelySameByRunIdAndRole(localMessage: ChatMessage, incomingMessage: 
   return true;
 }
 
+/**
+ * Phase 3 Optimization: Unified State Management
+ * 
+ * Previously used 4 separate useState hooks which caused:
+ * - 12+ scattered setChatHistory calls
+ * - Multiple re-renders per event (3-5 updates per lifecycle event)
+ * - Hard to track state update sites
+ * - No batching of related updates
+ * 
+ * Now uses single useReducer with:
+ * - Centralized state transitions in reducer
+ * - Typed actions for all state changes
+ * - BATCH_UPDATE action to combine multiple updates into single render
+ * - Easier debugging and maintenance
+ */
+
+// Unified state type for all agent event state
+interface AgentEventsState {
+  chatHistory: Record<string, ChatMessage[]>;
+  chatStreams: Record<string, string>;
+  reasoningStreams: Record<string, string>;
+  activeRuns: Record<string, string>;
+}
+
+/**
+ * Action types for state updates.
+ * All state changes go through dispatch with these typed actions.
+ * 
+ * Key patterns:
+ * - ADD_CHAT_MESSAGE: Append single message (with deduplication in reducer)
+ * - UPDATE_CHAT_MESSAGES: Replace entire message array (for bulk updates)
+ * - BATCH_UPDATE: Combine multiple actions into single render (performance critical)
+ * - *_DELTA: Accumulate streaming text without full state replacement
+ */
+type AgentEventsAction =
+  | { type: 'LOAD_CHAT_HISTORY'; agentId: string; messages: ChatMessage[] }
+  | { type: 'PREPEND_CHAT_HISTORY'; agentId: string; messages: ChatMessage[] }
+  | { type: 'SYNC_RECENT_CHAT_HISTORY'; agentId: string; messages: ChatMessage[] }
+  | { type: 'ADD_CHAT_MESSAGE'; agentId: string; message: ChatMessage }
+  | { type: 'UPDATE_CHAT_MESSAGES'; agentId: string; messages: ChatMessage[] }
+  | { type: 'UPDATE_CHAT_MESSAGE'; agentId: string; messageId: string; updates: Partial<ChatMessage> }
+  | { type: 'CLEAR_CHAT_HISTORY'; agentId: string }
+  | { type: 'MARK_TOOLS_INTERRUPTED'; agentId: string; runId: string }
+  | { type: 'FINALIZE_ASSISTANT_MESSAGE'; agentId: string; runId: string; content: string }
+  | { type: 'ADD_ERROR_MESSAGE'; agentId: string; runId: string; errorMsg: string }
+  | { type: 'ABORT_RUN'; agentId: string }
+  | { type: 'UPDATE_STREAM_DELTA'; streamKey: string; delta: string }
+  | { type: 'SET_STREAM_TEXT'; streamKey: string; text: string }
+  | { type: 'CLEAR_STREAM'; streamKey: string }
+  | { type: 'UPDATE_REASONING_DELTA'; streamKey: string; delta: string }
+  | { type: 'CLEAR_REASONING_STREAM'; streamKey: string }
+  | { type: 'SET_ACTIVE_RUN'; agentId: string; runId: string }
+  | { type: 'CLEAR_ACTIVE_RUN'; agentId: string; runId?: string }
+  | { type: 'RESTORE_STREAM_STATE'; activeRuns: Record<string, string>; chatStreams: Record<string, string>; reasoningStreams: Record<string, string> }
+  | { type: 'BATCH_UPDATE'; updates: AgentEventsAction[] };
+
+// Reducer for unified state management - batches multiple updates into a single render
+function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction): AgentEventsState {
+  switch (action.type) {
+    case 'BATCH_UPDATE': {
+      /**
+       * BATCH_UPDATE: Critical performance optimization
+       * 
+       * Combines multiple state updates into a single render cycle.
+       * React's automatic batching (React 18+) helps, but reducer batching
+       * ensures updates are applied atomically even in async scenarios.
+       * 
+       * Example: Lifecycle 'end' event needs to:
+       * 1. Add finalized assistant message
+       * 2. Update interrupted tool statuses  
+       * 3. Clear chat stream
+       * 4. Clear reasoning stream
+       * 5. Clear active run
+       * 
+       * Without batching: 5 separate re-renders
+       * With batching: 1 single re-render
+       */
+      // Process all updates in a single state transition
+      let newState = state;
+      for (const update of action.updates) {
+        newState = agentEventsReducer(newState, update);
+      }
+      return newState;
+    }
+
+    case 'LOAD_CHAT_HISTORY': {
+      const existing = state.chatHistory[action.agentId] || [];
+      if (existing.length === 0) {
+        return {
+          ...state,
+          chatHistory: {
+            ...state.chatHistory,
+            [action.agentId]: action.messages,
+          },
+        };
+      }
+
+      const existingById = new Map(existing.map((message) => [message.id, message]));
+      const merged = action.messages.map((incoming) => {
+        const existingByIdMatch = existingById.get(incoming.id);
+        if (existingByIdMatch) {
+          return withPreservedAttachments(existingByIdMatch, incoming);
+        }
+
+        const optimisticMatch = existing.find((localMessage) =>
+          isLikelySameUserMessage(localMessage, incoming)
+        );
+
+        if (optimisticMatch) {
+          return withPreservedAttachments(optimisticMatch, incoming);
+        }
+
+        return incoming;
+      });
+
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: merged,
+        },
+      };
+    }
+
+    case 'PREPEND_CHAT_HISTORY': {
+      const existing = state.chatHistory[action.agentId] || [];
+      const existingIds = new Set(existing.map(m => m.id));
+      const newMessages = action.messages.filter(m => !existingIds.has(m.id));
+      
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: [...newMessages, ...existing],
+        },
+      };
+    }
+
+    case 'SYNC_RECENT_CHAT_HISTORY': {
+      const existing = state.chatHistory[action.agentId] || [];
+      if (existing.length === 0) {
+        return {
+          ...state,
+          chatHistory: {
+            ...state.chatHistory,
+            [action.agentId]: action.messages,
+          },
+        };
+      }
+
+      const existingIndexById = new Map(existing.map((msg, index) => [msg.id, index]));
+      const next = [...existing];
+      let changed = false;
+
+      action.messages.forEach((incoming) => {
+        const existingIndex = existingIndexById.get(incoming.id);
+
+        if (existingIndex === undefined) {
+          // First try to match by runId + role (handles local finalization vs server ID mismatch)
+          const runIdMatchIndex = next.findIndex((existingMessage) =>
+            isLikelySameByRunIdAndRole(existingMessage, incoming)
+          );
+
+          if (runIdMatchIndex !== -1) {
+            const previousId = next[runIdMatchIndex].id;
+            next[runIdMatchIndex] = withPreservedAttachments(next[runIdMatchIndex], incoming);
+            existingIndexById.delete(previousId);
+            existingIndexById.set(incoming.id, runIdMatchIndex);
+            changed = true;
+            return;
+          }
+
+          // Then try optimistic user message matching
+          const optimisticMatchIndex = next.findIndex((existingMessage) =>
+            isLikelySameUserMessage(existingMessage, incoming)
+          );
+
+          if (optimisticMatchIndex !== -1) {
+            const previousId = next[optimisticMatchIndex].id;
+            next[optimisticMatchIndex] = withPreservedAttachments(next[optimisticMatchIndex], incoming);
+            existingIndexById.delete(previousId);
+            existingIndexById.set(incoming.id, optimisticMatchIndex);
+            changed = true;
+            return;
+          }
+
+          next.push(incoming);
+          existingIndexById.set(incoming.id, next.length - 1);
+          changed = true;
+          return;
+        }
+
+        if (!areChatMessagesEqual(next[existingIndex], incoming)) {
+          next[existingIndex] = withPreservedAttachments(next[existingIndex], incoming);
+          changed = true;
+        }
+      });
+
+      if (!changed) return state;
+
+      // Sort by timestamp, then by ID for stability
+      next.sort((a, b) => {
+        if (a.timestamp !== b.timestamp) {
+          return a.timestamp - b.timestamp;
+        }
+        return a.id.localeCompare(b.id);
+      });
+
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: next,
+        },
+      };
+    }
+
+    case 'ADD_CHAT_MESSAGE': {
+      const currentHistory = state.chatHistory[action.agentId] || [];
+      // Check if message already exists
+      if (currentHistory.some(m => m.id === action.message.id)) {
+        return state;
+      }
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: [...currentHistory, action.message],
+        },
+      };
+    }
+
+    case 'UPDATE_CHAT_MESSAGES': {
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: action.messages,
+        },
+      };
+    }
+
+    case 'UPDATE_CHAT_MESSAGE': {
+      const currentHistory = state.chatHistory[action.agentId] || [];
+      const messageIndex = currentHistory.findIndex(m => m.id === action.messageId);
+      if (messageIndex === -1) return state;
+
+      const updatedHistory = [...currentHistory];
+      updatedHistory[messageIndex] = {
+        ...updatedHistory[messageIndex],
+        ...action.updates,
+      };
+
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: updatedHistory,
+        },
+      };
+    }
+
+    case 'CLEAR_CHAT_HISTORY': {
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: [],
+        },
+      };
+    }
+
+    case 'MARK_TOOLS_INTERRUPTED': {
+      const currentHistory = state.chatHistory[action.agentId] || [];
+      const updated = currentHistory.map(msg => {
+        // Mark pending tools as interrupted
+        if (msg.runId === action.runId && msg.role === 'tool' && msg.tool?.status === 'start') {
+          const duration = msg.tool.startTime 
+            ? Date.now() - msg.tool.startTime 
+            : undefined;
+          
+          return {
+            ...msg,
+            tool: {
+              ...msg.tool,
+              status: 'error' as const,
+              error: 'Interrupted by run failure',
+              duration
+            }
+          };
+        }
+        return msg;
+      });
+      
+      // Only update if something changed
+      if (updated.every((msg, idx) => msg === currentHistory[idx])) {
+        return state;
+      }
+      
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: updated,
+        },
+      };
+    }
+
+    case 'FINALIZE_ASSISTANT_MESSAGE': {
+      const currentHistory = state.chatHistory[action.agentId] || [];
+      // Check if message already exists
+      if (currentHistory.some(m => m.runId === action.runId && m.role === 'assistant')) {
+        return state;
+      }
+      
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: [...currentHistory, {
+            id: action.runId,
+            role: 'assistant' as const,
+            content: action.content,
+            timestamp: Date.now(),
+            runId: action.runId
+          }],
+        },
+      };
+    }
+
+    case 'ADD_ERROR_MESSAGE': {
+      const currentHistory = state.chatHistory[action.agentId] || [];
+      // Check if message already exists
+      if (currentHistory.some(m => m.runId === action.runId && m.role === 'assistant')) {
+        return state;
+      }
+      
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: [...currentHistory, {
+            id: `${action.runId}-error`,
+            role: 'assistant' as const,
+            content: action.errorMsg,
+            stopReason: 'error',
+            errorMessage: action.errorMsg,
+            timestamp: Date.now(),
+            runId: action.runId
+          }],
+        },
+      };
+    }
+
+    case 'ABORT_RUN': {
+      // Clear active run and associated streams for this agent
+      const runId = state.activeRuns[action.agentId];
+      if (!runId) return state;
+      
+      const streamKey = getStreamKey(action.agentId, runId);
+      const nextActiveRuns = { ...state.activeRuns };
+      delete nextActiveRuns[action.agentId];
+      
+      const nextChatStreams = { ...state.chatStreams };
+      delete nextChatStreams[streamKey];
+      
+      const nextReasoningStreams = { ...state.reasoningStreams };
+      delete nextReasoningStreams[streamKey];
+      
+      return {
+        ...state,
+        activeRuns: nextActiveRuns,
+        chatStreams: nextChatStreams,
+        reasoningStreams: nextReasoningStreams,
+      };
+    }
+
+    case 'UPDATE_STREAM_DELTA': {
+      return {
+        ...state,
+        chatStreams: {
+          ...state.chatStreams,
+          [action.streamKey]: (state.chatStreams[action.streamKey] || '') + action.delta,
+        },
+      };
+    }
+
+    case 'SET_STREAM_TEXT': {
+      return {
+        ...state,
+        chatStreams: {
+          ...state.chatStreams,
+          [action.streamKey]: action.text,
+        },
+      };
+    }
+
+    case 'CLEAR_STREAM': {
+      const next = { ...state.chatStreams };
+      delete next[action.streamKey];
+      return {
+        ...state,
+        chatStreams: next,
+      };
+    }
+
+    case 'UPDATE_REASONING_DELTA': {
+      return {
+        ...state,
+        reasoningStreams: {
+          ...state.reasoningStreams,
+          [action.streamKey]: (state.reasoningStreams[action.streamKey] || '') + action.delta,
+        },
+      };
+    }
+
+    case 'CLEAR_REASONING_STREAM': {
+      const next = { ...state.reasoningStreams };
+      delete next[action.streamKey];
+      return {
+        ...state,
+        reasoningStreams: next,
+      };
+    }
+
+    case 'SET_ACTIVE_RUN': {
+      return {
+        ...state,
+        activeRuns: {
+          ...state.activeRuns,
+          [action.agentId]: action.runId,
+        },
+      };
+    }
+
+    case 'CLEAR_ACTIVE_RUN': {
+      const next = { ...state.activeRuns };
+      if (!action.runId || next[action.agentId] === action.runId) {
+        delete next[action.agentId];
+      }
+      return {
+        ...state,
+        activeRuns: next,
+      };
+    }
+
+    case 'RESTORE_STREAM_STATE': {
+      return {
+        ...state,
+        activeRuns: { ...state.activeRuns, ...action.activeRuns },
+        chatStreams: { ...state.chatStreams, ...action.chatStreams },
+        reasoningStreams: { ...state.reasoningStreams, ...action.reasoningStreams },
+      };
+    }
+
+    default:
+      return state;
+  }
+}
+
+
 export function useAgentEvents() {
-  const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({});
-  const [chatStreams, setChatStreams] = useState<Record<string, string>>({});
-  const [reasoningStreams, setReasoningStreams] = useState<Record<string, string>>({});
-  const [activeRuns, setActiveRuns] = useState<Record<string, string>>({});
+  const [state, dispatch] = useReducer(agentEventsReducer, {
+    chatHistory: {},
+    chatStreams: {},
+    reasoningStreams: {},
+    activeRuns: {},
+  });
   
   // Refs to store latest accumulated text (synchronous, no state timing issues)
   const latestTextRef = useRef<Record<string, string>>({});
@@ -518,6 +981,14 @@ export function useAgentEvents() {
   const toolCallToMessageIdRef = useRef<Record<string, string>>({});
   const persistedStreamAgentsRef = useRef(new Set<string>());
   const activeToolsRef = useRef<Record<string, ChatMessage>>({});
+  
+  // Keep a ref of activeRuns to avoid callback dependencies
+  const activeRunsRef = useRef<Record<string, string>>({});
+  
+  // Sync activeRunsRef with state
+  useEffect(() => {
+    activeRunsRef.current = state.activeRuns;
+  }, [state.activeRuns]);
   
   // Event deduplication tracking
   const seenEventsRef = useRef(new Set<string>());
@@ -610,37 +1081,10 @@ export function useAgentEvents() {
     console.log(`[Mission Control] Loading ${messages.length} history messages for agent ${agentId}`);
     const transformedMessages = transformGatewayHistoryMessages(messages);
 
-    setChatHistory(prev => {
-      const existing = prev[agentId] || [];
-      if (existing.length === 0) {
-        return {
-          ...prev,
-          [agentId]: transformedMessages,
-        };
-      }
-
-      const existingById = new Map(existing.map((message) => [message.id, message]));
-      const merged = transformedMessages.map((incoming) => {
-        const existingByIdMatch = existingById.get(incoming.id);
-        if (existingByIdMatch) {
-          return withPreservedAttachments(existingByIdMatch, incoming);
-        }
-
-        const optimisticMatch = existing.find((localMessage) =>
-          isLikelySameUserMessage(localMessage, incoming)
-        );
-
-        if (optimisticMatch) {
-          return withPreservedAttachments(optimisticMatch, incoming);
-        }
-
-        return incoming;
-      });
-
-      return {
-        ...prev,
-        [agentId]: merged,
-      };
+    dispatch({
+      type: 'LOAD_CHAT_HISTORY',
+      agentId,
+      messages: transformedMessages,
     });
   }, []);
 
@@ -650,20 +1094,12 @@ export function useAgentEvents() {
   const prependChatHistory = useCallback((agentId: string, messages: any[]) => {
     const transformedMessages = transformGatewayHistoryMessages(messages);
 
-    // Prepend to existing history with deduplication
-    setChatHistory(prev => {
-      const existing = prev[agentId] || [];
-      const existingIds = new Set(existing.map(m => m.id));
-      
-      // Filter out duplicates
-      const newMessages = transformedMessages.filter(m => !existingIds.has(m.id));
-      
-      console.log(`[Mission Control] Prepending ${newMessages.length} new messages (filtered ${transformedMessages.length - newMessages.length} duplicates) for agent ${agentId}`);
-      
-      return {
-        ...prev,
-        [agentId]: [...newMessages, ...existing],
-      };
+    console.log(`[Mission Control] Prepending ${transformedMessages.length} messages (before deduplication) for agent ${agentId}`);
+    
+    dispatch({
+      type: 'PREPEND_CHAT_HISTORY',
+      agentId,
+      messages: transformedMessages,
     });
   }, []);
 
@@ -676,76 +1112,10 @@ export function useAgentEvents() {
   const syncRecentChatHistory = useCallback((agentId: string, messages: any[]) => {
     const transformedMessages = transformGatewayHistoryMessages(messages);
 
-    setChatHistory(prev => {
-      const existing = prev[agentId] || [];
-      if (existing.length === 0) {
-        return {
-          ...prev,
-          [agentId]: transformedMessages,
-        };
-      }
-
-      const existingIndexById = new Map(existing.map((msg, index) => [msg.id, index]));
-      const next = [...existing];
-      let changed = false;
-
-      transformedMessages.forEach((incoming) => {
-        const existingIndex = existingIndexById.get(incoming.id);
-
-        if (existingIndex === undefined) {
-          // First try to match by runId + role (handles local finalization vs server ID mismatch)
-          const runIdMatchIndex = next.findIndex((existingMessage) =>
-            isLikelySameByRunIdAndRole(existingMessage, incoming)
-          );
-
-          if (runIdMatchIndex !== -1) {
-            const previousId = next[runIdMatchIndex].id;
-            next[runIdMatchIndex] = withPreservedAttachments(next[runIdMatchIndex], incoming);
-            existingIndexById.delete(previousId);
-            existingIndexById.set(incoming.id, runIdMatchIndex);
-            changed = true;
-            return;
-          }
-
-          // Then try optimistic user message matching
-          const optimisticMatchIndex = next.findIndex((existingMessage) =>
-            isLikelySameUserMessage(existingMessage, incoming)
-          );
-
-          if (optimisticMatchIndex !== -1) {
-            const previousId = next[optimisticMatchIndex].id;
-            next[optimisticMatchIndex] = withPreservedAttachments(next[optimisticMatchIndex], incoming);
-            existingIndexById.delete(previousId);
-            existingIndexById.set(incoming.id, optimisticMatchIndex);
-            changed = true;
-            return;
-          }
-
-          next.push(incoming);
-          existingIndexById.set(incoming.id, next.length - 1);
-          changed = true;
-          return;
-        }
-
-        if (!areChatMessagesEqual(next[existingIndex], incoming)) {
-          next[existingIndex] = withPreservedAttachments(next[existingIndex], incoming);
-          changed = true;
-        }
-      });
-
-      if (!changed) return prev;
-
-      next.sort((a, b) => {
-        if (a.timestamp !== b.timestamp) {
-          return a.timestamp - b.timestamp;
-        }
-        return a.id.localeCompare(b.id);
-      });
-
-      return {
-        ...prev,
-        [agentId]: next,
-      };
+    dispatch({
+      type: 'SYNC_RECENT_CHAT_HISTORY',
+      agentId,
+      messages: transformedMessages,
     });
   }, []);
 
@@ -754,29 +1124,21 @@ export function useAgentEvents() {
       const { agentId, ok } = message;
       if (!agentId || !ok) return;
 
-      setActiveRuns(prev => {
-        const runId = prev[agentId];
-        if (!runId) return prev;
-
-        const next = { ...prev };
-        delete next[agentId];
-
+      // Get runId from ref for cleanup (avoids callback dependency on state)
+      const runId = activeRunsRef.current[agentId];
+      
+      // Use ABORT_RUN action to clear state
+      dispatch({
+        type: 'ABORT_RUN',
+        agentId,
+      });
+      
+      // Clean up refs if we have a runId
+      if (runId) {
         const streamKey = getStreamKey(agentId, runId);
-        setChatStreams(streamPrev => {
-          const streamNext = { ...streamPrev };
-          delete streamNext[streamKey];
-          return streamNext;
-        });
-        setReasoningStreams(reasoningPrev => {
-          const reasoningNext = { ...reasoningPrev };
-          delete reasoningNext[streamKey];
-          return reasoningNext;
-        });
         delete latestTextRef.current[streamKey];
         clearPendingToolQueuesForRun(runId);
-
-        return next;
-      });
+      }
       return;
     }
 
@@ -809,10 +1171,10 @@ export function useAgentEvents() {
       const { runId, sessionKey, state } = payload;
       const agentId = extractAgentId(sessionKey);
       if (agentId && state === 'final') {
-        setActiveRuns(prev => {
-          const next = { ...prev };
-          if (next[agentId] === runId) delete next[agentId];
-          return next;
+        dispatch({
+          type: 'CLEAR_ACTIVE_RUN',
+          agentId,
+          runId,
         });
       }
       return;
@@ -845,10 +1207,7 @@ export function useAgentEvents() {
 
     console.log('[Mission Control] Agent event:', { stream, agentId, runId, seq, data });
 
-    // Track active run
-    if (stream === 'lifecycle' && data?.phase === 'start') {
-      setActiveRuns(prev => ({ ...prev, [agentId]: runId }));
-    }
+    // Active runs are tracked via SET_ACTIVE_RUN dispatch in lifecycle 'start' events
 
     // Handle tool events
     if (stream === 'tool') {
@@ -964,13 +1323,10 @@ export function useAgentEvents() {
           };
 
           // Add to chatHistory now that it's complete
-          setChatHistory(prev => {
-            const currentHistory = prev[agentId] || [];
-            // Check if already in history
-            if (currentHistory.some(m => m.id === resolvedToolId)) {
-              return prev;
-            }
-            return { ...prev, [agentId]: [...currentHistory, completedToolMsg] };
+          dispatch({
+            type: 'ADD_CHAT_MESSAGE',
+            agentId,
+            message: completedToolMsg,
           });
 
           // Clean up
@@ -1002,13 +1358,10 @@ export function useAgentEvents() {
           };
 
           // Add to chatHistory now that it's errored
-          setChatHistory(prev => {
-            const currentHistory = prev[agentId] || [];
-            // Check if already in history
-            if (currentHistory.some(m => m.id === resolvedToolId)) {
-              return prev;
-            }
-            return { ...prev, [agentId]: [...currentHistory, errorToolMsg] };
+          dispatch({
+            type: 'ADD_CHAT_MESSAGE',
+            agentId,
+            message: errorToolMsg,
           });
 
           // Clean up
@@ -1024,29 +1377,32 @@ export function useAgentEvents() {
     // Handle reasoning stream
     if (stream === 'reasoning') {
       if (data?.delta) {
-        setReasoningStreams(prev => ({
-          ...prev,
-          [streamKey]: (prev[streamKey] || '') + normalizeTextContent(data.delta)
-        }));
-      } else if (data?.text) {
-        setChatHistory(prev => {
-          const currentHistory = prev[agentId] || [];
-          if (currentHistory.some(m => m.runId === runId && m.role === 'reasoning')) return prev;
-          return {
-            ...prev,
-            [agentId]: [...currentHistory, {
-              id: `${runId}-reasoning`,
-              role: 'reasoning',
-              content: normalizeTextContent(data.text),
-              timestamp: Date.now(),
-              runId
-            }]
-          };
+        dispatch({
+          type: 'UPDATE_REASONING_DELTA',
+          streamKey,
+          delta: normalizeTextContent(data.delta),
         });
-        setReasoningStreams(prev => {
-          const next = { ...prev };
-          delete next[streamKey];
-          return next;
+      } else if (data?.text) {
+        // Batch the message add and stream clear
+        dispatch({
+          type: 'BATCH_UPDATE',
+          updates: [
+            {
+              type: 'ADD_CHAT_MESSAGE',
+              agentId,
+              message: {
+                id: `${runId}-reasoning`,
+                role: 'reasoning' as const,
+                content: normalizeTextContent(data.text),
+                timestamp: Date.now(),
+                runId
+              },
+            },
+            {
+              type: 'CLEAR_REASONING_STREAM',
+              streamKey,
+            },
+          ],
         });
       }
     }
@@ -1059,10 +1415,11 @@ export function useAgentEvents() {
       
       if (data?.delta !== undefined) {
         const normalizedDelta = normalizeTextContent(data.delta);
-        setChatStreams(prev => ({
-          ...prev,
-          [streamKey]: (prev[streamKey] || '') + normalizedDelta
-        }));
+        dispatch({
+          type: 'UPDATE_STREAM_DELTA',
+          streamKey,
+          delta: normalizedDelta,
+        });
         // Also update latestTextRef with the accumulated text
         latestTextRef.current[streamKey] = (latestTextRef.current[streamKey] || '') + normalizedDelta;
       }
@@ -1073,7 +1430,11 @@ export function useAgentEvents() {
       console.log('[Mission Control] Lifecycle event:', data?.phase, 'runId:', runId);
       
       if (data?.phase === 'start') {
-        setActiveRuns(prev => ({ ...prev, [agentId]: runId }));
+        dispatch({
+          type: 'SET_ACTIVE_RUN',
+          agentId,
+          runId,
+        });
       }
       
       if (data?.phase === 'end' || data?.phase === 'error') {
@@ -1084,98 +1445,60 @@ export function useAgentEvents() {
           preview: accumulatedText.substring(0, 50) 
         });
         
+        const updates: AgentEventsAction[] = [];
+        
+        // Use FINALIZE_ASSISTANT_MESSAGE action which checks for duplicates in the reducer
         if (accumulatedText) {
-          setChatHistory(prev => {
-            const currentHistory = prev[agentId] || [];
-            if (currentHistory.some(m => m.runId === runId && m.role === 'assistant')) {
-              console.log('[Mission Control] Duplicate detected, skipping');
-              return prev;
-            }
-            console.log('[Mission Control] Adding finalized message to history');
-            return {
-              ...prev,
-              [agentId]: [...currentHistory, {
-                id: runId,
-                role: 'assistant',
-                content: accumulatedText,
-                timestamp: Date.now(),
-                runId
-              }]
-            };
+          console.log('[Mission Control] Adding finalized message to history');
+          updates.push({
+            type: 'FINALIZE_ASSISTANT_MESSAGE',
+            agentId,
+            runId,
+            content: accumulatedText,
           });
         }
         
         // Handle pending tools gracefully when run ends/errors
         if (data?.phase === 'error') {
-          setChatHistory(prev => {
-            const currentHistory = prev[agentId] || [];
-            const updated = currentHistory.map(msg => {
-              // Mark pending tools as interrupted
-              if (msg.runId === runId && msg.role === 'tool' && msg.tool?.status === 'start') {
-                const duration = msg.tool.startTime 
-                  ? Date.now() - msg.tool.startTime 
-                  : undefined;
-                
-                return {
-                  ...msg,
-                  tool: {
-                    ...msg.tool,
-                    status: 'error' as const,
-                    error: 'Interrupted by run failure',
-                    duration
-                  }
-                };
-              }
-              return msg;
-            });
-            return { ...prev, [agentId]: updated };
+          // Use MARK_TOOLS_INTERRUPTED action to avoid reading stale state
+          updates.push({
+            type: 'MARK_TOOLS_INTERRUPTED',
+            agentId,
+            runId,
           });
 
           clearPendingToolQueuesForRun(runId);
+          
+          // Add error message if no accumulated text using ADD_ERROR_MESSAGE action
+          if (!accumulatedText) {
+            const errorMsg = data?.error || 'An error occurred';
+            updates.push({
+              type: 'ADD_ERROR_MESSAGE',
+              agentId,
+              runId,
+              errorMsg,
+            });
+          }
         }
 
         if (data?.phase === 'end') {
           clearPendingToolQueuesForRun(runId);
         }
         
-        // Clear streams
-        setChatStreams(prev => {
-          const next = { ...prev };
-          delete next[streamKey];
-          return next;
-        });
-        setReasoningStreams(prev => {
-          const next = { ...prev };
-          delete next[streamKey];
-          return next;
-        });
-        setActiveRuns(prev => {
-          const next = { ...prev };
-          if (next[agentId] === runId) delete next[agentId];
-          return next;
-        });
+        // Clear streams and active run
+        updates.push(
+          { type: 'CLEAR_STREAM', streamKey },
+          { type: 'CLEAR_REASONING_STREAM', streamKey },
+          { type: 'CLEAR_ACTIVE_RUN', agentId, runId }
+        );
+        
         delete latestTextRef.current[streamKey];
 
-        // Handle error state
-        if (data?.phase === 'error') {
-          const errorMsg = data?.error || 'An error occurred';
-          setChatHistory(prev => {
-            const currentHistory = prev[agentId] || [];
-            if (currentHistory.some(m => m.runId === runId && m.role === 'assistant')) {
-              return prev;
-            }
-            return {
-              ...prev,
-              [agentId]: [...currentHistory, {
-                id: `${runId}-error`,
-                role: 'assistant',
-                content: errorMsg,
-                stopReason: 'error',
-                errorMessage: errorMsg,
-                timestamp: Date.now(),
-                runId
-              }]
-            };
+        // Batch all updates
+        if (updates.length > 0) {
+          dispatch({
+            type: 'BATCH_UPDATE',
+            updates,
           });
         }
       }
@@ -1190,10 +1513,11 @@ export function useAgentEvents() {
       timestamp: Date.now(),
       ...(attachments && attachments.length > 0 && { attachments })
     };
-    setChatHistory(prev => ({
-      ...prev,
-      [agentId]: [...(prev[agentId] || []), userMsg]
-    }));
+    dispatch({
+      type: 'ADD_CHAT_MESSAGE',
+      agentId,
+      message: userMsg,
+    });
   }, []);
 
   // Restore in-progress stream state on mount so typing survives refresh
@@ -1204,36 +1528,27 @@ export function useAgentEvents() {
       const persistedStates = await uiStateStore.getAllStreamStates();
       if (!mounted || persistedStates.length === 0) return;
 
-      setActiveRuns(prev => {
-        const next = { ...prev };
-        persistedStates.forEach(({ agentId, runId }) => {
-          if (!next[agentId]) {
-            next[agentId] = runId;
-          }
-        });
-        return next;
+      const activeRuns: Record<string, string> = {};
+      const chatStreams: Record<string, string> = {};
+      const reasoningStreams: Record<string, string> = {};
+
+      persistedStates.forEach(({ agentId, runId, assistantStream, reasoningStream }) => {
+        activeRuns[agentId] = runId;
+        
+        const streamKey = getStreamKey(agentId, runId);
+        if (assistantStream) {
+          chatStreams[streamKey] = assistantStream;
+        }
+        if (reasoningStream) {
+          reasoningStreams[streamKey] = reasoningStream;
+        }
       });
 
-      setChatStreams(prev => {
-        const next = { ...prev };
-        persistedStates.forEach(({ agentId, runId, assistantStream }) => {
-          const streamKey = getStreamKey(agentId, runId);
-          if (!next[streamKey] && assistantStream) {
-            next[streamKey] = assistantStream;
-          }
-        });
-        return next;
-      });
-
-      setReasoningStreams(prev => {
-        const next = { ...prev };
-        persistedStates.forEach(({ agentId, runId, reasoningStream }) => {
-          const streamKey = getStreamKey(agentId, runId);
-          if (!next[streamKey] && reasoningStream) {
-            next[streamKey] = reasoningStream;
-          }
-        });
-        return next;
+      dispatch({
+        type: 'RESTORE_STREAM_STATE',
+        activeRuns,
+        chatStreams,
+        reasoningStreams,
       });
 
       persistedStreamAgentsRef.current = new Set(persistedStates.map(({ agentId }) => agentId));
@@ -1249,15 +1564,15 @@ export function useAgentEvents() {
   // Persist active stream state for refresh recovery
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      const activeEntries = Object.entries(activeRuns);
+      const activeEntries = Object.entries(state.activeRuns);
       const nextPersistedAgents = new Set(activeEntries.map(([agentId]) => agentId));
 
       if (activeEntries.length > 0) {
         void Promise.all(
           activeEntries.map(([agentId, runId]) => {
             const streamKey = getStreamKey(agentId, runId);
-            const assistantStream = chatStreams[streamKey] || '';
-            const reasoningStream = reasoningStreams[streamKey] || '';
+            const assistantStream = state.chatStreams[streamKey] || '';
+            const reasoningStream = state.reasoningStreams[streamKey] || '';
 
             return uiStateStore.saveStreamState(
               agentId,
@@ -1279,7 +1594,7 @@ export function useAgentEvents() {
     }, 200);
 
     return () => clearTimeout(timeoutId);
-  }, [activeRuns, chatStreams, reasoningStreams]);
+  }, [state.activeRuns, state.chatStreams, state.reasoningStreams]);
 
   // Cleanup effect to prevent memory leaks
   useEffect(() => {
@@ -1291,14 +1606,17 @@ export function useAgentEvents() {
   }, []);
 
   const clearChatHistory = useCallback((agentId: string) => {
-    setChatHistory(prev => ({ ...prev, [agentId]: [] }));
+    dispatch({
+      type: 'CLEAR_CHAT_HISTORY',
+      agentId,
+    });
   }, []);
 
   return {
-    chatHistory,
-    chatStreams,
-    reasoningStreams,
-    activeRuns,
+    chatHistory: state.chatHistory,
+    chatStreams: state.chatStreams,
+    reasoningStreams: state.reasoningStreams,
+    activeRuns: state.activeRuns,
     handleAgentEvent,
     addUserMessage,
     clearChatHistory
