@@ -92,6 +92,171 @@ function normalizeChatMessage(raw: any, fallbackRunId?: string): ChatMessage | n
   return normalized;
 }
 
+function stripAssistantEnvelope(text: string): string {
+  const finalMatch = text.match(/<final>([\s\S]*?)<\/final>/i);
+  const withoutFinal = finalMatch ? finalMatch[1] : text;
+  const withoutThink = withoutFinal.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  return withoutThink.replace(/\[\[reply_to_current\]\]/g, '').trim();
+}
+
+function toContentParts(content: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(content)) {
+    return content.filter((part): part is Record<string, unknown> => typeof part === 'object' && part !== null);
+  }
+
+  if (typeof content === 'string') {
+    return [{ type: 'text', text: content }];
+  }
+
+  if (content && typeof content === 'object') {
+    return [content as Record<string, unknown>];
+  }
+
+  return [];
+}
+
+function normalizeHistoryMessages(rawMessages: any[], fallbackRunId?: string): ChatMessage[] {
+  const normalized: ChatMessage[] = [];
+
+  const upsertMessage = (incoming: ChatMessage) => {
+    const existingIndex = normalized.findIndex((item) => item.id === incoming.id);
+    if (existingIndex === -1) {
+      normalized.push(incoming);
+      return;
+    }
+
+    const existing = normalized[existingIndex];
+    const merged: ChatMessage = {
+      ...existing,
+      ...incoming,
+      timestamp: Math.max(existing.timestamp || 0, incoming.timestamp || 0),
+      content: incoming.content || existing.content,
+      tool: incoming.tool
+        ? {
+            ...(existing.tool || {}),
+            ...incoming.tool,
+          }
+        : existing.tool,
+    };
+
+    normalized[existingIndex] = merged;
+  };
+
+  rawMessages.forEach((raw, messageIndex) => {
+    if (!raw || typeof raw !== 'object') return;
+
+    const timestamp = typeof raw.timestamp === 'number' ? raw.timestamp : Date.now();
+    const runId = typeof raw.runId === 'string' ? raw.runId : fallbackRunId;
+    const baseId = typeof raw.id === 'string'
+      ? raw.id
+      : `${runId || 'cron'}-${timestamp}-${messageIndex}`;
+
+    if (raw.role === 'toolResult') {
+      const details = (raw.details && typeof raw.details === 'object') ? raw.details : {};
+      const isError = Boolean(raw.isError);
+      const toolName = normalizeTextContent(raw.toolName || 'tool');
+      const toolCallId = normalizeTextContent(raw.toolCallId || `${baseId}-tool-result`);
+      const resultText = normalizeTextContent((details as any).aggregated || raw.content || (details as any).result);
+      const errorText = normalizeTextContent((details as any).error || raw.content || 'Tool execution failed');
+
+      upsertMessage({
+        id: toolCallId,
+        role: 'tool',
+        content: toolName,
+        timestamp,
+        runId,
+        tool: {
+          name: toolName,
+          status: isError ? 'error' : 'end',
+          result: isError ? undefined : (resultText || undefined),
+          error: isError ? errorText : undefined,
+          duration: typeof (details as any).durationMs === 'number' ? (details as any).durationMs : undefined,
+          exitCode: typeof (details as any).exitCode === 'number' ? (details as any).exitCode : undefined,
+        },
+      });
+      return;
+    }
+
+    const parts = toContentParts(raw.content);
+    const textParts: string[] = [];
+
+    parts.forEach((part, partIndex) => {
+      const partType = normalizeTextContent(part.type).toLowerCase();
+
+      if (partType === 'thinking') {
+        const thinkingText = normalizeTextContent(part.thinking ?? part.text).trim();
+        if (!thinkingText) return;
+
+        upsertMessage({
+          id: `${baseId}-reasoning-${partIndex}`,
+          role: 'reasoning',
+          content: thinkingText,
+          timestamp,
+          runId,
+        });
+        return;
+      }
+
+      if (partType === 'toolcall') {
+        const toolName = normalizeTextContent(part.name || 'tool');
+        const toolCallId = normalizeTextContent(part.id || `${baseId}-tool-${partIndex}`);
+
+        upsertMessage({
+          id: toolCallId,
+          role: 'tool',
+          content: toolName,
+          timestamp,
+          runId,
+          tool: {
+            name: toolName,
+            args: part.arguments,
+            status: 'start',
+          },
+        });
+        return;
+      }
+
+      if (partType === 'text') {
+        const text = stripAssistantEnvelope(normalizeTextContent(part.text));
+        if (text) textParts.push(text);
+        return;
+      }
+
+      const fallbackText = normalizeTextContent(part).trim();
+      if (fallbackText) textParts.push(stripAssistantEnvelope(fallbackText));
+    });
+
+    const role: ChatMessage['role'] = raw.role === 'user'
+      ? 'user'
+      : raw.role === 'reasoning'
+        ? 'reasoning'
+        : raw.role === 'tool'
+          ? 'tool'
+          : 'assistant';
+
+    const content = textParts.join('\n\n').trim() || stripAssistantEnvelope(normalizeTextContent(raw.content ?? raw.text ?? raw.message ?? '').trim());
+
+    if (!content && role !== 'tool') {
+      return;
+    }
+
+    const normalizedMessage = normalizeChatMessage({
+      ...raw,
+      id: String(baseId),
+      role,
+      content,
+      timestamp,
+      runId,
+    }, fallbackRunId);
+
+    if (normalizedMessage) {
+      upsertMessage(normalizedMessage);
+    }
+  });
+
+  return normalized.sort((a, b) => a.timestamp - b.timestamp);
+}
+
 function upsertChatMessage(prev: ChatMessage[], incoming: ChatMessage, appendContent = false): ChatMessage[] {
   const existingIndex = prev.findIndex((message) => message.id === incoming.id);
 
@@ -192,9 +357,7 @@ export const CronPanel = memo(function CronPanel({
 
         if (msg.type === 'chat.history' && msg.sessionKey === selectedSessionKey) {
           const messages = Array.isArray(msg.messages)
-            ? msg.messages
-              .map((message: any) => normalizeChatMessage(message, selectedRun?.id))
-              .filter((message: ChatMessage | null): message is ChatMessage => message !== null)
+            ? normalizeHistoryMessages(msg.messages, selectedRun?.id)
             : [];
 
           setChatHistory(messages);
@@ -208,9 +371,7 @@ export const CronPanel = memo(function CronPanel({
           }
 
           const messages = Array.isArray(msg.messages)
-            ? msg.messages
-              .map((message: any) => normalizeChatMessage(message, selectedRun?.id))
-              .filter((message: ChatMessage | null): message is ChatMessage => message !== null)
+            ? normalizeHistoryMessages(msg.messages, selectedRun?.id)
             : [];
 
           setChatHistory(messages);
