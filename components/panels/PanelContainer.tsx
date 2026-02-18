@@ -119,9 +119,9 @@ export function PanelContainer({
             onShowToolsChange={panel.type === 'chat' ? onShowToolsChange : undefined}
             onShowReasoningChange={panel.type === 'chat' ? onShowReasoningChange : undefined}
             models={panel.type === 'chat' ? models : undefined}
-            currentModel={panel.type === 'chat' ? sessionSettings.model : undefined}
+            currentModel={panel.type === 'chat' ? panel.model : undefined}
             onModelChange={panel.type === 'chat' ? onModelChange : undefined}
-            thinkingMode={panel.type === 'chat' ? (sessionSettings.thinking || 'low') : undefined}
+            thinkingMode={panel.type === 'chat' ? (panel.thinking || 'low') : undefined}
             onThinkingChange={panel.type === 'chat' ? onThinkingChange : undefined}
             onRefreshChat={panel.type === 'chat' && panel.agentId ? () => onRefreshChat?.(panel.agentId!) : undefined}
           />

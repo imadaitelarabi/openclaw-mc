@@ -12,6 +12,7 @@ interface PanelContextValue {
   setActivePanel: (panelId: string) => void;
   updatePanel: (panelId: string, updates: Partial<Panel>) => void;
   updatePanelSettings: (panelId: string, settings: Partial<PanelSettings>) => void;
+  updatePanelSessionSettings: (panelId: string, sessionSettings: { model?: string; modelProvider?: string; thinking?: 'off' | 'low' | 'medium' | 'high' }) => void;
   getActivePanel: () => Panel | undefined;
 }
 
@@ -195,7 +196,12 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         agentId: data?.agentId,
         data: data || {},
         isActive: true,
-        settings: panelSettings
+        settings: panelSettings,
+        // Initialize session settings for chat panels
+        sessionKey: type === 'chat' && data?.agentId ? `agent:${data.agentId}:main` : undefined,
+        model: data?.model,
+        modelProvider: data?.modelProvider,
+        thinking: data?.thinking || 'low'
       };
 
       // Set all existing panels to inactive
@@ -288,6 +294,20 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
     });
   }, []);
 
+  const updatePanelSessionSettings = useCallback((panelId: string, sessionSettings: { model?: string; modelProvider?: string; thinking?: 'off' | 'low' | 'medium' | 'high' }) => {
+    setLayout(prev => ({
+      ...prev,
+      panels: prev.panels.map(p =>
+        p.id === panelId ? { 
+          ...p,
+          model: sessionSettings.model !== undefined ? sessionSettings.model : p.model,
+          modelProvider: sessionSettings.modelProvider !== undefined ? sessionSettings.modelProvider : p.modelProvider,
+          thinking: sessionSettings.thinking !== undefined ? sessionSettings.thinking : p.thinking
+        } : p
+      )
+    }));
+  }, []);
+
   const getActivePanel = useCallback((): Panel | undefined => {
     return layout.panels.find(p => p.id === layout.activePanel);
   }, [layout]);
@@ -300,6 +320,7 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
       setActivePanel, 
       updatePanel,
       updatePanelSettings,
+      updatePanelSessionSettings,
       getActivePanel
     }}>
       {children}

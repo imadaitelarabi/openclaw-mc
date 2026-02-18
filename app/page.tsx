@@ -22,7 +22,7 @@ export default function MissionControl() {
 }
 
 function MissionControlInner() {
-  const { layout, openPanel, closePanel, setActivePanel, updatePanelSettings, getActivePanel } = usePanels();
+  const { layout, openPanel, closePanel, setActivePanel, updatePanelSettings, updatePanelSessionSettings, getActivePanel } = usePanels();
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [isCronMenuOpen, setIsCronMenuOpen] = useState(false);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
@@ -296,6 +296,8 @@ function MissionControlInner() {
         setLoading(false);
       } else if (message.type === 'sessions' && message.data) {
         const sessions = message.data.sessions || [];
+        
+        // Update the active panel's session settings in the global state
         if (activePanelAgentId) {
           const agentSession = sessions.find((s: any) => 
             s.key?.includes(`agent:${activePanelAgentId}`)
@@ -309,6 +311,23 @@ function MissionControlInner() {
             });
           }
         }
+        
+        // Update all chat panels with their respective session settings
+        layout.panels.forEach(panel => {
+          if (panel.type === 'chat' && panel.agentId) {
+            const panelSession = sessions.find((s: any) => 
+              s.key?.includes(`agent:${panel.agentId}`)
+            );
+            if (panelSession) {
+              updatePanelSessionSettings(panel.id, {
+                model: panelSession.model,
+                modelProvider: panelSession.modelProvider,
+                thinking: panelSession.thinkingLevel || 'low'
+              });
+            }
+          }
+        });
+        
         setLoading(false);
       } else if (message.type === 'sessions.patch.ack') {
         setLoading(false);
@@ -324,6 +343,8 @@ function MissionControlInner() {
     toast,
     clearChatHistory,
     isOnboardingForced,
+    layout.panels,
+    updatePanelSessionSettings,
   ]);
 
   useEffect(() => {
@@ -355,7 +376,11 @@ function MissionControlInner() {
   const handleSelectAgent = useCallback((agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
     openPanel('chat', { agentId, agentName: agent?.name || 'Chat' });
-  }, [agents, openPanel]);
+    // Request session settings for this agent
+    if (connectionStatus === 'connected') {
+      sendMessage({ type: 'sessions.list' });
+    }
+  }, [agents, openPanel, connectionStatus, sendMessage]);
   
   // Handler to open create agent panel
   const handleCreateAgent = useCallback(() => {
@@ -521,17 +546,23 @@ function MissionControlInner() {
 
   // Handler for model change from panel header
   const handleModelChange = useCallback((modelId: string, provider?: string) => {
-    if (sessionKey) {
+    if (sessionKey && activePanel?.id) {
+      // Update the session on the server
       updateSetting(sessionKey, { model: modelId, modelProvider: provider });
+      // Update the panel state immediately for responsive UI
+      updatePanelSessionSettings(activePanel.id, { model: modelId, modelProvider: provider });
     }
-  }, [sessionKey, updateSetting]);
+  }, [sessionKey, activePanel?.id, updateSetting, updatePanelSessionSettings]);
 
   // Handler for thinking level change from panel header
   const handleThinkingChange = useCallback((thinking: 'off' | 'low' | 'medium' | 'high') => {
-    if (sessionKey) {
+    if (sessionKey && activePanel?.id) {
+      // Update the session on the server
       updateSetting(sessionKey, { thinking });
+      // Update the panel state immediately for responsive UI
+      updatePanelSessionSettings(activePanel.id, { thinking });
     }
-  }, [sessionKey, updateSetting]);
+  }, [sessionKey, activePanel?.id, updateSetting, updatePanelSessionSettings]);
 
   // Handler to refresh chat history for a specific agent
   const handleRefreshChat = useCallback((agentId: string) => {
