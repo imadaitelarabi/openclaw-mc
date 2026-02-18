@@ -14,6 +14,7 @@ export interface WorkspaceState {
     type: string;
     agentId?: string;
     title: string;
+    data?: Record<string, any>;
     settings: {
       showTools: boolean;
       showReasoning: boolean;

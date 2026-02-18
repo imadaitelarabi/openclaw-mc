@@ -190,9 +190,19 @@ export function PanelContainer({
               })()
             )}
 
-            {panel.type === 'cron' && panel.data?.jobId && wsRef && (
+            {panel.type === 'cron' && wsRef && (
               (() => {
-                const job = cronJobs.find(j => j.id === panel.data.jobId);
+                const jobId = panel.data?.jobId;
+                const jobNameFromData = panel.data?.jobName;
+                const jobNameFromTitle = panel.title.startsWith('Cron: ')
+                  ? panel.title.replace(/^Cron:\s*/, '')
+                  : undefined;
+
+                const job = cronJobs.find(j =>
+                  (jobId && j.id === jobId)
+                  || (jobNameFromData && j.name === jobNameFromData)
+                  || (jobNameFromTitle && j.name === jobNameFromTitle)
+                );
                 if (!job) {
                   return (
                     <div className="flex items-center justify-center h-full text-muted-foreground">

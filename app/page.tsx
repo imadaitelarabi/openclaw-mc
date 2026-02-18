@@ -41,6 +41,7 @@ function MissionControlInner() {
     reject: (error: Error) => void;
     timeoutId: ReturnType<typeof setTimeout>;
   }>());
+  const hydratedHistoryAgentsRef = useRef(new Set<string>());
 
   // Custom hooks for WebSocket and event handling
   const { 
@@ -155,6 +156,32 @@ function MissionControlInner() {
       sendMessage({ type: 'gateways.list' });
     }
   }, [connectionStatus, sendMessage]);
+
+  // On refresh, rehydrate chat history for already open chat panels.
+  useEffect(() => {
+    if (connectionStatus !== 'connected') return;
+
+    const openChatAgentIds = Array.from(new Set(
+      layout.panels
+        .filter((panel) => panel.type === 'chat' && panel.agentId)
+        .map((panel) => panel.agentId as string)
+    ));
+
+    for (const agentId of openChatAgentIds) {
+      if (hydratedHistoryAgentsRef.current.has(agentId)) continue;
+
+      sendMessage({
+        type: 'chat.history.load',
+        agentId,
+        params: {
+          sessionKey: `agent:${agentId}:main`,
+          limit: 50,
+        },
+      });
+
+      hydratedHistoryAgentsRef.current.add(agentId);
+    }
+  }, [connectionStatus, layout.panels, sendMessage]);
 
   // Check onboarding status on mount and when connection status or gateways change
   useEffect(() => {
