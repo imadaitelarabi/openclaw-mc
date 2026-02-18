@@ -65,7 +65,13 @@ function normalizeCronRuns(entries: any[] = []): CronRun[] {
 export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseCronRunsProps) {
   const [runs, setRuns] = useState<CronRun[]>([]);
   const [loading, setLoading] = useState(true);
-  const pendingRequestsRef = useRef<Map<string, { resolve: (value: any) => void; reject: (error: any) => void }>>(new Map());
+  const pendingRequestsRef = useRef<Map<string, {
+    resolve: (value: any) => void;
+    reject: (error: any) => void;
+    type: string;
+    jobId?: string;
+    timeoutId: ReturnType<typeof setTimeout>;
+  }>>(new Map());
 
   const socket = wsRef.current;
 
@@ -113,12 +119,14 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
           setRuns(normalizeCronRuns(msg.entries || []));
           const pending = pendingRequestsRef.current.get(msg.requestId);
           if (pending) {
+            clearTimeout(pending.timeoutId);
             pending.resolve(normalizeCronRuns(msg.entries || []));
             pendingRequestsRef.current.delete(msg.requestId);
           }
         } else if (msg.type === 'cron.runs.error') {
           const pending = pendingRequestsRef.current.get(msg.requestId);
           if (pending) {
+            clearTimeout(pending.timeoutId);
             pending.reject(new Error(msg.error));
             pendingRequestsRef.current.delete(msg.requestId);
           }
@@ -135,14 +143,52 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
           });
           const pending = pendingRequestsRef.current.get(msg.requestId);
           if (pending) {
+            clearTimeout(pending.timeoutId);
             pending.resolve(normalizedRun);
             pendingRequestsRef.current.delete(msg.requestId);
           }
         } else if (msg.type === 'cron.run.error') {
           const pending = pendingRequestsRef.current.get(msg.requestId);
           if (pending) {
+            clearTimeout(pending.timeoutId);
             pending.reject(new Error(msg.error));
             pendingRequestsRef.current.delete(msg.requestId);
+          }
+        }
+
+        // Fallback ack: sometimes cron.run.response is missing, but lifecycle start event arrives.
+        if (msg.type === 'event' && msg.event === 'agent') {
+          const payload = msg.payload || {};
+          const sessionKey = typeof payload.sessionKey === 'string' ? payload.sessionKey : '';
+          const isLifecycleStart = payload.stream === 'lifecycle' && payload.data?.phase === 'start';
+          const belongsToThisJob = sessionKey.includes(`:cron:${jobId}`);
+
+          if (isLifecycleStart && belongsToThisJob && payload.runId) {
+            const syntheticRun: CronRun = {
+              id: String(payload.runId),
+              jobId,
+              status: 'running',
+              startedAtMs: Number(payload.data?.startedAt ?? payload.ts ?? Date.now()),
+              sessionKey,
+            };
+
+            setRuns(prev => {
+              const exists = prev.some(r => r.id === syntheticRun.id);
+              if (exists) {
+                return prev.map(r => r.id === syntheticRun.id ? { ...r, ...syntheticRun } : r)
+                  .sort((a, b) => b.startedAtMs - a.startedAtMs);
+              }
+              return [syntheticRun, ...prev].sort((a, b) => b.startedAtMs - a.startedAtMs);
+            });
+
+            for (const [requestId, pending] of pendingRequestsRef.current.entries()) {
+              if (pending.type === 'cron.run' && pending.jobId === jobId) {
+                clearTimeout(pending.timeoutId);
+                pending.resolve(syntheticRun);
+                pendingRequestsRef.current.delete(requestId);
+                break;
+              }
+            }
           }
         }
 
@@ -200,21 +246,27 @@ export function useCronRuns({ jobId, wsRef, limit = 10, connectionStatus }: UseC
       }
 
       const requestId = uuidv4();
-      pendingRequestsRef.current.set(requestId, { resolve, reject });
+      const timeoutId = setTimeout(() => {
+        const pending = pendingRequestsRef.current.get(requestId);
+        if (pending) {
+          pendingRequestsRef.current.delete(requestId);
+          reject(new Error('Request timeout'));
+        }
+      }, 30000);
+
+      pendingRequestsRef.current.set(requestId, {
+        resolve,
+        reject,
+        type,
+        jobId: data?.jobId,
+        timeoutId,
+      });
 
       wsRef.current.send(JSON.stringify({
         type,
         requestId,
         ...data
       }));
-
-      // Timeout after 30 seconds
-      setTimeout(() => {
-        if (pendingRequestsRef.current.has(requestId)) {
-          pendingRequestsRef.current.delete(requestId);
-          reject(new Error('Request timeout'));
-        }
-      }, 30000);
     });
   }, [wsRef]);
 
