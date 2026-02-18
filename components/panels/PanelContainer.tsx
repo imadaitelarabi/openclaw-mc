@@ -33,6 +33,7 @@ interface PanelContainerProps {
   onAbortRun?: (agentId: string) => void;
   onResetSession?: (agentId: string) => void;
   onModelChange?: (modelId: string, provider?: string) => void;
+  onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
   onShowToolsChange?: (show: boolean) => void;
   onShowReasoningChange?: (show: boolean) => void;
   onRefreshChat?: (agentId: string) => void;
@@ -75,6 +76,7 @@ export function PanelContainer({
   onAbortRun,
   onResetSession,
   onModelChange,
+  onThinkingChange,
   onShowToolsChange,
   onShowReasoningChange,
   onRefreshChat,
@@ -117,8 +119,10 @@ export function PanelContainer({
             onShowToolsChange={panel.type === 'chat' ? onShowToolsChange : undefined}
             onShowReasoningChange={panel.type === 'chat' ? onShowReasoningChange : undefined}
             models={panel.type === 'chat' ? models : undefined}
-            currentModel={panel.type === 'chat' && panel.agentId ? sessionSettings[panel.agentId]?.model : undefined}
+            currentModel={panel.type === 'chat' ? sessionSettings.model : undefined}
             onModelChange={panel.type === 'chat' ? onModelChange : undefined}
+            thinkingMode={panel.type === 'chat' ? (sessionSettings.thinking || 'low') : undefined}
+            onThinkingChange={panel.type === 'chat' ? onThinkingChange : undefined}
             onRefreshChat={panel.type === 'chat' && panel.agentId ? () => onRefreshChat?.(panel.agentId!) : undefined}
           />
           

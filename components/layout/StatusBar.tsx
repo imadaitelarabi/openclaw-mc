@@ -1,6 +1,5 @@
 import type { Agent, ConnectionStatus, CronJob, CronStatus } from '@/types';
 import { AgentSelector } from '../agents';
-import { ThinkingToggle } from '../statusbar';
 import { GatewaySwitcher } from '../gateway/GatewaySwitcher';
 import { ExtensionStatusBarItem, ExtensionsDropdown } from '../extensions';
 import { CronStatusBarItem } from '../cron';
@@ -20,12 +19,6 @@ interface StatusBarProps {
   onCreateAgent?: () => void;
   onEditAgent?: (agentId: string) => void;
   onDeleteAgent?: (agentId: string) => void;
-  models?: any[];
-  currentModel?: string;
-  thinkingMode?: 'off' | 'low' | 'medium' | 'high';
-  
-  onModelChange?: (model: string, provider?: string) => void;
-  onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
   
   // Gateway management
   gateways: any[];
@@ -57,11 +50,6 @@ export function StatusBar({
   onCreateAgent,
   onEditAgent,
   onDeleteAgent,
-  models = [],
-  currentModel,
-  thinkingMode = 'low',
-  onModelChange,
-  onThinkingChange,
   gateways,
   activeGatewayId,
   onSwitchGateway,
@@ -125,15 +113,6 @@ export function StatusBar({
 
       {/* Separator */}
       {selectedAgent && <div className="h-4 w-px bg-border" />}
-
-      {/* Thinking Mode Toggle */}
-      {selectedAgent && (
-        <ThinkingToggle
-          value={thinkingMode}
-          onChange={onThinkingChange || (() => {})}
-          disabled={!onThinkingChange}
-        />
-      )}
 
       <div className="flex-1" />
 

@@ -526,6 +526,13 @@ function MissionControlInner() {
     }
   }, [sessionKey, updateSetting]);
 
+  // Handler for thinking level change from panel header
+  const handleThinkingChange = useCallback((thinking: 'off' | 'low' | 'medium' | 'high') => {
+    if (sessionKey) {
+      updateSetting(sessionKey, { thinking });
+    }
+  }, [sessionKey, updateSetting]);
+
   // Handler to refresh chat history for a specific agent
   const handleRefreshChat = useCallback((agentId: string) => {
     if (connectionStatus === 'connected') {
@@ -633,6 +640,7 @@ function MissionControlInner() {
             onAbortRun={handleAbortRun}
             onResetSession={handleResetSession}
             onModelChange={handleModelChange}
+            onThinkingChange={handleThinkingChange}
             onShowToolsChange={handleShowToolsChange}
             onShowReasoningChange={handleShowReasoningChange}
             onRefreshChat={handleRefreshChat}
@@ -661,11 +669,6 @@ function MissionControlInner() {
           onCreateAgent={handleCreateAgent}
           onEditAgent={handleEditAgent}
           onDeleteAgent={handleDeleteAgent}
-          models={models}
-          currentModel={sessionSettings.model}
-          thinkingMode={sessionSettings.thinking || 'low'}
-          onModelChange={sessionKey ? (model, provider) => updateSetting(sessionKey, { model, modelProvider: provider }) : undefined}
-          onThinkingChange={sessionKey ? (thinking) => updateSetting(sessionKey, { thinking }) : undefined}
           
           gateways={gateways}
           activeGatewayId={activeGatewayId}

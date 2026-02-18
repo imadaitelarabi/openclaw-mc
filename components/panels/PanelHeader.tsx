@@ -1,6 +1,7 @@
 import { X, Plus, RefreshCw } from 'lucide-react';
 import { ConfigDropdown } from './ConfigDropdown';
 import { ModelSelector } from '../statusbar/ModelSelector';
+import { ThinkingToggle } from '../statusbar/ThinkingToggle';
 
 interface Model {
   id: string;
@@ -25,6 +26,8 @@ interface PanelHeaderProps {
   models?: Model[];
   currentModel?: string;
   onModelChange?: (modelId: string, provider?: string) => void;
+  thinkingMode?: 'off' | 'low' | 'medium' | 'high';
+  onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
   onRefreshChat?: () => void;
 }
 
@@ -43,6 +46,8 @@ export function PanelHeader({
   models,
   currentModel,
   onModelChange,
+  thinkingMode = 'low',
+  onThinkingChange,
   onRefreshChat,
 }: PanelHeaderProps) {
   const handleResetClick = (e: React.MouseEvent) => {
@@ -59,7 +64,7 @@ export function PanelHeader({
     }
   };
 
-  const isChatPanel = agentId && showTools !== undefined && showReasoning !== undefined;
+  const isChatPanel = Boolean(agentId);
 
   return (
     <div 
@@ -73,12 +78,23 @@ export function PanelHeader({
       <span className="font-medium text-sm truncate">{title}</span>
       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
         {/* Model Selector - only for chat panels */}
-        {isChatPanel && models && currentModel && onModelChange && (
+        {isChatPanel && models && onModelChange && (
           <>
             <ModelSelector
               models={models}
               currentModel={currentModel}
               onChange={onModelChange}
+            />
+            <div className="h-4 w-px bg-border mx-1" />
+          </>
+        )}
+
+        {/* Thinking Level - only for chat panels */}
+        {isChatPanel && onThinkingChange && (
+          <>
+            <ThinkingToggle
+              value={thinkingMode}
+              onChange={onThinkingChange}
             />
             <div className="h-4 w-px bg-border mx-1" />
           </>
