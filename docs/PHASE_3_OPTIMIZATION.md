@@ -284,13 +284,147 @@ Phase 3 focused on state management. Additional optimizations possible:
    - Understood impact before implementing
    - Targeted highest-impact scenarios first
 
+## Regression Fixes (Post-Review)
+
+After code review, several critical regressions were identified and fixed:
+
+### 1. Missing Sorting in SYNC_RECENT_CHAT_HISTORY
+
+**Issue:** The original implementation sorted messages by timestamp after merging to ensure consistent UI ordering. The initial reducer implementation omitted this step.
+
+**Impact:** Messages arriving out-of-order from the server would appear jumbled in the UI.
+
+**Fix:** Added sorting logic back to SYNC_RECENT_CHAT_HISTORY reducer case:
+```typescript
+// Sort by timestamp, then by ID for stability
+next.sort((a, b) => {
+  if (a.timestamp !== b.timestamp) {
+    return a.timestamp - b.timestamp;
+  }
+  return a.id.localeCompare(b.id);
+});
+```
+
+### 2. Missing Optimistic User Message Matching
+
+**Issue:** The original implementation used `isLikelySameUserMessage` to match locally-sent messages with server-returned versions. This prevented duplicate user messages when the server confirmed receipt.
+
+**Impact:** User messages would appear twice: once optimistically and again when the server confirmed.
+
+**Fix:** Restored the optimistic matching logic in SYNC_RECENT_CHAT_HISTORY:
+```typescript
+// Try optimistic user message matching
+const optimisticMatchIndex = next.findIndex((existingMessage) =>
+  isLikelySameUserMessage(existingMessage, incoming)
+);
+
+if (optimisticMatchIndex !== -1) {
+  const previousId = next[optimisticMatchIndex].id;
+  next[optimisticMatchIndex] = withPreservedAttachments(next[optimisticMatchIndex], incoming);
+  existingIndexById.delete(previousId);
+  existingIndexById.set(incoming.id, optimisticMatchIndex);
+  changed = true;
+  return;
+}
+```
+
+### 3. Race Condition with Stale State
+
+**Issue:** Lifecycle error handling read `state.chatHistory` from the hook's scope closure, which could be stale if multiple events occurred before a re-render. This violated the atomic update principle.
+
+**Impact:** Tool interruption logic might operate on outdated state, leading to inconsistent UI or missing updates.
+
+**Fix:** Created new action types to move all logic into the reducer:
+- `MARK_TOOLS_INTERRUPTED`: Atomically marks pending tools as interrupted
+- `FINALIZE_ASSISTANT_MESSAGE`: Adds finalized message with built-in deduplication
+- `ADD_ERROR_MESSAGE`: Adds error message with built-in deduplication
+
+Example:
+```typescript
+case 'MARK_TOOLS_INTERRUPTED': {
+  const currentHistory = state.chatHistory[action.agentId] || [];
+  const updated = currentHistory.map(msg => {
+    if (msg.runId === action.runId && msg.role === 'tool' && msg.tool?.status === 'start') {
+      const duration = msg.tool.startTime ? Date.now() - msg.tool.startTime : undefined;
+      return {
+        ...msg,
+        tool: {
+          ...msg.tool,
+          status: 'error' as const,
+          error: 'Interrupted by run failure',
+          duration
+        }
+      };
+    }
+    return msg;
+  });
+  // ... return updated state
+}
+```
+
+### 4. Callback Instability
+
+**Issue:** `handleAgentEvent` depended on `state.chatHistory` and `state.activeRuns`, causing the callback to be recreated on every state update (including every streamed token). This negated performance benefits and could cause unnecessary re-renders of child components.
+
+**Impact:** Callback recreation on every state update, including rapid stream updates, causing performance degradation.
+
+**Fix:** Multiple changes to achieve callback stability:
+
+1. **Removed existingHistory parameter:** SYNC_RECENT_CHAT_HISTORY now uses `state.chatHistory[action.agentId]` directly in the reducer instead of receiving it as a parameter.
+
+2. **Added activeRunsRef:** Created a ref that syncs with state to allow read access without adding a dependency:
+```typescript
+const activeRunsRef = useRef<Record<string, string>>({});
+
+useEffect(() => {
+  activeRunsRef.current = state.activeRuns;
+}, [state.activeRuns]);
+```
+
+3. **Created ABORT_RUN action:** Encapsulates all abort logic in the reducer:
+```typescript
+case 'ABORT_RUN': {
+  const runId = state.activeRuns[action.agentId];
+  if (!runId) return state;
+  
+  const streamKey = getStreamKey(action.agentId, runId);
+  // Clear active run and associated streams atomically
+  return {
+    ...state,
+    activeRuns: { ...state.activeRuns, [action.agentId]: undefined },
+    chatStreams: { ...state.chatStreams, [streamKey]: undefined },
+    reasoningStreams: { ...state.reasoningStreams, [streamKey]: undefined },
+  };
+}
+```
+
+4. **Updated callback dependencies:** Removed state dependencies:
+```typescript
+// Before
+}, [loadChatHistory, prependChatHistory, syncRecentChatHistory, state.chatHistory, state.activeRuns]);
+
+// After
+}, [loadChatHistory, prependChatHistory, syncRecentChatHistory]);
+```
+
+### Summary of Action Types Added
+
+| Action Type | Purpose |
+|-------------|---------|
+| `MARK_TOOLS_INTERRUPTED` | Atomically mark pending tools as interrupted during run failure |
+| `FINALIZE_ASSISTANT_MESSAGE` | Add finalized assistant message with deduplication |
+| `ADD_ERROR_MESSAGE` | Add error message with deduplication |
+| `ABORT_RUN` | Handle run abortion atomically (clear run, streams) |
+
 ## Conclusion
 
 Phase 3 successfully optimized state management in `useAgentEvents` by:
 - Unifying 4 useState hooks into single useReducer
 - Implementing state batching to reduce re-renders by ~95%
-- Adding comprehensive type safety with 14 action types
+- Adding comprehensive type safety with 17 action types
 - Maintaining backward compatibility
+- Fixing critical regressions identified in code review
+- Achieving callback stability for optimal performance
 - Setting foundation for future optimizations
 
 The changes improve performance, maintainability, and debuggability without breaking existing functionality.
