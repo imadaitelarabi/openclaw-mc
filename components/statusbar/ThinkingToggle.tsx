@@ -49,7 +49,7 @@ export function ThinkingToggle({ value, onChange, disabled }: ThinkingSelectorPr
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-48 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
+        <div className="absolute top-full left-0 mt-2 w-48 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-[130]">
           <div className="py-1">
             {THINKING_MODES.map(mode => (
               <button
