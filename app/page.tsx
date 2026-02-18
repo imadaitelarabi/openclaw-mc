@@ -535,17 +535,32 @@ function MissionControlInner() {
 
   // Handler to refresh chat history for a specific agent
   const handleRefreshChat = useCallback((agentId: string) => {
-    if (connectionStatus === 'connected') {
-      sendMessage({
-        type: 'chat.history.load',
-        agentId,
-        params: {
-          sessionKey: `agent:${agentId}:main`,
-          limit: 50,
-        },
+    const agentName = agents.find((agent) => agent.id === agentId)?.name || agentId;
+
+    if (connectionStatus !== 'connected') {
+      toast({
+        title: 'Refresh unavailable',
+        description: 'Connect to a gateway to refresh chat history.',
+        variant: 'destructive',
       });
+      return;
     }
-  }, [connectionStatus, sendMessage]);
+
+    sendMessage({
+      type: 'chat.history.load',
+      agentId,
+      params: {
+        sessionKey: `agent:${agentId}:main`,
+        limit: 50,
+      },
+    });
+
+    toast({
+      title: 'Refreshing chat',
+      description: `Reloading transcript for ${agentName}.`,
+      variant: 'success',
+    });
+  }, [agents, connectionStatus, sendMessage, toast]);
 
   // Show onboarding wizard for first-time users with no config
   if (onboardingChecked && showOnboarding === true) {
