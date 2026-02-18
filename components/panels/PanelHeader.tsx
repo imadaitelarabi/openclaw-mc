@@ -59,7 +59,7 @@ export function PanelHeader({
     }
   };
 
-  const isChatPanel = agentId && (showTools !== undefined || showReasoning !== undefined);
+  const isChatPanel = agentId && showTools !== undefined && showReasoning !== undefined;
 
   return (
     <div 

@@ -178,12 +178,7 @@ export function StatusBar({
       )}
 
       {/* Settings Dropdown */}
-      <SettingsDropdown 
-        onOpenExtensions={() => {
-          // Open extensions dropdown - this is already handled by ExtensionsDropdown above
-          // This is just a placeholder for future settings
-        }}
-      />
+      <SettingsDropdown />
 
       <div className="h-4 w-px bg-border" />
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Settings, ChevronLeft } from 'lucide-react';
+import { Settings, ChevronRight } from 'lucide-react';
 
 interface ConfigDropdownProps {
   showTools: boolean;
@@ -43,7 +43,7 @@ export function ConfigDropdown({
           <DropdownMenu.Sub>
             <DropdownMenu.SubTrigger className="w-full text-left px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs flex items-center justify-between gap-2 data-[state=open]:bg-accent">
               <span>Tools</span>
-              <ChevronLeft className="w-3 h-3 text-muted-foreground" />
+              <ChevronRight className="w-3 h-3 text-muted-foreground" />
             </DropdownMenu.SubTrigger>
 
             <DropdownMenu.Portal>
@@ -74,7 +74,7 @@ export function ConfigDropdown({
           <DropdownMenu.Sub>
             <DropdownMenu.SubTrigger className="w-full text-left px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs flex items-center justify-between gap-2 data-[state=open]:bg-accent">
               <span>Reasoning</span>
-              <ChevronLeft className="w-3 h-3 text-muted-foreground" />
+              <ChevronRight className="w-3 h-3 text-muted-foreground" />
             </DropdownMenu.SubTrigger>
 
             <DropdownMenu.Portal>

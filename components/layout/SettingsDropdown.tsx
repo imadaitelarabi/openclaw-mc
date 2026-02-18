@@ -2,11 +2,7 @@ import { useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Settings } from 'lucide-react';
 
-interface SettingsDropdownProps {
-  onOpenExtensions?: () => void;
-}
-
-export function SettingsDropdown({ onOpenExtensions }: SettingsDropdownProps) {
+export function SettingsDropdown() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -28,10 +24,7 @@ export function SettingsDropdown({ onOpenExtensions }: SettingsDropdownProps) {
           className="z-[110] min-w-[200px] bg-popover border border-border rounded-md shadow-lg p-1"
         >
           <DropdownMenu.Item
-            onSelect={() => {
-              onOpenExtensions?.();
-              setIsOpen(false);
-            }}
+            onSelect={() => setIsOpen(false)}
             className="w-full text-left px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs"
           >
             Extensions
