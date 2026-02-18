@@ -582,7 +582,7 @@ function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction):
       // Process all updates in a single state transition
       let newState = state;
       for (const update of action.updates) {
-        newState = agentEventsReducer(newState, update as AgentEventsAction);
+        newState = agentEventsReducer(newState, update);
       }
       return newState;
     }
@@ -949,7 +949,7 @@ export function useAgentEvents() {
   const prependChatHistory = useCallback((agentId: string, messages: any[]) => {
     const transformedMessages = transformGatewayHistoryMessages(messages);
 
-    console.log(`[Mission Control] Prepending ${transformedMessages.length} messages for agent ${agentId}`);
+    console.log(`[Mission Control] Prepending ${transformedMessages.length} messages (before deduplication) for agent ${agentId}`);
     
     dispatch({
       type: 'PREPEND_CHAT_HISTORY',
@@ -1065,8 +1065,7 @@ export function useAgentEvents() {
 
     console.log('[Mission Control] Agent event:', { stream, agentId, runId, seq, data });
 
-    // Track active run - this will be handled in lifecycle event
-    // (Note: removed duplicate setActiveRuns call here as it's already handled in lifecycle 'start')
+    // Active runs are tracked via SET_ACTIVE_RUN dispatch in lifecycle 'start' events
 
     // Handle tool events
     if (stream === 'tool') {
