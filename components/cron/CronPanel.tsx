@@ -8,6 +8,7 @@
 import { memo, useState, useRef, useEffect } from 'react';
 import { PlayCircle, Edit, Trash2, Calendar, Clock } from 'lucide-react';
 import { ChatMessageItem } from '@/components/chat';
+import { ConfirmationModal } from '@/components/modals';
 import { useCronRuns, useToast } from '@/hooks';
 import type { ChatMessage, CronJob } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -347,6 +348,7 @@ export const CronPanel = memo(function CronPanel({
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const pendingForceSelectRef = useRef(false);
@@ -556,6 +558,18 @@ export const CronPanel = memo(function CronPanel({
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!onDelete) {
+      return;
+    }
+
+    try {
+      await onDelete(job.id);
+    } finally {
+      setShowDeleteConfirm(false);
+    }
+  };
+
   const nextRun = job.state?.nextRunAtMs;
 
   return (
@@ -671,7 +685,7 @@ export const CronPanel = memo(function CronPanel({
           
           {onDelete && (
             <button
-              onClick={() => onDelete(job.id)}
+              onClick={() => setShowDeleteConfirm(true)}
               className="flex items-center gap-2 px-3 py-1.5 bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 text-sm"
             >
               <Trash2 className="w-4 h-4" />
@@ -680,6 +694,17 @@ export const CronPanel = memo(function CronPanel({
           )}
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Cron Job"
+        message={`Are you sure you want to delete "${job.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 });
