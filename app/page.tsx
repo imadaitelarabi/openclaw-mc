@@ -519,6 +519,49 @@ function MissionControlInner() {
   // Use the active panel's agent for session key
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
 
+  // Handler for model change from panel header
+  const handleModelChange = useCallback((modelId: string, provider?: string) => {
+    if (sessionKey) {
+      updateSetting(sessionKey, { model: modelId, modelProvider: provider });
+    }
+  }, [sessionKey, updateSetting]);
+
+  // Handler for thinking level change from panel header
+  const handleThinkingChange = useCallback((thinking: 'off' | 'low' | 'medium' | 'high') => {
+    if (sessionKey) {
+      updateSetting(sessionKey, { thinking });
+    }
+  }, [sessionKey, updateSetting]);
+
+  // Handler to refresh chat history for a specific agent
+  const handleRefreshChat = useCallback((agentId: string) => {
+    const agentName = agents.find((agent) => agent.id === agentId)?.name || agentId;
+
+    if (connectionStatus !== 'connected') {
+      toast({
+        title: 'Refresh unavailable',
+        description: 'Connect to a gateway to refresh chat history.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    sendMessage({
+      type: 'chat.history.load',
+      agentId,
+      params: {
+        sessionKey: `agent:${agentId}:main`,
+        limit: 50,
+      },
+    });
+
+    toast({
+      title: 'Refreshing chat',
+      description: `Reloading transcript for ${agentName}.`,
+      variant: 'success',
+    });
+  }, [agents, connectionStatus, sendMessage, toast]);
+
   // Show onboarding wizard for first-time users with no config
   if (onboardingChecked && showOnboarding === true) {
     return (
@@ -611,6 +654,11 @@ function MissionControlInner() {
             updateSetting={updateSetting}
             onAbortRun={handleAbortRun}
             onResetSession={handleResetSession}
+            onModelChange={handleModelChange}
+            onThinkingChange={handleThinkingChange}
+            onShowToolsChange={handleShowToolsChange}
+            onShowReasoningChange={handleShowReasoningChange}
+            onRefreshChat={handleRefreshChat}
             onCreateAgent={handleCreateAgentRequest}
             onUpdateAgent={handleUpdateAgentRequest}
             cronJobs={cronJobs}
@@ -636,15 +684,6 @@ function MissionControlInner() {
           onCreateAgent={handleCreateAgent}
           onEditAgent={handleEditAgent}
           onDeleteAgent={handleDeleteAgent}
-          models={models}
-          currentModel={sessionSettings.model}
-          thinkingMode={sessionSettings.thinking || 'low'}
-          showTools={activePanel?.settings?.showTools ?? false}
-          showReasoning={activePanel?.settings?.showReasoning ?? true}
-          onModelChange={sessionKey ? (model, provider) => updateSetting(sessionKey, { model, modelProvider: provider }) : undefined}
-          onThinkingChange={sessionKey ? (thinking) => updateSetting(sessionKey, { thinking }) : undefined}
-          onShowToolsChange={handleShowToolsChange}
-          onShowReasoningChange={handleShowReasoningChange}
           
           gateways={gateways}
           activeGatewayId={activeGatewayId}

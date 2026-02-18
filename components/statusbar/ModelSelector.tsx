@@ -55,7 +55,7 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-[calc(100vw-24px)] sm:w-72 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 max-w-[320px]">
+        <div className="absolute top-full left-0 mt-2 w-[calc(100vw-24px)] sm:w-72 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 max-w-[320px] z-[130]">
           <div className="p-2 border-b border-border bg-muted/50">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />

@@ -32,6 +32,11 @@ interface PanelContainerProps {
   updateSetting: (sessionKey: string, settings: any) => void;
   onAbortRun?: (agentId: string) => void;
   onResetSession?: (agentId: string) => void;
+  onModelChange?: (modelId: string, provider?: string) => void;
+  onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
+  onShowToolsChange?: (show: boolean) => void;
+  onShowReasoningChange?: (show: boolean) => void;
+  onRefreshChat?: (agentId: string) => void;
   onCreateAgent: (payload: {
     id?: string;
     name: string;
@@ -70,6 +75,11 @@ export function PanelContainer({
   updateSetting,
   onAbortRun,
   onResetSession,
+  onModelChange,
+  onThinkingChange,
+  onShowToolsChange,
+  onShowReasoningChange,
+  onRefreshChat,
   onCreateAgent,
   onUpdateAgent,
   cronJobs = [],
@@ -104,6 +114,16 @@ export function PanelContainer({
             showCloseButton={panels.length > 1}
             agentId={panel.type === 'chat' ? panel.agentId : undefined}
             onResetSession={panel.type === 'chat' && panel.agentId ? () => onResetSession?.(panel.agentId!) : undefined}
+            showTools={panel.type === 'chat' ? panel.settings?.showTools ?? false : undefined}
+            showReasoning={panel.type === 'chat' ? panel.settings?.showReasoning ?? true : undefined}
+            onShowToolsChange={panel.type === 'chat' ? onShowToolsChange : undefined}
+            onShowReasoningChange={panel.type === 'chat' ? onShowReasoningChange : undefined}
+            models={panel.type === 'chat' ? models : undefined}
+            currentModel={panel.type === 'chat' ? sessionSettings.model : undefined}
+            onModelChange={panel.type === 'chat' ? onModelChange : undefined}
+            thinkingMode={panel.type === 'chat' ? (sessionSettings.thinking || 'low') : undefined}
+            onThinkingChange={panel.type === 'chat' ? onThinkingChange : undefined}
+            onRefreshChat={panel.type === 'chat' && panel.agentId ? () => onRefreshChat?.(panel.agentId!) : undefined}
           />
           
           <div 
