@@ -506,6 +506,22 @@ function isLikelySameByRunIdAndRole(localMessage: ChatMessage, incomingMessage: 
   return true;
 }
 
+/**
+ * Phase 3 Optimization: Unified State Management
+ * 
+ * Previously used 4 separate useState hooks which caused:
+ * - 12+ scattered setChatHistory calls
+ * - Multiple re-renders per event (3-5 updates per lifecycle event)
+ * - Hard to track state update sites
+ * - No batching of related updates
+ * 
+ * Now uses single useReducer with:
+ * - Centralized state transitions in reducer
+ * - Typed actions for all state changes
+ * - BATCH_UPDATE action to combine multiple updates into single render
+ * - Easier debugging and maintenance
+ */
+
 // Unified state type for all agent event state
 interface AgentEventsState {
   chatHistory: Record<string, ChatMessage[]>;
@@ -514,7 +530,16 @@ interface AgentEventsState {
   activeRuns: Record<string, string>;
 }
 
-// Action types for state updates
+/**
+ * Action types for state updates.
+ * All state changes go through dispatch with these typed actions.
+ * 
+ * Key patterns:
+ * - ADD_CHAT_MESSAGE: Append single message (with deduplication in reducer)
+ * - UPDATE_CHAT_MESSAGES: Replace entire message array (for bulk updates)
+ * - BATCH_UPDATE: Combine multiple actions into single render (performance critical)
+ * - *_DELTA: Accumulate streaming text without full state replacement
+ */
 type AgentEventsAction =
   | { type: 'LOAD_CHAT_HISTORY'; agentId: string; messages: ChatMessage[] }
   | { type: 'PREPEND_CHAT_HISTORY'; agentId: string; messages: ChatMessage[] }
@@ -537,6 +562,23 @@ type AgentEventsAction =
 function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction): AgentEventsState {
   switch (action.type) {
     case 'BATCH_UPDATE': {
+      /**
+       * BATCH_UPDATE: Critical performance optimization
+       * 
+       * Combines multiple state updates into a single render cycle.
+       * React's automatic batching (React 18+) helps, but reducer batching
+       * ensures updates are applied atomically even in async scenarios.
+       * 
+       * Example: Lifecycle 'end' event needs to:
+       * 1. Add finalized assistant message
+       * 2. Update interrupted tool statuses  
+       * 3. Clear chat stream
+       * 4. Clear reasoning stream
+       * 5. Clear active run
+       * 
+       * Without batching: 5 separate re-renders
+       * With batching: 1 single re-render
+       */
       // Process all updates in a single state transition
       let newState = state;
       for (const update of action.updates) {
