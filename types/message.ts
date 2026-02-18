@@ -36,8 +36,8 @@ export interface ActiveRun {
   content: string; // Accumulated reasoning or assistant text
   tool?: {
     name: string;
-    args?: any;
-    result?: any;
+    args?: unknown; // Tool arguments - use type guards to validate
+    result?: unknown; // Tool result - use type guards to validate
     status: 'start' | 'update';
     startTime?: number;
   };

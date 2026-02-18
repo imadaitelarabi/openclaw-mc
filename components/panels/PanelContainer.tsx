@@ -26,7 +26,7 @@ interface PanelContainerProps {
   chatStreams: Record<string, string>;
   reasoningStreams: Record<string, string>;
   activeRuns: Record<string, string>;
-  activeRunData: Record<string, any>;
+  activeRunData: Record<string, ActiveRun>;
   addUserMessage: (agentId: string, message: string) => void;
   models: any[];
   sessionSettings: Record<string, any>;

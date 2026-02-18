@@ -1584,6 +1584,11 @@ export function useAgentEvents() {
           });
         }
         
+        // Calculate new content: if continuing text stream, append; otherwise start fresh
+        const newContent = existingRun && existingRun.status === 'text' 
+          ? existingRun.content + normalizedDelta 
+          : normalizedDelta;
+        
         // Update activeRun with assistant text
         updates.push({
           type: 'SET_ACTIVE_RUN_DATA',
@@ -1591,7 +1596,7 @@ export function useAgentEvents() {
           activeRun: {
             runId,
             status: 'text',
-            content: existingRun && existingRun.status === 'text' ? existingRun.content + normalizedDelta : normalizedDelta,
+            content: newContent,
           },
         });
         
@@ -1601,7 +1606,8 @@ export function useAgentEvents() {
           dispatch(updates[0]);
         }
         
-        // Also update latestTextRef for lifecycle end
+        // Also update latestTextRef for lifecycle end fallback
+        // latestTextRef provides synchronous access without state timing issues
         latestTextRef.current[streamKey] = (latestTextRef.current[streamKey] || '') + normalizedDelta;
       }
     }
