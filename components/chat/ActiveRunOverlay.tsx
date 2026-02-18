@@ -41,6 +41,7 @@ export function ActiveRunOverlay({ activeRun }: ActiveRunOverlayProps) {
         name: activeRun.tool.name,
         args: activeRun.tool.args,
         result: activeRun.tool.result,
+        // Map 'update' to 'start' for ToolCard display - both indicate running state
         status: activeRun.tool.status === 'update' ? 'start' : activeRun.tool.status,
         startTime: activeRun.tool.startTime
       },

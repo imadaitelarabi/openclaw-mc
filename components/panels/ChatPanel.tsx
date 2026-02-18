@@ -255,7 +255,16 @@ export const ChatPanel = memo(function ChatPanel({
             <ChatMessageItem key={msg.id} message={msg} showTools={showTools} />
           ))}
           
-          <ActiveRunOverlay activeRun={showReasoning ? activeRun || null : (activeRun?.status !== 'thinking' ? activeRun || null : null)} />
+          {/* ActiveRunOverlay: Show ephemeral streaming content
+              - Hide reasoning if showReasoning is false
+              - Always show tool and text streams */}
+          <ActiveRunOverlay 
+            activeRun={
+              showReasoning 
+                ? activeRun || null 
+                : (activeRun?.status !== 'thinking' ? activeRun || null : null)
+            } 
+          />
           
           <div ref={chatEndRef} />
         </div>
