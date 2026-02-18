@@ -26,6 +26,7 @@ interface PanelContainerProps {
   chatStreams: Record<string, string>;
   reasoningStreams: Record<string, string>;
   activeRuns: Record<string, string>;
+  activeRunData: Record<string, any>;
   addUserMessage: (agentId: string, message: string) => void;
   models: any[];
   sessionSettings: Record<string, any>;
@@ -69,6 +70,7 @@ export function PanelContainer({
   chatStreams,
   reasoningStreams,
   activeRuns,
+  activeRunData,
   addUserMessage,
   models,
   sessionSettings,
@@ -138,6 +140,7 @@ export function PanelContainer({
                 connectionStatus={connectionStatus}
                 chatHistory={chatHistory[panel.agentId] || []}
                 activeRunId={activeRuns[panel.agentId] || null}
+                activeRun={activeRunData[panel.agentId] || null}
                 assistantStream={
                   activeRuns[panel.agentId]
                     ? chatStreams[getStreamKey(panel.agentId, activeRuns[panel.agentId])]

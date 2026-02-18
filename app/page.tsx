@@ -52,7 +52,8 @@ function MissionControlInner() {
     chatHistory, 
     chatStreams, 
     reasoningStreams,
-    activeRuns, 
+    activeRuns,
+    activeRunData,
     handleAgentEvent, 
     addUserMessage,
     clearChatHistory
@@ -690,6 +691,7 @@ function MissionControlInner() {
             chatStreams={chatStreams}
             reasoningStreams={reasoningStreams}
             activeRuns={activeRuns}
+            activeRunData={activeRunData}
             addUserMessage={addUserMessage}
             models={models}
             sessionSettings={sessionSettings}

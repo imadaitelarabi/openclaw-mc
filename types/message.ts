@@ -24,3 +24,21 @@ export interface ChatMessage {
     content: string; // data URI with base64
   }>;
 }
+
+/**
+ * ActiveRun represents the ephemeral state of a streaming run.
+ * This data is rendered in an overlay and only committed to chatHistory
+ * when specific lifecycle events occur (stream switch, lifecycle end).
+ */
+export interface ActiveRun {
+  runId: string;
+  status: 'thinking' | 'tool' | 'text';
+  content: string; // Accumulated reasoning or assistant text
+  tool?: {
+    name: string;
+    args?: any;
+    result?: any;
+    status: 'start' | 'update';
+    startTime?: number;
+  };
+}
