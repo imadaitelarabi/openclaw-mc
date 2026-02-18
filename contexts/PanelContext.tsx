@@ -23,6 +23,14 @@ export function usePanels() {
   if (!context) {
     throw new Error('usePanels must be used within a PanelProvider');
   }
+
+  if (typeof context.updatePanelSessionSettings !== 'function') {
+    return {
+      ...context,
+      updatePanelSessionSettings: () => {}
+    };
+  }
+
   return context;
 }
 
