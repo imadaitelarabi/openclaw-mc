@@ -1,4 +1,12 @@
-import { X, RotateCcw } from 'lucide-react';
+import { X, Plus, RefreshCw } from 'lucide-react';
+import { ConfigDropdown } from './ConfigDropdown';
+import { ModelSelector } from '../statusbar/ModelSelector';
+
+interface Model {
+  id: string;
+  alias?: string;
+  provider?: string;
+}
 
 interface PanelHeaderProps {
   title: string;
@@ -8,6 +16,16 @@ interface PanelHeaderProps {
   showCloseButton?: boolean;
   onResetSession?: () => void;
   agentId?: string;
+  
+  // Chat panel specific props
+  showTools?: boolean;
+  showReasoning?: boolean;
+  onShowToolsChange?: (show: boolean) => void;
+  onShowReasoningChange?: (show: boolean) => void;
+  models?: Model[];
+  currentModel?: string;
+  onModelChange?: (modelId: string, provider?: string) => void;
+  onRefreshChat?: () => void;
 }
 
 export function PanelHeader({ 
@@ -17,7 +35,15 @@ export function PanelHeader({
   onClick, 
   showCloseButton = true,
   onResetSession,
-  agentId
+  agentId,
+  showTools,
+  showReasoning,
+  onShowToolsChange,
+  onShowReasoningChange,
+  models,
+  currentModel,
+  onModelChange,
+  onRefreshChat,
 }: PanelHeaderProps) {
   const handleResetClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -25,6 +51,15 @@ export function PanelHeader({
       onResetSession();
     }
   };
+
+  const handleRefreshClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onRefreshChat) {
+      onRefreshChat();
+    }
+  };
+
+  const isChatPanel = agentId && (showTools !== undefined || showReasoning !== undefined);
 
   return (
     <div 
@@ -36,7 +71,42 @@ export function PanelHeader({
       onClick={onClick}
     >
       <span className="font-medium text-sm truncate">{title}</span>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        {/* Model Selector - only for chat panels */}
+        {isChatPanel && models && currentModel && onModelChange && (
+          <>
+            <ModelSelector
+              models={models}
+              currentModel={currentModel}
+              onChange={onModelChange}
+            />
+            <div className="h-4 w-px bg-border mx-1" />
+          </>
+        )}
+        
+        {/* Config Dropdown - only for chat panels */}
+        {isChatPanel && showTools !== undefined && showReasoning !== undefined && 
+         onShowToolsChange && onShowReasoningChange && (
+          <ConfigDropdown
+            showTools={showTools}
+            showReasoning={showReasoning}
+            onShowToolsChange={onShowToolsChange}
+            onShowReasoningChange={onShowReasoningChange}
+          />
+        )}
+        
+        {/* Refresh Button - only for chat panels with refresh handler */}
+        {isChatPanel && onRefreshChat && (
+          <button
+            onClick={handleRefreshClick}
+            className="p-1 hover:bg-background/50 rounded transition-colors"
+            aria-label="Refresh chat"
+            title="Refresh chat"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        )}
+        
         {/* New Session Button - only for chat panels with agentId */}
         {agentId && onResetSession && (
           <button
@@ -45,9 +115,10 @@ export function PanelHeader({
             aria-label="Start new session"
             title="Start new session"
           >
-            <RotateCcw className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
           </button>
         )}
+        
         {showCloseButton && (
           <button
             onClick={(e) => {

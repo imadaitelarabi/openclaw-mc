@@ -351,6 +351,27 @@ function MissionControlInner() {
     }
   }, [activePanel?.id, updatePanelSettings]);
 
+  // Handler for model change from panel header
+  const handleModelChange = useCallback((modelId: string, provider?: string) => {
+    if (sessionKey) {
+      updateSetting(sessionKey, { model: modelId, modelProvider: provider });
+    }
+  }, [sessionKey, updateSetting]);
+
+  // Handler to refresh chat history for a specific agent
+  const handleRefreshChat = useCallback((agentId: string) => {
+    if (connectionStatus === 'connected') {
+      sendMessage({
+        type: 'chat.history.load',
+        agentId,
+        params: {
+          sessionKey: `agent:${agentId}:main`,
+          limit: 50,
+        },
+      });
+    }
+  }, [connectionStatus, sendMessage]);
+
   // Handler to open chat panel for an agent
   const handleSelectAgent = useCallback((agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
@@ -611,6 +632,10 @@ function MissionControlInner() {
             updateSetting={updateSetting}
             onAbortRun={handleAbortRun}
             onResetSession={handleResetSession}
+            onModelChange={handleModelChange}
+            onShowToolsChange={handleShowToolsChange}
+            onShowReasoningChange={handleShowReasoningChange}
+            onRefreshChat={handleRefreshChat}
             onCreateAgent={handleCreateAgentRequest}
             onUpdateAgent={handleUpdateAgentRequest}
             cronJobs={cronJobs}
@@ -639,12 +664,8 @@ function MissionControlInner() {
           models={models}
           currentModel={sessionSettings.model}
           thinkingMode={sessionSettings.thinking || 'low'}
-          showTools={activePanel?.settings?.showTools ?? false}
-          showReasoning={activePanel?.settings?.showReasoning ?? true}
           onModelChange={sessionKey ? (model, provider) => updateSetting(sessionKey, { model, modelProvider: provider }) : undefined}
           onThinkingChange={sessionKey ? (thinking) => updateSetting(sessionKey, { thinking }) : undefined}
-          onShowToolsChange={handleShowToolsChange}
-          onShowReasoningChange={handleShowReasoningChange}
           
           gateways={gateways}
           activeGatewayId={activeGatewayId}

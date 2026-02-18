@@ -1,9 +1,10 @@
 import type { Agent, ConnectionStatus, CronJob, CronStatus } from '@/types';
 import { AgentSelector } from '../agents';
-import { ModelSelector, ThinkingToggle, VerboseToggle, ReasoningToggle } from '../statusbar';
+import { ThinkingToggle } from '../statusbar';
 import { GatewaySwitcher } from '../gateway/GatewaySwitcher';
 import { ExtensionStatusBarItem, ExtensionsDropdown } from '../extensions';
 import { CronStatusBarItem } from '../cron';
+import { SettingsDropdown } from './SettingsDropdown';
 import { useExtensionStatusBar } from '@/hooks';
 import { useOptionalExtensions } from '@/contexts/ExtensionContext';
 import { useToast } from '@/hooks/useToast';
@@ -23,16 +24,8 @@ interface StatusBarProps {
   currentModel?: string;
   thinkingMode?: 'off' | 'low' | 'medium' | 'high';
   
-  // Per-panel settings (replaces global verboseMode/reasoningMode)
-  showTools?: boolean;
-  showReasoning?: boolean;
-  
   onModelChange?: (model: string, provider?: string) => void;
   onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
-  
-  // Per-panel setting callbacks
-  onShowToolsChange?: (show: boolean) => void;
-  onShowReasoningChange?: (show: boolean) => void;
   
   // Gateway management
   gateways: any[];
@@ -67,12 +60,8 @@ export function StatusBar({
   models = [],
   currentModel,
   thinkingMode = 'low',
-  showTools = false,
-  showReasoning = true,
   onModelChange,
   onThinkingChange,
-  onShowToolsChange,
-  onShowReasoningChange,
   gateways,
   activeGatewayId,
   onSwitchGateway,
@@ -137,49 +126,12 @@ export function StatusBar({
       {/* Separator */}
       {selectedAgent && <div className="h-4 w-px bg-border" />}
 
-      {/* Model Selector */}
-      {selectedAgent && (
-        <ModelSelector
-          models={models}
-          currentModel={currentModel}
-          onChange={onModelChange || (() => {})}
-          disabled={!onModelChange}
-        />
-      )}
-
-      {/* Separator */}
-      {selectedAgent && <div className="h-4 w-px bg-border" />}
-
       {/* Thinking Mode Toggle */}
       {selectedAgent && (
         <ThinkingToggle
           value={thinkingMode}
           onChange={onThinkingChange || (() => {})}
           disabled={!onThinkingChange}
-        />
-      )}
-
-      {/* Separator */}
-      {selectedAgent && <div className="h-4 w-px bg-border" />}
-
-      {/* Verbose Mode Toggle */}
-      {selectedAgent && (
-        <VerboseToggle
-          value={showTools}
-          onChange={onShowToolsChange || (() => {})}
-          disabled={!onShowToolsChange}
-        />
-      )}
-
-      {/* Separator */}
-      {selectedAgent && <div className="h-4 w-px bg-border" />}
-
-      {/* Reasoning Mode Toggle */}
-      {selectedAgent && (
-        <ReasoningToggle
-          value={showReasoning}
-          onChange={onShowReasoningChange || (() => {})}
-          disabled={!onShowReasoningChange}
         />
       )}
 
@@ -224,6 +176,16 @@ export function StatusBar({
           <div className="h-4 w-px bg-border" />
         </>
       )}
+
+      {/* Settings Dropdown */}
+      <SettingsDropdown 
+        onOpenExtensions={() => {
+          // Open extensions dropdown - this is already handled by ExtensionsDropdown above
+          // This is just a placeholder for future settings
+        }}
+      />
+
+      <div className="h-4 w-px bg-border" />
 
       {/* Right: System Status */}
       <div className="flex items-center gap-3">
