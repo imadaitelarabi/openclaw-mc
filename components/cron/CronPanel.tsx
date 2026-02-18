@@ -179,11 +179,13 @@ function normalizeHistoryMessages(rawMessages: any[], fallbackRunId?: string): C
 
     const parts = toContentParts(raw.content);
     const textParts: string[] = [];
+    let hasStructuredParts = false;
 
     parts.forEach((part, partIndex) => {
       const partType = normalizeTextContent(part.type).toLowerCase();
 
       if (partType === 'thinking') {
+        hasStructuredParts = true;
         const thinkingText = normalizeTextContent(part.thinking ?? part.text).trim();
         if (!thinkingText) return;
 
@@ -198,6 +200,7 @@ function normalizeHistoryMessages(rawMessages: any[], fallbackRunId?: string): C
       }
 
       if (partType === 'toolcall') {
+        hasStructuredParts = true;
         const toolName = normalizeTextContent(part.name || 'tool');
         const toolCallId = normalizeTextContent(part.id || `${baseId}-tool-${partIndex}`);
 
@@ -216,7 +219,30 @@ function normalizeHistoryMessages(rawMessages: any[], fallbackRunId?: string): C
         return;
       }
 
-      if (partType === 'text') {
+      if (partType === 'toolresult') {
+        hasStructuredParts = true;
+        const toolName = normalizeTextContent(part.name || part.toolName || 'tool');
+        const toolCallId = normalizeTextContent(part.id || part.toolCallId || `${baseId}-tool-result-${partIndex}`);
+        const resultText = normalizeTextContent(part.result ?? part.content ?? part.output);
+        const errorText = normalizeTextContent(part.error);
+
+        upsertMessage({
+          id: toolCallId,
+          role: 'tool',
+          content: toolName,
+          timestamp,
+          runId,
+          tool: {
+            name: toolName,
+            status: errorText ? 'error' : 'end',
+            result: errorText ? undefined : (resultText || undefined),
+            error: errorText || undefined,
+          },
+        });
+        return;
+      }
+
+      if (partType === 'text' || partType === 'output_text') {
         const text = stripAssistantEnvelope(normalizeTextContent(part.text));
         if (text) textParts.push(text);
         return;
@@ -234,9 +260,16 @@ function normalizeHistoryMessages(rawMessages: any[], fallbackRunId?: string): C
           ? 'tool'
           : 'assistant';
 
-    const content = textParts.join('\n\n').trim() || stripAssistantEnvelope(normalizeTextContent(raw.content ?? raw.text ?? raw.message ?? '').trim());
+    const textContent = textParts.join('\n\n').trim();
+    const fallbackContent = stripAssistantEnvelope(normalizeTextContent(raw.content ?? raw.text ?? raw.message ?? '').trim());
+    const shouldUseFallbackContent = parts.length === 0;
+    const content = textContent || (shouldUseFallbackContent ? fallbackContent : '');
 
     if (!content && role !== 'tool') {
+      return;
+    }
+
+    if (role === 'assistant' && hasStructuredParts && !textContent) {
       return;
     }
 
