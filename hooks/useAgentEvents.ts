@@ -543,11 +543,15 @@ interface AgentEventsState {
 type AgentEventsAction =
   | { type: 'LOAD_CHAT_HISTORY'; agentId: string; messages: ChatMessage[] }
   | { type: 'PREPEND_CHAT_HISTORY'; agentId: string; messages: ChatMessage[] }
-  | { type: 'SYNC_RECENT_CHAT_HISTORY'; agentId: string; messages: ChatMessage[]; existingHistory: ChatMessage[] }
+  | { type: 'SYNC_RECENT_CHAT_HISTORY'; agentId: string; messages: ChatMessage[] }
   | { type: 'ADD_CHAT_MESSAGE'; agentId: string; message: ChatMessage }
   | { type: 'UPDATE_CHAT_MESSAGES'; agentId: string; messages: ChatMessage[] }
   | { type: 'UPDATE_CHAT_MESSAGE'; agentId: string; messageId: string; updates: Partial<ChatMessage> }
   | { type: 'CLEAR_CHAT_HISTORY'; agentId: string }
+  | { type: 'MARK_TOOLS_INTERRUPTED'; agentId: string; runId: string }
+  | { type: 'FINALIZE_ASSISTANT_MESSAGE'; agentId: string; runId: string; content: string }
+  | { type: 'ADD_ERROR_MESSAGE'; agentId: string; runId: string; errorMsg: string }
+  | { type: 'ABORT_RUN'; agentId: string }
   | { type: 'UPDATE_STREAM_DELTA'; streamKey: string; delta: string }
   | { type: 'SET_STREAM_TEXT'; streamKey: string; text: string }
   | { type: 'CLEAR_STREAM'; streamKey: string }
@@ -641,7 +645,7 @@ function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction):
     }
 
     case 'SYNC_RECENT_CHAT_HISTORY': {
-      const existing = action.existingHistory;
+      const existing = state.chatHistory[action.agentId] || [];
       if (existing.length === 0) {
         return {
           ...state,
@@ -660,27 +664,55 @@ function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction):
         const existingIndex = existingIndexById.get(incoming.id);
 
         if (existingIndex === undefined) {
+          // First try to match by runId + role (handles local finalization vs server ID mismatch)
           const runIdMatchIndex = next.findIndex((existingMessage) =>
             isLikelySameByRunIdAndRole(existingMessage, incoming)
           );
 
           if (runIdMatchIndex !== -1) {
+            const previousId = next[runIdMatchIndex].id;
             next[runIdMatchIndex] = withPreservedAttachments(next[runIdMatchIndex], incoming);
+            existingIndexById.delete(previousId);
+            existingIndexById.set(incoming.id, runIdMatchIndex);
             changed = true;
-          } else {
-            next.push(incoming);
-            changed = true;
+            return;
           }
-        } else {
-          const existingMessage = next[existingIndex];
-          if (!areChatMessagesEqual(existingMessage, incoming)) {
-            next[existingIndex] = withPreservedAttachments(existingMessage, incoming);
+
+          // Then try optimistic user message matching
+          const optimisticMatchIndex = next.findIndex((existingMessage) =>
+            isLikelySameUserMessage(existingMessage, incoming)
+          );
+
+          if (optimisticMatchIndex !== -1) {
+            const previousId = next[optimisticMatchIndex].id;
+            next[optimisticMatchIndex] = withPreservedAttachments(next[optimisticMatchIndex], incoming);
+            existingIndexById.delete(previousId);
+            existingIndexById.set(incoming.id, optimisticMatchIndex);
             changed = true;
+            return;
           }
+
+          next.push(incoming);
+          existingIndexById.set(incoming.id, next.length - 1);
+          changed = true;
+          return;
+        }
+
+        if (!areChatMessagesEqual(next[existingIndex], incoming)) {
+          next[existingIndex] = withPreservedAttachments(next[existingIndex], incoming);
+          changed = true;
         }
       });
 
       if (!changed) return state;
+
+      // Sort by timestamp, then by ID for stability
+      next.sort((a, b) => {
+        if (a.timestamp !== b.timestamp) {
+          return a.timestamp - b.timestamp;
+        }
+        return a.id.localeCompare(b.id);
+      });
 
       return {
         ...state,
@@ -743,6 +775,111 @@ function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction):
           ...state.chatHistory,
           [action.agentId]: [],
         },
+      };
+    }
+
+    case 'MARK_TOOLS_INTERRUPTED': {
+      const currentHistory = state.chatHistory[action.agentId] || [];
+      const updated = currentHistory.map(msg => {
+        // Mark pending tools as interrupted
+        if (msg.runId === action.runId && msg.role === 'tool' && msg.tool?.status === 'start') {
+          const duration = msg.tool.startTime 
+            ? Date.now() - msg.tool.startTime 
+            : undefined;
+          
+          return {
+            ...msg,
+            tool: {
+              ...msg.tool,
+              status: 'error' as const,
+              error: 'Interrupted by run failure',
+              duration
+            }
+          };
+        }
+        return msg;
+      });
+      
+      // Only update if something changed
+      if (updated.every((msg, idx) => msg === currentHistory[idx])) {
+        return state;
+      }
+      
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: updated,
+        },
+      };
+    }
+
+    case 'FINALIZE_ASSISTANT_MESSAGE': {
+      const currentHistory = state.chatHistory[action.agentId] || [];
+      // Check if message already exists
+      if (currentHistory.some(m => m.runId === action.runId && m.role === 'assistant')) {
+        return state;
+      }
+      
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: [...currentHistory, {
+            id: action.runId,
+            role: 'assistant' as const,
+            content: action.content,
+            timestamp: Date.now(),
+            runId: action.runId
+          }],
+        },
+      };
+    }
+
+    case 'ADD_ERROR_MESSAGE': {
+      const currentHistory = state.chatHistory[action.agentId] || [];
+      // Check if message already exists
+      if (currentHistory.some(m => m.runId === action.runId && m.role === 'assistant')) {
+        return state;
+      }
+      
+      return {
+        ...state,
+        chatHistory: {
+          ...state.chatHistory,
+          [action.agentId]: [...currentHistory, {
+            id: `${action.runId}-error`,
+            role: 'assistant' as const,
+            content: action.errorMsg,
+            stopReason: 'error',
+            errorMessage: action.errorMsg,
+            timestamp: Date.now(),
+            runId: action.runId
+          }],
+        },
+      };
+    }
+
+    case 'ABORT_RUN': {
+      // Clear active run and associated streams for this agent
+      const runId = state.activeRuns[action.agentId];
+      if (!runId) return state;
+      
+      const streamKey = getStreamKey(action.agentId, runId);
+      const nextActiveRuns = { ...state.activeRuns };
+      delete nextActiveRuns[action.agentId];
+      
+      const nextChatStreams = { ...state.chatStreams };
+      delete nextChatStreams[streamKey];
+      
+      const nextReasoningStreams = { ...state.reasoningStreams };
+      delete nextReasoningStreams[streamKey];
+      
+      return {
+        ...state,
+        activeRuns: nextActiveRuns,
+        chatStreams: nextChatStreams,
+        reasoningStreams: nextReasoningStreams,
       };
     }
 
@@ -844,6 +981,14 @@ export function useAgentEvents() {
   const toolCallToMessageIdRef = useRef<Record<string, string>>({});
   const persistedStreamAgentsRef = useRef(new Set<string>());
   const activeToolsRef = useRef<Record<string, ChatMessage>>({});
+  
+  // Keep a ref of activeRuns to avoid callback dependencies
+  const activeRunsRef = useRef<Record<string, string>>({});
+  
+  // Sync activeRunsRef with state
+  useEffect(() => {
+    activeRunsRef.current = state.activeRuns;
+  }, [state.activeRuns]);
   
   // Event deduplication tracking
   const seenEventsRef = useRef(new Set<string>());
@@ -971,32 +1116,29 @@ export function useAgentEvents() {
       type: 'SYNC_RECENT_CHAT_HISTORY',
       agentId,
       messages: transformedMessages,
-      existingHistory: state.chatHistory[agentId] || [],
     });
-  }, [state.chatHistory]);
+  }, []);
 
   const handleAgentEvent = useCallback((message: any) => {
     if (message.type === 'chat.abort.run.ack') {
       const { agentId, ok } = message;
       if (!agentId || !ok) return;
 
-      const runId = state.activeRuns[agentId];
-      if (!runId) return;
-
-      const streamKey = getStreamKey(agentId, runId);
+      // Get runId from ref for cleanup (avoids callback dependency on state)
+      const runId = activeRunsRef.current[agentId];
       
-      // Batch multiple state updates into single dispatch
+      // Use ABORT_RUN action to clear state
       dispatch({
-        type: 'BATCH_UPDATE',
-        updates: [
-          { type: 'CLEAR_ACTIVE_RUN', agentId, runId },
-          { type: 'CLEAR_STREAM', streamKey },
-          { type: 'CLEAR_REASONING_STREAM', streamKey },
-        ],
+        type: 'ABORT_RUN',
+        agentId,
       });
       
-      delete latestTextRef.current[streamKey];
-      clearPendingToolQueuesForRun(runId);
+      // Clean up refs if we have a runId
+      if (runId) {
+        const streamKey = getStreamKey(agentId, runId);
+        delete latestTextRef.current[streamKey];
+        clearPendingToolQueuesForRun(runId);
+      }
       return;
     }
 
@@ -1305,74 +1447,36 @@ export function useAgentEvents() {
         
         const updates: AgentEventsAction[] = [];
         
+        // Use FINALIZE_ASSISTANT_MESSAGE action which checks for duplicates in the reducer
         if (accumulatedText) {
-          const currentHistory = state.chatHistory[agentId] || [];
-          if (!currentHistory.some(m => m.runId === runId && m.role === 'assistant')) {
-            console.log('[Mission Control] Adding finalized message to history');
-            updates.push({
-              type: 'ADD_CHAT_MESSAGE',
-              agentId,
-              message: {
-                id: runId,
-                role: 'assistant' as const,
-                content: accumulatedText,
-                timestamp: Date.now(),
-                runId
-              },
-            });
-          } else {
-            console.log('[Mission Control] Duplicate detected, skipping');
-          }
+          console.log('[Mission Control] Adding finalized message to history');
+          updates.push({
+            type: 'FINALIZE_ASSISTANT_MESSAGE',
+            agentId,
+            runId,
+            content: accumulatedText,
+          });
         }
         
         // Handle pending tools gracefully when run ends/errors
         if (data?.phase === 'error') {
-          const currentHistory = state.chatHistory[agentId] || [];
-          const updated = currentHistory.map(msg => {
-            // Mark pending tools as interrupted
-            if (msg.runId === runId && msg.role === 'tool' && msg.tool?.status === 'start') {
-              const duration = msg.tool.startTime 
-                ? Date.now() - msg.tool.startTime 
-                : undefined;
-              
-              return {
-                ...msg,
-                tool: {
-                  ...msg.tool,
-                  status: 'error' as const,
-                  error: 'Interrupted by run failure',
-                  duration
-                }
-              };
-            }
-            return msg;
+          // Use MARK_TOOLS_INTERRUPTED action to avoid reading stale state
+          updates.push({
+            type: 'MARK_TOOLS_INTERRUPTED',
+            agentId,
+            runId,
           });
-          
-          if (updated.some((msg, idx) => msg !== currentHistory[idx])) {
-            updates.push({
-              type: 'UPDATE_CHAT_MESSAGES',
-              agentId,
-              messages: updated,
-            });
-          }
 
           clearPendingToolQueuesForRun(runId);
           
-          // Add error message if no accumulated text
-          const errorMsg = data?.error || 'An error occurred';
-          if (!accumulatedText && !currentHistory.some(m => m.runId === runId && m.role === 'assistant')) {
+          // Add error message if no accumulated text using ADD_ERROR_MESSAGE action
+          if (!accumulatedText) {
+            const errorMsg = data?.error || 'An error occurred';
             updates.push({
-              type: 'ADD_CHAT_MESSAGE',
+              type: 'ADD_ERROR_MESSAGE',
               agentId,
-              message: {
-                id: `${runId}-error`,
-                role: 'assistant' as const,
-                content: errorMsg,
-                stopReason: 'error',
-                errorMessage: errorMsg,
-                timestamp: Date.now(),
-                runId
-              },
+              runId,
+              errorMsg,
             });
           }
         }
@@ -1399,7 +1503,7 @@ export function useAgentEvents() {
         }
       }
     }
-  }, [loadChatHistory, prependChatHistory, syncRecentChatHistory, state.chatHistory, state.activeRuns]);
+  }, [loadChatHistory, prependChatHistory, syncRecentChatHistory]);
 
   const addUserMessage = useCallback((agentId: string, content: string, attachments?: Array<{fileName?: string, type: string, mimeType: string, content: string}>) => {
     const userMsg: ChatMessage = {
