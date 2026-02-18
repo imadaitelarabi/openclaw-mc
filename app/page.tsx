@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageSquare, LayoutGrid, Wifi, WifiOff } from "lucide-react";
-import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useSessionControl } from "@/hooks";
+import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useSessionControl, useCronJobs } from "@/hooks";
 import { StatusBar } from "@/components/layout";
 import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
@@ -24,6 +24,7 @@ export default function MissionControl() {
 function MissionControlInner() {
   const { layout, openPanel, closePanel, setActivePanel, updatePanelSettings, getActivePanel } = usePanels();
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
+  const [isCronMenuOpen, setIsCronMenuOpen] = useState(false);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
   const [gateways, setGateways] = useState<any[]>([]);
   const [activeGatewayId, setActiveGatewayId] = useState<string | null>(null);
@@ -40,6 +41,7 @@ function MissionControlInner() {
     reject: (error: Error) => void;
     timeoutId: ReturnType<typeof setTimeout>;
   }>());
+  const hydratedHistoryAgentsRef = useRef(new Set<string>());
 
   // Custom hooks for WebSocket and event handling
   const { 
@@ -60,9 +62,27 @@ function MissionControlInner() {
   const { 
     connectionStatus, 
     agents, 
-    sendMessage 
+    sendMessage,
+    wsRef
   } = useGatewayWebSocket({ 
     onEvent: stableOnEvent
+  });
+
+  // Cron jobs hook
+  const {
+    jobs: cronJobs,
+    status: cronStatus,
+    addJob: addCronJob,
+    updateJob: updateCronJob,
+    deleteJob: deleteCronJob,
+    refreshJobs: refreshCronJobs,
+  } = useCronJobs({ 
+    wsRef,
+    connectionStatus,
+    onEvent: (event) => {
+      // Handle cron events if needed
+      console.log('[App] Cron event:', event);
+    }
   });
 
   // Get the active panel and its settings
@@ -136,6 +156,32 @@ function MissionControlInner() {
       sendMessage({ type: 'gateways.list' });
     }
   }, [connectionStatus, sendMessage]);
+
+  // On refresh, rehydrate chat history for already open chat panels.
+  useEffect(() => {
+    if (connectionStatus !== 'connected') return;
+
+    const openChatAgentIds = Array.from(new Set(
+      layout.panels
+        .filter((panel) => panel.type === 'chat' && panel.agentId)
+        .map((panel) => panel.agentId as string)
+    ));
+
+    for (const agentId of openChatAgentIds) {
+      if (hydratedHistoryAgentsRef.current.has(agentId)) continue;
+
+      sendMessage({
+        type: 'chat.history.load',
+        agentId,
+        params: {
+          sessionKey: `agent:${agentId}:main`,
+          limit: 50,
+        },
+      });
+
+      hydratedHistoryAgentsRef.current.add(agentId);
+    }
+  }, [connectionStatus, layout.panels, sendMessage]);
 
   // Check onboarding status on mount and when connection status or gateways change
   useEffect(() => {
@@ -328,6 +374,76 @@ function MissionControlInner() {
     openPanel('extension-onboarding', { extensionName });
   }, [openPanel]);
 
+  // Cron handlers
+  const handleSelectCronJob = useCallback((jobId: string) => {
+    const job = cronJobs.find(j => j.id === jobId);
+    if (job) {
+      openPanel('cron', { jobId, jobName: job.name });
+    }
+  }, [cronJobs, openPanel]);
+
+  const handleDeleteCronJob = useCallback(async (jobId: string) => {
+    try {
+      await deleteCronJob(jobId);
+      toast({
+        title: 'Cron job deleted',
+        description: 'The cron job has been removed.',
+      });
+      // Close any open cron panels for this job
+      layout.panels.forEach(panel => {
+        if (panel.type === 'cron' && panel.data?.jobId === jobId) {
+          closePanel(panel.id);
+        }
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to delete job',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+    }
+  }, [deleteCronJob, toast, layout.panels, closePanel]);
+
+  const handleOpenCreateCronPanel = useCallback(() => {
+    setIsCronMenuOpen(false);
+    openPanel('create-cron');
+  }, [openPanel]);
+
+  const handleEditCronJob = useCallback((jobId: string) => {
+    const job = cronJobs.find(j => j.id === jobId);
+    if (!job) return;
+    openPanel('update-cron', { jobId, jobName: job.name });
+  }, [cronJobs, openPanel]);
+
+  const handleCreateCronJobRequest = useCallback(async (payload: any) => {
+    const createdJob = await addCronJob({
+      ...payload,
+      payload: {
+        ...payload.payload,
+        agentId: payload.payload?.agentId || activePanelAgentId || undefined,
+      }
+    });
+
+    toast({
+      title: 'Cron job created',
+      description: `${createdJob.name} was added.`,
+    });
+
+    openPanel('cron', { jobId: createdJob.id, jobName: createdJob.name });
+    return createdJob;
+  }, [addCronJob, activePanelAgentId, openPanel, toast]);
+
+  const handleUpdateCronJobRequest = useCallback(async (payload: { jobId: string; updates: any }) => {
+    const updatedJob = await updateCronJob(payload.jobId, payload.updates);
+
+    toast({
+      title: 'Cron job updated',
+      description: `${updatedJob.name} was updated.`,
+    });
+
+    return updatedJob;
+  }, [updateCronJob, toast]);
+
   const handleCreateAgentRequest = useCallback(async (payload: {
     id?: string;
     name: string;
@@ -497,6 +613,12 @@ function MissionControlInner() {
             onResetSession={handleResetSession}
             onCreateAgent={handleCreateAgentRequest}
             onUpdateAgent={handleUpdateAgentRequest}
+            cronJobs={cronJobs}
+            wsRef={wsRef}
+            onEditCronJob={handleEditCronJob}
+            onDeleteCronJob={handleDeleteCronJob}
+            onCreateCronJob={handleCreateCronJobRequest}
+            onUpdateCronJob={handleUpdateCronJobRequest}
           />
         )}
       </div>
@@ -530,6 +652,17 @@ function MissionControlInner() {
           onAddGateway={() => setShowSetup(true)}
           onRemoveGateway={(id) => sendMessage({ type: 'gateways.remove', id })}
           onOpenExtensionOnboarding={handleOpenExtensionOnboarding}
+          cronJobs={cronJobs}
+          cronStatus={cronStatus}
+          isCronMenuOpen={isCronMenuOpen}
+          onToggleCronMenu={() => {
+            if (!isCronMenuOpen) {
+              refreshCronJobs();
+            }
+            setIsCronMenuOpen(!isCronMenuOpen);
+          }}
+          onSelectCronJob={handleSelectCronJob}
+          onCreateCronJob={handleOpenCreateCronPanel}
         />
       </div>
 
@@ -566,8 +699,11 @@ function MissionControlInner() {
       />
       
       {/* Click outside desktop menu */}
-      {isAgentMenuOpen && (
-        <div className="fixed inset-0 z-40" onClick={() => setIsAgentMenuOpen(false)} />
+      {(isAgentMenuOpen || isCronMenuOpen) && (
+        <div className="fixed inset-0 z-40" onClick={() => {
+          setIsAgentMenuOpen(false);
+          setIsCronMenuOpen(false);
+        }} />
       )}
     </div>
   );

@@ -6,7 +6,11 @@ import { PanelHeader } from './PanelHeader';
 import { ChatPanel } from './ChatPanel';
 import { CreateAgentPanel } from './CreateAgentPanel';
 import { UpdateAgentPanel } from './UpdateAgentPanel';
+import { CreateCronPanel } from './CreateCronPanel';
+import { UpdateCronPanel } from './UpdateCronPanel';
 import { ExtensionOnboardingPanel } from './ExtensionOnboardingPanel';
+import { CronPanel } from '../cron';
+import type { CronJob } from '@/types';
 
 interface PanelContainerProps {
   panels: Panel[];
@@ -37,6 +41,15 @@ interface PanelContainerProps {
     sandbox?: { mode: string };
   }) => Promise<{ agentId: string; agentName: string }>;
   onUpdateAgent: (payload: { agentId: string; name: string }) => Promise<{ agentId: string; name: string }>;
+  
+  // Cron-related props
+  cronJobs?: CronJob[];
+  wsRef?: React.RefObject<WebSocket | null>;
+  onReschedule?: (jobId: string) => void;
+  onEditCronJob?: (jobId: string) => void;
+  onDeleteCronJob?: (jobId: string) => void;
+  onCreateCronJob?: (payload: Omit<CronJob, 'id' | 'createdAtMs' | 'updatedAtMs'>) => Promise<CronJob>;
+  onUpdateCronJob?: (payload: { jobId: string; updates: Partial<CronJob> }) => Promise<CronJob>;
 }
 
 export function PanelContainer({
@@ -58,7 +71,14 @@ export function PanelContainer({
   onAbortRun,
   onResetSession,
   onCreateAgent,
-  onUpdateAgent
+  onUpdateAgent,
+  cronJobs = [],
+  wsRef,
+  onReschedule,
+  onEditCronJob,
+  onDeleteCronJob,
+  onCreateCronJob,
+  onUpdateCronJob,
 }: PanelContainerProps) {
   if (panels.length === 0) {
     return null;
@@ -140,6 +160,68 @@ export function PanelContainer({
                 extensionName={panel.data.extensionName}
                 onClose={() => onPanelClose(panel.id)}
               />
+            )}
+
+            {panel.type === 'create-cron' && onCreateCronJob && (
+              <CreateCronPanel
+                onCreateCronJob={onCreateCronJob}
+                onClose={() => onPanelClose(panel.id)}
+              />
+            )}
+
+            {panel.type === 'update-cron' && panel.data?.jobId && onUpdateCronJob && (
+              (() => {
+                const job = cronJobs.find(j => j.id === panel.data.jobId);
+                if (!job) {
+                  return (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      Cron job not found.
+                    </div>
+                  );
+                }
+
+                return (
+                  <UpdateCronPanel
+                    job={job}
+                    onUpdateCronJob={onUpdateCronJob}
+                    onClose={() => onPanelClose(panel.id)}
+                  />
+                );
+              })()
+            )}
+
+            {panel.type === 'cron' && wsRef && (
+              (() => {
+                const jobId = panel.data?.jobId;
+                const jobNameFromData = panel.data?.jobName;
+                const jobNameFromTitle = panel.title.startsWith('Cron: ')
+                  ? panel.title.replace(/^Cron:\s*/, '')
+                  : undefined;
+
+                const job = cronJobs.find(j =>
+                  (jobId && j.id === jobId)
+                  || (jobNameFromData && j.name === jobNameFromData)
+                  || (jobNameFromTitle && j.name === jobNameFromTitle)
+                );
+                if (!job) {
+                  return (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      Cron job not found.
+                    </div>
+                  );
+                }
+
+                return (
+                  <CronPanel
+                    job={job}
+                    sendMessage={sendMessage}
+                    wsRef={wsRef}
+                    onReschedule={onReschedule}
+                    onEdit={onEditCronJob}
+                    onDelete={onDeleteCronJob}
+                  />
+                );
+              })()
             )}
           </div>
         </div>

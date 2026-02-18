@@ -17,6 +17,15 @@ import {
   handleGatewayCall,
 } from './gateway.handler';
 import { handleModelsList } from './models.handler';
+import {
+  handleCronList,
+  handleCronStatus,
+  handleCronAdd,
+  handleCronUpdate,
+  handleCronDelete,
+  handleCronRuns,
+  handleCronRun,
+} from './cron.handler';
 
 // Singleton config manager (shared with GatewayClient)
 const configManager = new ConfigManager();
@@ -89,6 +98,34 @@ export async function handleMessage(
 
       case 'agents.delete':
         await handleAgentDelete(msg, ws, gateway);
+        break;
+
+      case 'cron.list':
+        await handleCronList(msg, ws, gateway);
+        break;
+
+      case 'cron.status':
+        await handleCronStatus(msg, ws, gateway);
+        break;
+
+      case 'cron.add':
+        await handleCronAdd(msg, ws, gateway);
+        break;
+
+      case 'cron.update':
+        await handleCronUpdate(msg, ws, gateway);
+        break;
+
+      case 'cron.delete':
+        await handleCronDelete(msg, ws, gateway);
+        break;
+
+      case 'cron.runs':
+        await handleCronRuns(msg, ws, gateway);
+        break;
+
+      case 'cron.run':
+        await handleCronRun(msg, ws, gateway);
         break;
 
       default:

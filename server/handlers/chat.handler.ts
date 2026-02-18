@@ -51,6 +51,7 @@ export async function handleChatHistoryLoad(
       JSON.stringify({
         type: 'chat_history_more',
         agentId,
+        sessionKey: params.sessionKey,
         messages,
         before: params.before,
       })

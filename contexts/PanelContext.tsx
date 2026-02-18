@@ -58,7 +58,7 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
             type: savedPanel.type as PanelType,
             title: savedPanel.title,
             agentId: savedPanel.agentId,
-            data: savedPanel.agentId ? { agentId: savedPanel.agentId, agentName: savedPanel.title } : {},
+            data: savedPanel.data || (savedPanel.agentId ? { agentId: savedPanel.agentId, agentName: savedPanel.title } : {}),
             isActive: savedPanel.panelId === state.activePanelId,
             settings: savedPanel.settings || getDefaultSettings()
           }));
@@ -92,6 +92,7 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
               type: panel.type,
               agentId: panel.agentId,
               title: panel.title,
+              data: panel.data,
               settings: panel.settings || getDefaultSettings()
             })),
             activePanelId: layout.activePanel,
@@ -173,6 +174,15 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
           break;
         case 'extension-onboarding':
           title = `${data?.extensionName || 'Extension'} Setup`;
+          break;
+        case 'cron':
+          title = data?.jobName ? `Cron: ${data.jobName}` : 'Cron Job';
+          break;
+        case 'create-cron':
+          title = 'Create Cron Job';
+          break;
+        case 'update-cron':
+          title = data?.jobName ? `Edit ${data.jobName}` : 'Edit Cron Job';
           break;
         default:
           title = type;
