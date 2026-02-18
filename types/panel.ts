@@ -13,6 +13,11 @@ export interface Panel {
   data?: Record<string, any>;  // Panel-specific data
   isActive: boolean;           // Currently focused panel
   settings?: PanelSettings;    // Per-panel settings
+  // Per-panel session settings (for chat panels)
+  sessionKey?: string;         // Session key for this panel (e.g., "agent:xyz:main")
+  model?: string;              // Model ID for this panel
+  modelProvider?: string;      // Model provider for this panel
+  thinking?: 'off' | 'low' | 'medium' | 'high';  // Thinking level for this panel
 }
 
 export interface PanelLayout {

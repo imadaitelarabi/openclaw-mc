@@ -9,6 +9,7 @@ import { GatewaySetup } from "@/components/gateway/GatewaySetup";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { PanelProvider, usePanels } from "@/contexts/PanelContext";
 import { PanelContainer } from "@/components/panels";
+import { ConfirmationModal } from "@/components/modals";
 import { uiStateStore } from "@/lib/ui-state-db";
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ export default function MissionControl() {
 }
 
 function MissionControlInner() {
-  const { layout, openPanel, closePanel, setActivePanel, updatePanelSettings, getActivePanel } = usePanels();
+  const { layout, openPanel, closePanel, setActivePanel, updatePanelSettings, updatePanelSessionSettings, getActivePanel } = usePanels();
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [isCronMenuOpen, setIsCronMenuOpen] = useState(false);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
@@ -33,6 +34,9 @@ function MissionControlInner() {
   // Onboarding state: null = not yet checked, true = show wizard, false = skip wizard
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  // Delete agent confirmation modal state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [agentToDelete, setAgentToDelete] = useState<{ id: string; name: string } | null>(null);
   
   const { toast } = useToast();
   const pendingRequestsRef = useRef(new Map<string, {
@@ -296,6 +300,8 @@ function MissionControlInner() {
         setLoading(false);
       } else if (message.type === 'sessions' && message.data) {
         const sessions = message.data.sessions || [];
+        
+        // Update the active panel's session settings in the global state
         if (activePanelAgentId) {
           const agentSession = sessions.find((s: any) => 
             s.key?.includes(`agent:${activePanelAgentId}`)
@@ -309,6 +315,23 @@ function MissionControlInner() {
             });
           }
         }
+        
+        // Update all chat panels with their respective session settings
+        layout.panels.forEach(panel => {
+          if (panel.type === 'chat' && panel.agentId) {
+            const panelSession = sessions.find((s: any) => 
+              s.key?.includes(`agent:${panel.agentId}`)
+            );
+            if (panelSession) {
+              updatePanelSessionSettings(panel.id, {
+                model: panelSession.model,
+                modelProvider: panelSession.modelProvider,
+                thinking: panelSession.thinkingLevel || 'low'
+              });
+            }
+          }
+        });
+        
         setLoading(false);
       } else if (message.type === 'sessions.patch.ack') {
         setLoading(false);
@@ -324,6 +347,8 @@ function MissionControlInner() {
     toast,
     clearChatHistory,
     isOnboardingForced,
+    layout.panels,
+    updatePanelSessionSettings,
   ]);
 
   useEffect(() => {
@@ -355,7 +380,11 @@ function MissionControlInner() {
   const handleSelectAgent = useCallback((agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
     openPanel('chat', { agentId, agentName: agent?.name || 'Chat' });
-  }, [agents, openPanel]);
+    // Request session settings for this agent
+    if (connectionStatus === 'connected') {
+      sendMessage({ type: 'sessions.list' });
+    }
+  }, [agents, openPanel, connectionStatus, sendMessage]);
   
   // Handler to open create agent panel
   const handleCreateAgent = useCallback(() => {
@@ -475,27 +504,31 @@ function MissionControlInner() {
     };
   }, [sendRequestWithAck]);
 
-  const handleDeleteAgent = useCallback(async (agentId: string) => {
+  const handleDeleteAgent = useCallback((agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
     const agentName = agent?.name || agentId;
-    const confirmed = window.confirm(`Delete agent \"${agentName}\"?`);
-    if (!confirmed) return;
+    setAgentToDelete({ id: agentId, name: agentName });
+    setShowDeleteConfirm(true);
+  }, [agents]);
+
+  const handleConfirmDeleteAgent = useCallback(async () => {
+    if (!agentToDelete) return;
 
     try {
-      const result = await handleDeleteAgentRequest(agentId);
+      const result = await handleDeleteAgentRequest(agentToDelete.id);
       if (result.removed) {
         toast({
           title: 'Agent deleted',
-          description: `${agentName} has been removed.`
+          description: `${agentToDelete.name} has been removed.`
         });
       } else {
         toast({
           title: 'Agent not found',
-          description: `${agentName} was already missing.`
+          description: `${agentToDelete.name} was already missing.`
         });
       }
 
-      const panelForAgent = layout.panels.find((panel) => panel.agentId === agentId && panel.isActive);
+      const panelForAgent = layout.panels.find((panel) => panel.agentId === agentToDelete.id && panel.isActive);
       if (panelForAgent) {
         closePanel(panelForAgent.id);
       }
@@ -505,8 +538,11 @@ function MissionControlInner() {
         description: err instanceof Error ? err.message : 'Failed to delete agent',
         variant: 'destructive'
       });
+    } finally {
+      setShowDeleteConfirm(false);
+      setAgentToDelete(null);
     }
-  }, [agents, closePanel, handleDeleteAgentRequest, layout.panels, toast]);
+  }, [agentToDelete, handleDeleteAgentRequest, layout.panels, closePanel, toast]);
 
   const handleOnboardingGatewayConnect = useCallback(async (name: string, url: string, token: string) => {
     const ack = await sendRequestWithAck({ type: 'gateways.add', name, url, token }, 'gateways.add.ack');
@@ -521,17 +557,23 @@ function MissionControlInner() {
 
   // Handler for model change from panel header
   const handleModelChange = useCallback((modelId: string, provider?: string) => {
-    if (sessionKey) {
+    if (sessionKey && activePanel?.id) {
+      // Update the session on the server
       updateSetting(sessionKey, { model: modelId, modelProvider: provider });
+      // Update the panel state immediately for responsive UI
+      updatePanelSessionSettings(activePanel.id, { model: modelId, modelProvider: provider });
     }
-  }, [sessionKey, updateSetting]);
+  }, [sessionKey, activePanel?.id, updateSetting, updatePanelSessionSettings]);
 
   // Handler for thinking level change from panel header
   const handleThinkingChange = useCallback((thinking: 'off' | 'low' | 'medium' | 'high') => {
-    if (sessionKey) {
+    if (sessionKey && activePanel?.id) {
+      // Update the session on the server
       updateSetting(sessionKey, { thinking });
+      // Update the panel state immediately for responsive UI
+      updatePanelSessionSettings(activePanel.id, { thinking });
     }
-  }, [sessionKey, updateSetting]);
+  }, [sessionKey, activePanel?.id, updateSetting, updatePanelSessionSettings]);
 
   // Handler to refresh chat history for a specific agent
   const handleRefreshChat = useCallback((agentId: string) => {
@@ -744,6 +786,21 @@ function MissionControlInner() {
           setIsCronMenuOpen(false);
         }} />
       )}
+
+      {/* Delete Agent Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setAgentToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteAgent}
+        title="Delete Agent"
+        message={`Are you sure you want to delete "${agentToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }
