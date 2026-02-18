@@ -1323,8 +1323,41 @@ export function useAgentEvents() {
           }
         }
         
+        // Check if we need to commit previous reasoning or text before starting tool
+        const existingRun = state.activeRunData[agentId];
+        const updates: AgentEventsAction[] = [];
+        
+        // If transitioning from reasoning or text to tool, commit first
+        if (existingRun && existingRun.content) {
+          if (existingRun.status === 'thinking') {
+            updates.push({
+              type: 'ADD_CHAT_MESSAGE',
+              agentId,
+              message: {
+                id: `${runId}-reasoning`,
+                role: 'reasoning' as const,
+                content: existingRun.content,
+                timestamp: Date.now(),
+                runId
+              },
+            });
+          } else if (existingRun.status === 'text') {
+            updates.push({
+              type: 'ADD_CHAT_MESSAGE',
+              agentId,
+              message: {
+                id: runId,
+                role: 'assistant' as const,
+                content: existingRun.content,
+                timestamp: Date.now(),
+                runId
+              },
+            });
+          }
+        }
+        
         // Update activeRun to show tool execution
-        dispatch({
+        updates.push({
           type: 'SET_ACTIVE_RUN_DATA',
           agentId,
           activeRun: {
@@ -1340,6 +1373,12 @@ export function useAgentEvents() {
             },
           },
         });
+        
+        if (updates.length > 1) {
+          dispatch({ type: 'BATCH_UPDATE', updates });
+        } else {
+          dispatch(updates[0]);
+        }
       } else if (isUpdatePhase) {
         // Update the active tool in activeToolsRef and activeRun
         const resolvedToolId = resolveActiveToolId(toolCallMapKey, hasSeq, runId, toolName, seq);
@@ -1526,25 +1565,40 @@ export function useAgentEvents() {
       if (data?.delta !== undefined) {
         const normalizedDelta = normalizeTextContent(data.delta);
         
-        // Update activeRun with assistant text
+        // Check if we need to commit previous reasoning before starting assistant text
         const existingRun = state.activeRunData[agentId];
-        if (existingRun) {
-          dispatch({
-            type: 'UPDATE_ACTIVE_RUN_CONTENT',
+        const updates: AgentEventsAction[] = [];
+        
+        // If transitioning from reasoning to text, commit the reasoning first
+        if (existingRun && existingRun.status === 'thinking' && existingRun.content) {
+          updates.push({
+            type: 'ADD_CHAT_MESSAGE',
             agentId,
-            contentDelta: normalizedDelta,
-          });
-        } else {
-          // Initialize activeRun for assistant text
-          dispatch({
-            type: 'SET_ACTIVE_RUN_DATA',
-            agentId,
-            activeRun: {
-              runId,
-              status: 'text',
-              content: normalizedDelta,
+            message: {
+              id: `${runId}-reasoning`,
+              role: 'reasoning' as const,
+              content: existingRun.content,
+              timestamp: Date.now(),
+              runId
             },
           });
+        }
+        
+        // Update activeRun with assistant text
+        updates.push({
+          type: 'SET_ACTIVE_RUN_DATA',
+          agentId,
+          activeRun: {
+            runId,
+            status: 'text',
+            content: existingRun && existingRun.status === 'text' ? existingRun.content + normalizedDelta : normalizedDelta,
+          },
+        });
+        
+        if (updates.length > 1) {
+          dispatch({ type: 'BATCH_UPDATE', updates });
+        } else {
+          dispatch(updates[0]);
         }
         
         // Also update latestTextRef for lifecycle end
