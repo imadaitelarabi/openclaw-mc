@@ -132,17 +132,9 @@ export function StatusBar({
         </>
       )}
 
-      {/* Settings Dropdown */}
-      <SettingsDropdown
-        extensions={availableExtensions}
-        onSelectExtension={onOpenExtensionOnboarding}
-      />
-
       {/* Extension Status Bar Items */}
       {statusBarItems.size > 0 && (
         <>
-          <div className="h-4 w-px bg-border" />
-
           {Array.from(statusBarItems.entries()).map(([extensionName, item]) => (
             <ExtensionStatusBarItem
               key={extensionName}
@@ -156,6 +148,12 @@ export function StatusBar({
           <div className="h-4 w-px bg-border" />
         </>
       )}
+
+      {/* Settings Dropdown */}
+      <SettingsDropdown
+        extensions={availableExtensions}
+        onSelectExtension={onOpenExtensionOnboarding}
+      />
 
       <div className="h-4 w-px bg-border" />
 
