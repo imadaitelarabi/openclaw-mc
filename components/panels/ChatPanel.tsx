@@ -1,11 +1,11 @@
 "use client";
 
 import { memo, useState, useRef, useEffect, useMemo } from 'react';
-import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
+import { ChatMessageItem, ChatInput, ActiveRunOverlay, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
 import { useChatHistory, useChatPolling } from '@/hooks';
 import { uiStateStore } from '@/lib/ui-state-db';
 import { debounce } from '@/lib/utils';
-import type { Agent } from '@/types';
+import type { Agent, ActiveRun } from '@/types';
 
 // Constants
 const HISTORY_PAGE_SIZE = 50;
@@ -19,6 +19,7 @@ interface ChatPanelProps {
   connectionStatus: string;
   chatHistory: any[];
   activeRunId: string | null;
+  activeRun?: ActiveRun | null;
   assistantStream?: string;
   reasoningStream?: string;
   addUserMessage: (agentId: string, message: string, attachments?: Array<{fileName?: string, type: string, mimeType: string, content: string}>) => void;
@@ -42,6 +43,7 @@ export const ChatPanel = memo(function ChatPanel({
   connectionStatus,
   chatHistory,
   activeRunId,
+  activeRun,
   assistantStream,
   reasoningStream,
   addUserMessage,
@@ -210,7 +212,7 @@ export const ChatPanel = memo(function ChatPanel({
     if (shouldAutoScrollRef.current && chatEndRef.current && scrollContainerRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'auto' });
     }
-  }, [chatHistory, assistantStream, agentId]);
+  }, [chatHistory, activeRun, agentId]);
 
   const scrollToBottom = () => {
     if (chatEndRef.current) {
@@ -253,11 +255,7 @@ export const ChatPanel = memo(function ChatPanel({
             <ChatMessageItem key={msg.id} message={msg} showTools={showTools} />
           ))}
           
-          <StreamingIndicator 
-            assistantStream={assistantStream}
-            reasoningStream={showReasoning ? reasoningStream : undefined}
-            isTyping={Boolean(activeRunId)}
-          />
+          <ActiveRunOverlay activeRun={showReasoning ? activeRun || null : (activeRun?.status !== 'thinking' ? activeRun || null : null)} />
           
           <div ref={chatEndRef} />
         </div>

@@ -1,5 +1,5 @@
 import { useReducer, useRef, useCallback, useEffect, useMemo } from 'react';
-import type { ChatMessage } from '@/types';
+import type { ChatMessage, ActiveRun } from '@/types';
 import { extractAgentId, getStreamKey, getToolId } from '@/lib/gateway-utils';
 import { uiStateStore } from '@/lib/ui-state-db';
 import { 
@@ -528,6 +528,7 @@ interface AgentEventsState {
   chatStreams: Record<string, string>;
   reasoningStreams: Record<string, string>;
   activeRuns: Record<string, string>;
+  activeRunData: Record<string, ActiveRun>; // New: ephemeral streaming state
 }
 
 /**
@@ -559,6 +560,9 @@ type AgentEventsAction =
   | { type: 'CLEAR_REASONING_STREAM'; streamKey: string }
   | { type: 'SET_ACTIVE_RUN'; agentId: string; runId: string }
   | { type: 'CLEAR_ACTIVE_RUN'; agentId: string; runId?: string }
+  | { type: 'SET_ACTIVE_RUN_DATA'; agentId: string; activeRun: ActiveRun }
+  | { type: 'UPDATE_ACTIVE_RUN_CONTENT'; agentId: string; contentDelta: string }
+  | { type: 'CLEAR_ACTIVE_RUN_DATA'; agentId: string }
   | { type: 'RESTORE_STREAM_STATE'; activeRuns: Record<string, string>; chatStreams: Record<string, string>; reasoningStreams: Record<string, string> }
   | { type: 'BATCH_UPDATE'; updates: AgentEventsAction[] };
 
@@ -952,6 +956,41 @@ function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction):
       };
     }
 
+    case 'SET_ACTIVE_RUN_DATA': {
+      return {
+        ...state,
+        activeRunData: {
+          ...state.activeRunData,
+          [action.agentId]: action.activeRun,
+        },
+      };
+    }
+
+    case 'UPDATE_ACTIVE_RUN_CONTENT': {
+      const current = state.activeRunData[action.agentId];
+      if (!current) return state;
+      
+      return {
+        ...state,
+        activeRunData: {
+          ...state.activeRunData,
+          [action.agentId]: {
+            ...current,
+            content: current.content + action.contentDelta,
+          },
+        },
+      };
+    }
+
+    case 'CLEAR_ACTIVE_RUN_DATA': {
+      const next = { ...state.activeRunData };
+      delete next[action.agentId];
+      return {
+        ...state,
+        activeRunData: next,
+      };
+    }
+
     case 'RESTORE_STREAM_STATE': {
       return {
         ...state,
@@ -973,6 +1012,7 @@ export function useAgentEvents() {
     chatStreams: {},
     reasoningStreams: {},
     activeRuns: {},
+    activeRunData: {},
   });
   
   // Refs to store latest accumulated text (synchronous, no state timing issues)
@@ -1282,8 +1322,26 @@ export function useAgentEvents() {
             toolCallToMessageIdRef.current[toolCallMapKey] = toolId;
           }
         }
+        
+        // Update activeRun to show tool execution
+        dispatch({
+          type: 'SET_ACTIVE_RUN_DATA',
+          agentId,
+          activeRun: {
+            runId,
+            status: 'tool',
+            content: '',
+            tool: {
+              name: toolName,
+              args: toolData.args,
+              result: toolResult,
+              status: 'start',
+              startTime: Date.now()
+            },
+          },
+        });
       } else if (isUpdatePhase) {
-        // Update the active tool in activeToolsRef
+        // Update the active tool in activeToolsRef and activeRun
         const resolvedToolId = resolveActiveToolId(toolCallMapKey, hasSeq, runId, toolName, seq);
         
         if (resolvedToolId && activeToolsRef.current[resolvedToolId]) {
@@ -1295,6 +1353,24 @@ export function useAgentEvents() {
               result: toolResult ?? activeToolsRef.current[resolvedToolId].tool?.result
             }
           };
+          
+          // Update activeRun with tool update
+          dispatch({
+            type: 'SET_ACTIVE_RUN_DATA',
+            agentId,
+            activeRun: {
+              runId,
+              status: 'tool',
+              content: '',
+              tool: {
+                name: toolName,
+                args: activeToolsRef.current[resolvedToolId].tool!.args,
+                result: toolResult ?? activeToolsRef.current[resolvedToolId].tool?.result,
+                status: 'update',
+                startTime: activeToolsRef.current[resolvedToolId].tool!.startTime
+              },
+            },
+          });
         }
       } else if (isResultPhase && !isErrorPhase) {
         // Tool completed successfully - now add to chatHistory
@@ -1322,11 +1398,20 @@ export function useAgentEvents() {
             }
           };
 
-          // Add to chatHistory now that it's complete
+          // Add to chatHistory now that it's complete and clear activeRun
           dispatch({
-            type: 'ADD_CHAT_MESSAGE',
-            agentId,
-            message: completedToolMsg,
+            type: 'BATCH_UPDATE',
+            updates: [
+              {
+                type: 'ADD_CHAT_MESSAGE',
+                agentId,
+                message: completedToolMsg,
+              },
+              {
+                type: 'CLEAR_ACTIVE_RUN_DATA',
+                agentId,
+              },
+            ],
           });
 
           // Clean up
@@ -1357,11 +1442,20 @@ export function useAgentEvents() {
             }
           };
 
-          // Add to chatHistory now that it's errored
+          // Add to chatHistory now that it's errored and clear activeRun
           dispatch({
-            type: 'ADD_CHAT_MESSAGE',
-            agentId,
-            message: errorToolMsg,
+            type: 'BATCH_UPDATE',
+            updates: [
+              {
+                type: 'ADD_CHAT_MESSAGE',
+                agentId,
+                message: errorToolMsg,
+              },
+              {
+                type: 'CLEAR_ACTIVE_RUN_DATA',
+                agentId,
+              },
+            ],
           });
 
           // Clean up
@@ -1377,13 +1471,29 @@ export function useAgentEvents() {
     // Handle reasoning stream
     if (stream === 'reasoning') {
       if (data?.delta) {
-        dispatch({
-          type: 'UPDATE_REASONING_DELTA',
-          streamKey,
-          delta: normalizeTextContent(data.delta),
-        });
+        // Update activeRun with reasoning content
+        const existingRun = state.activeRunData[agentId];
+        if (existingRun) {
+          dispatch({
+            type: 'UPDATE_ACTIVE_RUN_CONTENT',
+            agentId,
+            contentDelta: normalizeTextContent(data.delta),
+          });
+        } else {
+          // Initialize activeRun for reasoning
+          dispatch({
+            type: 'SET_ACTIVE_RUN_DATA',
+            agentId,
+            activeRun: {
+              runId,
+              status: 'thinking',
+              content: normalizeTextContent(data.delta),
+            },
+          });
+        }
       } else if (data?.text) {
-        // Batch the message add and stream clear
+        // Commit reasoning to chatHistory and clear activeRun
+        const fullContent = normalizeTextContent(data.text);
         dispatch({
           type: 'BATCH_UPDATE',
           updates: [
@@ -1393,14 +1503,14 @@ export function useAgentEvents() {
               message: {
                 id: `${runId}-reasoning`,
                 role: 'reasoning' as const,
-                content: normalizeTextContent(data.text),
+                content: fullContent,
                 timestamp: Date.now(),
                 runId
               },
             },
             {
-              type: 'CLEAR_REASONING_STREAM',
-              streamKey,
+              type: 'CLEAR_ACTIVE_RUN_DATA',
+              agentId,
             },
           ],
         });
@@ -1415,12 +1525,29 @@ export function useAgentEvents() {
       
       if (data?.delta !== undefined) {
         const normalizedDelta = normalizeTextContent(data.delta);
-        dispatch({
-          type: 'UPDATE_STREAM_DELTA',
-          streamKey,
-          delta: normalizedDelta,
-        });
-        // Also update latestTextRef with the accumulated text
+        
+        // Update activeRun with assistant text
+        const existingRun = state.activeRunData[agentId];
+        if (existingRun) {
+          dispatch({
+            type: 'UPDATE_ACTIVE_RUN_CONTENT',
+            agentId,
+            contentDelta: normalizedDelta,
+          });
+        } else {
+          // Initialize activeRun for assistant text
+          dispatch({
+            type: 'SET_ACTIVE_RUN_DATA',
+            agentId,
+            activeRun: {
+              runId,
+              status: 'text',
+              content: normalizedDelta,
+            },
+          });
+        }
+        
+        // Also update latestTextRef for lifecycle end
         latestTextRef.current[streamKey] = (latestTextRef.current[streamKey] || '') + normalizedDelta;
       }
     }
@@ -1447,7 +1574,7 @@ export function useAgentEvents() {
         
         const updates: AgentEventsAction[] = [];
         
-        // Use FINALIZE_ASSISTANT_MESSAGE action which checks for duplicates in the reducer
+        // Commit assistant message from activeRun or latestTextRef
         if (accumulatedText) {
           console.log('[Mission Control] Adding finalized message to history');
           updates.push({
@@ -1457,6 +1584,12 @@ export function useAgentEvents() {
             content: accumulatedText,
           });
         }
+        
+        // Clear activeRunData
+        updates.push({
+          type: 'CLEAR_ACTIVE_RUN_DATA',
+          agentId,
+        });
         
         // Handle pending tools gracefully when run ends/errors
         if (data?.phase === 'error') {
@@ -1617,6 +1750,7 @@ export function useAgentEvents() {
     chatStreams: state.chatStreams,
     reasoningStreams: state.reasoningStreams,
     activeRuns: state.activeRuns,
+    activeRunData: state.activeRunData,
     handleAgentEvent,
     addUserMessage,
     clearChatHistory

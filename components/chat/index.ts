@@ -6,3 +6,4 @@ export * from './ReasoningCard';
 export * from './ScrollToBottomButton';
 export * from './ChatHistoryLoader';
 export * from './AttachmentPreview';
+export * from './ActiveRunOverlay';
