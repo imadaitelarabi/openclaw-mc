@@ -351,27 +351,6 @@ function MissionControlInner() {
     }
   }, [activePanel?.id, updatePanelSettings]);
 
-  // Handler for model change from panel header
-  const handleModelChange = useCallback((modelId: string, provider?: string) => {
-    if (sessionKey) {
-      updateSetting(sessionKey, { model: modelId, modelProvider: provider });
-    }
-  }, [sessionKey, updateSetting]);
-
-  // Handler to refresh chat history for a specific agent
-  const handleRefreshChat = useCallback((agentId: string) => {
-    if (connectionStatus === 'connected') {
-      sendMessage({
-        type: 'chat.history.load',
-        agentId,
-        params: {
-          sessionKey: `agent:${agentId}:main`,
-          limit: 50,
-        },
-      });
-    }
-  }, [connectionStatus, sendMessage]);
-
   // Handler to open chat panel for an agent
   const handleSelectAgent = useCallback((agentId: string) => {
     const agent = agents.find(a => a.id === agentId);
@@ -539,6 +518,27 @@ function MissionControlInner() {
 
   // Use the active panel's agent for session key
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
+
+  // Handler for model change from panel header
+  const handleModelChange = useCallback((modelId: string, provider?: string) => {
+    if (sessionKey) {
+      updateSetting(sessionKey, { model: modelId, modelProvider: provider });
+    }
+  }, [sessionKey, updateSetting]);
+
+  // Handler to refresh chat history for a specific agent
+  const handleRefreshChat = useCallback((agentId: string) => {
+    if (connectionStatus === 'connected') {
+      sendMessage({
+        type: 'chat.history.load',
+        agentId,
+        params: {
+          sessionKey: `agent:${agentId}:main`,
+          limit: 50,
+        },
+      });
+    }
+  }, [connectionStatus, sendMessage]);
 
   // Show onboarding wizard for first-time users with no config
   if (onboardingChecked && showOnboarding === true) {

@@ -48,7 +48,6 @@ export function ConfigDropdown({
 
             <DropdownMenu.Portal>
               <DropdownMenu.SubContent
-                side="left"
                 alignOffset={-4}
                 sideOffset={6}
                 className="z-[120] min-w-[160px] bg-popover border border-border rounded-md shadow-lg p-1"
@@ -80,7 +79,6 @@ export function ConfigDropdown({
 
             <DropdownMenu.Portal>
               <DropdownMenu.SubContent
-                side="left"
                 alignOffset={-4}
                 sideOffset={6}
                 className="z-[120] min-w-[160px] bg-popover border border-border rounded-md shadow-lg p-1"
