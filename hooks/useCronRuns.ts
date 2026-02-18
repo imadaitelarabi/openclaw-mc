@@ -28,11 +28,20 @@ function normalizeCronRun(entry: any): CronRun {
     ?? `${entry?.jobId || 'cron'}:${startedAtMs}`
   );
 
+  const hasTerminalSignal =
+    entry?.status === 'ok'
+    || entry?.status === 'error'
+    || entry?.action === 'finished'
+    || Boolean(finishedAtMs)
+    || typeof entry?.error === 'string';
+
   const status: CronRun['status'] = entry?.status === 'error'
     ? 'error'
     : entry?.status === 'ok'
       ? 'ok'
-      : (entry?.action === 'started' ? 'running' : 'ok');
+      : hasTerminalSignal
+        ? 'ok'
+        : 'running';
 
   return {
     id,

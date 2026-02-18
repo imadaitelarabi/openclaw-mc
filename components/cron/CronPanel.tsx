@@ -319,6 +319,22 @@ function extractAgentIdFromSessionKey(sessionKey?: string): string | null {
   return parts[1];
 }
 
+function getSessionRoot(sessionKey?: string): string {
+  if (!sessionKey) return '';
+  const [root] = sessionKey.split(':run:');
+  return root || sessionKey;
+}
+
+function isMatchingSession(payloadSessionKey?: string, selectedSessionKey?: string): boolean {
+  if (!payloadSessionKey || !selectedSessionKey) return false;
+  if (payloadSessionKey === selectedSessionKey) return true;
+
+  const payloadRoot = getSessionRoot(payloadSessionKey);
+  const selectedRoot = getSessionRoot(selectedSessionKey);
+
+  return payloadRoot === selectedRoot;
+}
+
 export const CronPanel = memo(function CronPanel({
   job,
   sendMessage,
@@ -333,6 +349,7 @@ export const CronPanel = memo(function CronPanel({
   const [historyLoading, setHistoryLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const pendingForceSelectRef = useRef(false);
   const { toast } = useToast();
 
   // Load runs for this job
@@ -343,6 +360,7 @@ export const CronPanel = memo(function CronPanel({
   });
   const selectedRun = runs.find(r => r.id === selectedRunId);
   const selectedSessionKey = selectedRun?.sessionKey;
+  const selectedSessionRoot = getSessionRoot(selectedSessionKey);
   const selectedAgentId = extractAgentIdFromSessionKey(selectedSessionKey);
 
   // Select the latest run by default
@@ -353,32 +371,31 @@ export const CronPanel = memo(function CronPanel({
   }, [runs, selectedRunId]);
 
   useEffect(() => {
-    if (!selectedRunId) return;
+    if (!pendingForceSelectRef.current || runs.length === 0) {
+      return;
+    }
 
-    const selectedRun = runs.find(r => r.id === selectedRunId);
-    if (!selectedRun) return;
+    setSelectedRunId(runs[0].id);
+    pendingForceSelectRef.current = false;
+  }, [runs]);
+
+  useEffect(() => {
+    if (!selectedRunId || !selectedSessionKey || !selectedAgentId) return;
 
     setChatHistory([]);
     setHistoryLoading(true);
 
-    // Load session history for this cron run
-    const sessionKey = selectedRun.sessionKey;
-    const agentId = extractAgentIdFromSessionKey(sessionKey);
-
-    if (!sessionKey || !agentId) {
-      setHistoryLoading(false);
-      return;
-    }
+    const historySessionKey = selectedRun?.status === 'running' ? selectedSessionRoot : selectedSessionKey;
 
     sendMessage({
       type: 'chat.history.load',
-      agentId,
+      agentId: selectedAgentId,
       params: {
-        sessionKey,
+        sessionKey: historySessionKey,
         limit: 100,
       },
     });
-  }, [selectedRunId, runs, sendMessage]);
+  }, [selectedRunId, selectedRun?.status, selectedSessionKey, selectedSessionRoot, selectedAgentId, sendMessage]);
 
   // Handle cron event messages to update chat history
   useEffect(() => {
@@ -388,7 +405,7 @@ export const CronPanel = memo(function CronPanel({
       try {
         const msg = JSON.parse(event.data);
 
-        if (msg.type === 'chat.history' && msg.sessionKey === selectedSessionKey) {
+        if (msg.type === 'chat.history' && isMatchingSession(msg.sessionKey, selectedSessionKey)) {
           const messages = Array.isArray(msg.messages)
             ? normalizeHistoryMessages(msg.messages, selectedRun?.id)
             : [];
@@ -399,7 +416,7 @@ export const CronPanel = memo(function CronPanel({
         }
 
         if (msg.type === 'chat_history_more' && selectedAgentId && msg.agentId === selectedAgentId) {
-          if (msg.sessionKey && msg.sessionKey !== selectedSessionKey) {
+          if (msg.sessionKey && !isMatchingSession(msg.sessionKey, selectedSessionKey)) {
             return;
           }
 
@@ -418,8 +435,12 @@ export const CronPanel = memo(function CronPanel({
 
         const payload = msg.payload || {};
 
-        if (payload.sessionKey !== selectedSessionKey) {
+        if (!isMatchingSession(payload.sessionKey, selectedSessionKey)) {
           return;
+        }
+
+        if (payload.stream === 'lifecycle' && payload.data?.phase === 'start') {
+          setHistoryLoading(false);
         }
 
         if (msg.event === 'chat') {
@@ -510,6 +531,8 @@ export const CronPanel = memo(function CronPanel({
 
     try {
       setIsRunning(true);
+      pendingForceSelectRef.current = true;
+      setHistoryLoading(true);
       toast({
         title: 'Triggering run',
         description: 'Starting cron job execution...',
