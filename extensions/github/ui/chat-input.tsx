@@ -277,10 +277,6 @@ export async function getChatInputOptions(
                 api.getIssues(repoOwner, repo.name),
               ]);
 
-              if (prs.length === 0 && issues.length === 0) {
-                return null;
-              }
-
               const latestPrUpdatedAt = prs.reduce((latest, pr) => {
                 const updatedAt = toTimestamp(pr.updated_at);
                 return updatedAt > latest ? updatedAt : latest;

@@ -56,12 +56,16 @@ export function NotesPanel({
   const [attachedImage, setAttachedImage] = useState<File | null>(null);
   const [attachedImageName, setAttachedImageName] = useState('');
   const [isGroupMenuOpen, setIsGroupMenuOpen] = useState(false);
+  const [isHeaderGroupMenuOpen, setIsHeaderGroupMenuOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
   const [notePendingDelete, setNotePendingDelete] = useState<Note | null>(null);
   const [isDeletingNote, setIsDeletingNote] = useState(false);
   const [groupPendingDelete, setGroupPendingDelete] = useState<string | null>(null);
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const groupMenuRef = useRef<HTMLDivElement | null>(null);
+  const headerGroupMenuRef = useRef<HTMLDivElement | null>(null);
+  const noteTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -91,10 +95,11 @@ export function NotesPanel({
 
   useEffect(() => {
     const handleDocumentClick = (event: MouseEvent) => {
-      if (!groupMenuRef.current) return;
-
-      if (!groupMenuRef.current.contains(event.target as Node)) {
+      if (groupMenuRef.current && !groupMenuRef.current.contains(event.target as Node)) {
         setIsGroupMenuOpen(false);
+      }
+      if (headerGroupMenuRef.current && !headerGroupMenuRef.current.contains(event.target as Node)) {
+        setIsHeaderGroupMenuOpen(false);
       }
     };
 
@@ -202,6 +207,9 @@ export function NotesPanel({
 
       await onAddNote(newNoteContent, selectedNoteGroup, newNoteTags, imageUrl);
       setNewNoteContent('');
+      if (noteTextareaRef.current) {
+        noteTextareaRef.current.style.height = 'auto';
+      }
       setNewNoteTags([]);
       setAttachedImage(null);
       setAttachedImageName('');
@@ -347,13 +355,63 @@ export function NotesPanel({
     }
   };
 
+  const toggleExpandedNote = (noteId: string) => {
+    setExpandedNoteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(noteId)) {
+        next.delete(noteId);
+      } else {
+        next.add(noteId);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border">
-        <h2 className="text-sm font-medium">
-          {activeGroup ? `${activeGroup} Notes` : 'All Notes'}
-        </h2>
+        <div className="relative" ref={headerGroupMenuRef}>
+          <button
+            type="button"
+            onClick={() => setIsHeaderGroupMenuOpen(prev => !prev)}
+            className="flex items-center gap-1 text-sm font-medium hover:text-primary transition-colors"
+          >
+            {activeGroup ? `${activeGroup} Notes` : 'All Notes'}
+            <ChevronDown className="w-3 h-3 opacity-60" />
+          </button>
+          {isHeaderGroupMenuOpen && (
+            <div className="absolute top-full mt-1 left-0 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50 min-w-[150px]">
+              <div className="max-h-56 overflow-y-auto py-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveGroup(null);
+                    setIsHeaderGroupMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between gap-2"
+                >
+                  <span className="font-medium">All Notes</span>
+                  <span className="text-xs text-muted-foreground">{notes.length}</span>
+                </button>
+                {allGroups.map(group => (
+                  <button
+                    key={group}
+                    type="button"
+                    onClick={() => {
+                      setActiveGroup(group);
+                      setIsHeaderGroupMenuOpen(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between gap-2"
+                  >
+                    <span className="font-medium">{group}</span>
+                    <span className="text-xs text-muted-foreground">{noteCountsByGroup.get(group) ?? 0}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground mt-0.5">
           {sortedNotes.length} {sortedNotes.length === 1 ? 'note' : 'notes'}
         </p>
@@ -404,11 +462,15 @@ export function NotesPanel({
             <p className="text-xs mt-1">Add your first note below</p>
           </div>
         ) : (
-          sortedNotes.map(note => (
-            <div
-              key={note.id}
-              className="bg-secondary rounded-lg p-3 border border-border hover:border-primary/50 transition-colors group"
-            >
+          sortedNotes.map(note => {
+            const isExpanded = expandedNoteIds.has(note.id);
+            const shouldShowExpandToggle = note.content.length > 220 || note.content.split('\n').length > 4;
+
+            return (
+              <div
+                key={note.id}
+                className="bg-secondary rounded-lg p-3 border border-border hover:border-primary/50 transition-colors group"
+              >
               {/* Note Header */}
               <div className="flex items-start justify-between gap-2 mb-2">
                 <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
@@ -451,9 +513,18 @@ export function NotesPanel({
               </div>
 
               {/* Note Content */}
-              <p className="text-sm whitespace-pre-wrap break-words mb-2">
+              <p className={`text-sm whitespace-pre-wrap break-words mb-2 ${isExpanded ? '' : 'line-clamp-4'}`}>
                 {note.content}
               </p>
+              {shouldShowExpandToggle && (
+                <button
+                  type="button"
+                  onClick={() => toggleExpandedNote(note.id)}
+                  className="text-xs text-primary hover:underline mb-2"
+                >
+                  {isExpanded ? 'Show less' : 'Show more'}
+                </button>
+              )}
 
               {/* Tags */}
               {Array.isArray(note.tags) && note.tags.length > 0 && (
@@ -537,8 +608,9 @@ export function NotesPanel({
                   {Array.isArray(note.tags) && note.tags.length > 0 ? 'Edit tags' : 'Add tags'}
                 </button>
               </div>
-            </div>
-          ))
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -691,8 +763,17 @@ export function NotesPanel({
             </button>
 
             <textarea
+              ref={noteTextareaRef}
               value={newNoteContent}
-              onChange={(e) => setNewNoteContent(e.target.value)}
+              onChange={(e) => {
+                setNewNoteContent(e.target.value);
+                requestAnimationFrame(() => {
+                  if (noteTextareaRef.current) {
+                    noteTextareaRef.current.style.height = 'auto';
+                    noteTextareaRef.current.style.height = Math.min(noteTextareaRef.current.scrollHeight, 200) + 'px';
+                  }
+                });
+              }}
               onPaste={handlePasteImage}
               placeholder="Write a note..."
               className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary/50 font-sans resize-none overflow-y-auto max-h-[200px] min-h-[46px] text-sm"
