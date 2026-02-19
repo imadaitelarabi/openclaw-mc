@@ -26,6 +26,16 @@ import {
   handleCronRuns,
   handleCronRun,
 } from './cron.handler';
+import {
+  handleNotesList,
+  handleNotesGroupsList,
+  handleNotesGroupsAdd,
+  handleNotesGroupsDelete,
+  handleNotesImageUpload,
+  handleNotesAdd,
+  handleNotesUpdate,
+  handleNotesDelete,
+} from './notes.handler';
 
 // Singleton config manager (shared with GatewayClient)
 const configManager = new ConfigManager();
@@ -126,6 +136,38 @@ export async function handleMessage(
 
       case 'cron.run':
         await handleCronRun(msg, ws, gateway);
+        break;
+
+      case 'notes.list':
+        await handleNotesList(msg, ws);
+        break;
+
+      case 'notes.groups.list':
+        await handleNotesGroupsList(msg, ws);
+        break;
+
+      case 'notes.groups.add':
+        await handleNotesGroupsAdd(msg, ws);
+        break;
+
+      case 'notes.groups.delete':
+        await handleNotesGroupsDelete(msg, ws);
+        break;
+
+      case 'notes.image.upload':
+        await handleNotesImageUpload(msg, ws);
+        break;
+
+      case 'notes.add':
+        await handleNotesAdd(msg, ws);
+        break;
+
+      case 'notes.update':
+        await handleNotesUpdate(msg, ws);
+        break;
+
+      case 'notes.delete':
+        await handleNotesDelete(msg, ws);
         break;
 
       default:

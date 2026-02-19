@@ -5,3 +5,4 @@ export * from './panel';
 export * from './attachment';
 export * from './extension';
 export * from './cron';
+export * from './note';

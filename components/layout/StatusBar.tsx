@@ -1,8 +1,9 @@
-import type { Agent, ConnectionStatus, CronJob, CronStatus } from '@/types';
+import type { Agent, ConnectionStatus, CronJob, CronStatus, Note } from '@/types';
 import { AgentSelector } from '../agents';
 import { GatewaySwitcher } from '../gateway/GatewaySwitcher';
 import { ExtensionStatusBarItem } from '../extensions';
 import { CronStatusBarItem } from '../cron';
+import { NotesStatusBarItem } from '../notes';
 import { SettingsDropdown } from './SettingsDropdown';
 import { useExtensionStatusBar } from '@/hooks';
 import { useOptionalExtensions } from '@/contexts/ExtensionContext';
@@ -37,6 +38,14 @@ interface StatusBarProps {
   onToggleCronMenu?: () => void;
   onSelectCronJob?: (jobId: string) => void;
   onCreateCronJob?: () => void;
+
+  // Notes
+  notes?: Note[];
+  noteGroups?: string[];
+  isNotesMenuOpen?: boolean;
+  onToggleNotesMenu?: () => void;
+  onSelectNoteGroup?: (group: string | null) => void;
+  onOpenNotes?: () => void;
 }
 
 export function StatusBar({
@@ -62,6 +71,12 @@ export function StatusBar({
   onToggleCronMenu = () => {},
   onSelectCronJob = () => {},
   onCreateCronJob,
+  notes = [],
+  noteGroups = [],
+  isNotesMenuOpen = false,
+  onToggleNotesMenu = () => {},
+  onSelectNoteGroup = () => {},
+  onOpenNotes = () => {},
 }: StatusBarProps) {
   const { statusBarItems } = useExtensionStatusBar();
   const { toast } = useToast();
@@ -148,6 +163,18 @@ export function StatusBar({
           <div className="h-4 w-px bg-border" />
         </>
       )}
+
+      {/* Notes Status */}
+      <NotesStatusBarItem
+        notes={notes}
+        groups={noteGroups}
+        isOpen={isNotesMenuOpen}
+        onToggle={onToggleNotesMenu}
+        onSelectGroup={onSelectNoteGroup}
+        onOpenNotes={onOpenNotes}
+      />
+
+      <div className="h-4 w-px bg-border" />
 
       {/* Settings Dropdown */}
       <SettingsDropdown

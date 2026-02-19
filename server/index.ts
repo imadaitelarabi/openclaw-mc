@@ -8,10 +8,12 @@ require('dotenv').config({ path: '.env.local', override: true });
 import { createServer } from 'http';
 import { parse } from 'url';
 import * as path from 'path';
+import fs from 'fs';
 import next from 'next';
 import { ConfigManager } from './core/ConfigManager';
 import { GatewayClient } from './core/GatewayClient';
 import { WebSocketServer } from './core/WebSocketServer';
+import { NotesManager } from './core/NotesManager';
 import { configManager } from './handlers';
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -27,6 +29,16 @@ const packageJsonPath = dev
   ? path.join(__dirname, '../package.json')
   : path.join(__dirname, '../../package.json');
 const packageVersion = require(packageJsonPath).version;
+const notesManager = new NotesManager();
+
+const imageContentTypes: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+};
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
@@ -52,6 +64,29 @@ app.prepare().then(() => {
       };
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(healthStatus, null, 2));
+      return;
+    }
+
+    if (parsedUrl.pathname?.startsWith('/api/notes/images/')) {
+      const requestedFile = parsedUrl.pathname.replace('/api/notes/images/', '');
+      const safeFileName = path.basename(decodeURIComponent(requestedFile));
+      const imagePath = path.join(notesManager.getImagesDir(), safeFileName);
+
+      if (!fs.existsSync(imagePath)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Image not found' }));
+        return;
+      }
+
+      const extension = path.extname(imagePath).toLowerCase();
+      const contentType = imageContentTypes[extension] || 'application/octet-stream';
+
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'private, max-age=86400',
+      });
+
+      fs.createReadStream(imagePath).pipe(res);
       return;
     }
 

@@ -6,6 +6,16 @@
 import type { Agent, Session, ModelsListResponse } from './gateway';
 import type WebSocket from 'ws';
 
+// Note type for notes feature
+export interface Note {
+  id: string;
+  content: string;
+  group: string;
+  createdAt: number;
+  updatedAt: number;
+  imageUrl?: string;
+}
+
 // Gateway Configuration
 export interface GatewayConfig {
   id: string;
@@ -77,7 +87,15 @@ export type ClientMessage =
   | { type: 'cron.update'; requestId?: string; jobId: string; updates: any }
   | { type: 'cron.delete'; requestId?: string; jobId: string }
   | { type: 'cron.runs'; requestId?: string; jobId: string; limit?: number }
-  | { type: 'cron.run'; requestId?: string; jobId: string; mode?: string };
+  | { type: 'cron.run'; requestId?: string; jobId: string; mode?: string }
+  | { type: 'notes.list'; requestId?: string }
+  | { type: 'notes.groups.list'; requestId?: string }
+  | { type: 'notes.groups.add'; requestId?: string; group: string }
+  | { type: 'notes.groups.delete'; requestId?: string; group: string }
+  | { type: 'notes.image.upload'; requestId?: string; media: string; mimeType?: string; fileName?: string }
+  | { type: 'notes.add'; requestId?: string; content: string; group: string; imageUrl?: string }
+  | { type: 'notes.update'; requestId?: string; id: string; content?: string; group?: string; imageUrl?: string }
+  | { type: 'notes.delete'; requestId?: string; id: string };
 
 // Server to Client Messages
 export type ServerMessage =
@@ -101,6 +119,22 @@ export type ServerMessage =
   | { type: 'chat.abort.run.ack'; agentId: string; ok: boolean; error?: string }
   | { type: 'chat_history'; agentId: string; messages: unknown[] }
   | { type: 'chat_history_more'; agentId: string; sessionKey?: string; messages: unknown[]; before?: string }
+  | { type: 'notes.list.response'; requestId?: string; notes: Note[]; groups: string[] }
+  | { type: 'notes.groups.list.response'; requestId?: string; groups: string[] }
+  | { type: 'notes.groups.add.ack'; requestId?: string; groups: string[]; group: string }
+  | { type: 'notes.groups.delete.ack'; requestId?: string; groups: string[]; notes: Note[]; group: string }
+  | { type: 'notes.image.upload.ack'; requestId?: string; imageUrl: string }
+  | { type: 'notes.add.ack'; requestId?: string; note: Note }
+  | { type: 'notes.update.ack'; requestId?: string; note: Note }
+  | { type: 'notes.delete.ack'; requestId?: string; id: string }
+  | { type: 'notes.list.error'; requestId?: string; error: string }
+  | { type: 'notes.groups.list.error'; requestId?: string; error: string }
+  | { type: 'notes.groups.add.error'; requestId?: string; error: string }
+  | { type: 'notes.groups.delete.error'; requestId?: string; error: string }
+  | { type: 'notes.image.upload.error'; requestId?: string; error: string }
+  | { type: 'notes.add.error'; requestId?: string; error: string }
+  | { type: 'notes.update.error'; requestId?: string; error: string }
+  | { type: 'notes.delete.error'; requestId?: string; error: string }
   | { type: 'event'; event: string; payload: Record<string, unknown> };
 
 // Transformed types for client display
