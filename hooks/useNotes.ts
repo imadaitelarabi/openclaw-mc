@@ -30,14 +30,34 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load notes on mount
-  useEffect(() => {
+  const requestNotesBootstrap = useCallback(() => {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
-    const requestId = uuidv4();
-    ws.send(JSON.stringify({ type: 'notes.list', requestId }));
+    const notesRequestId = uuidv4();
+    ws.send(JSON.stringify({ type: 'notes.list', requestId: notesRequestId }));
+
+    const groupsRequestId = uuidv4();
+    ws.send(JSON.stringify({ type: 'notes.groups.list', requestId: groupsRequestId }));
   }, [wsRef]);
+
+  // Load notes and groups on mount / socket open
+  useEffect(() => {
+    const ws = wsRef.current;
+    if (!ws) return;
+
+    if (ws.readyState === WebSocket.OPEN) {
+      requestNotesBootstrap();
+      return;
+    }
+
+    const handleOpen = () => {
+      requestNotesBootstrap();
+    };
+
+    ws.addEventListener('open', handleOpen);
+    return () => ws.removeEventListener('open', handleOpen);
+  }, [requestNotesBootstrap, wsRef]);
 
   // Listen for notes messages
   useEffect(() => {
@@ -51,7 +71,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
         switch (msg.type) {
           case 'notes.list.response':
             setNotes(msg.notes || []);
-            setGroups(msg.groups || []);
+            setGroups(prev => (Array.isArray(msg.groups) && msg.groups.length > 0 ? msg.groups : prev));
             setLoading(false);
             setError(null);
             break;
@@ -359,9 +379,8 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
     }
 
     setLoading(true);
-    const requestId = uuidv4();
-    ws.send(JSON.stringify({ type: 'notes.list', requestId }));
-  }, [wsRef]);
+    requestNotesBootstrap();
+  }, [requestNotesBootstrap, wsRef]);
 
   return {
     notes,
