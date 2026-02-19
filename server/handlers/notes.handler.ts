@@ -111,6 +111,49 @@ export async function handleNotesGroupsAdd(
 }
 
 /**
+ * Delete note group
+ */
+export async function handleNotesGroupsDelete(
+  msg: Extract<ClientMessage, { type: 'notes.groups.delete' }>,
+  ws: ExtendedWebSocket
+): Promise<void> {
+  const { requestId, group } = msg;
+
+  if (!group?.trim()) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.groups.delete.error',
+        requestId,
+        error: 'Group name is required',
+      })
+    );
+    return;
+  }
+
+  try {
+    const groups = notesManager.deleteGroup(group);
+    const notes = notesManager.listNotes();
+    ws.send(
+      JSON.stringify({
+        type: 'notes.groups.delete.ack',
+        requestId,
+        groups,
+        notes,
+        group: group.trim(),
+      })
+    );
+  } catch (err) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.groups.delete.error',
+        requestId,
+        error: (err as Error).message || 'Failed to delete group',
+      })
+    );
+  }
+}
+
+/**
  * Upload note image
  */
 export async function handleNotesImageUpload(

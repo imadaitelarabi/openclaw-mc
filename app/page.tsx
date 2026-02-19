@@ -98,6 +98,7 @@ function MissionControlInner() {
     error: notesError,
     addNote,
     addGroup,
+    deleteGroup,
     uploadNoteImage,
     updateNote,
     deleteNote,
@@ -529,6 +530,23 @@ function MissionControlInner() {
     }
   }, [addGroup, toast]);
 
+  const handleDeleteNoteGroup = useCallback(async (group: string) => {
+    try {
+      await deleteGroup(group);
+      toast({
+        title: 'Group deleted',
+        description: `${group} has been removed. Notes were moved to General.`,
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to delete group',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [deleteGroup, toast]);
+
   const handleUploadNoteImage = useCallback(async (file: File) => {
     try {
       return await uploadNoteImage(file);
@@ -799,6 +817,7 @@ function MissionControlInner() {
             noteGroups={noteGroups}
             onAddNote={handleAddNote}
             onCreateNoteGroup={handleCreateNoteGroup}
+            onDeleteNoteGroup={handleDeleteNoteGroup}
             onUploadNoteImage={handleUploadNoteImage}
             onDeleteNote={handleDeleteNote}
           />

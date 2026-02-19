@@ -18,6 +18,7 @@ interface UseNotesReturn {
   error: string | null;
   addNote: (content: string, group: string, imageUrl?: string) => Promise<Note>;
   addGroup: (group: string) => Promise<string[]>;
+  deleteGroup: (group: string) => Promise<string[]>;
   uploadNoteImage: (file: File) => Promise<string>;
   updateNote: (id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>) => Promise<Note>;
   deleteNote: (id: string) => Promise<boolean>;
@@ -84,6 +85,11 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
             setGroups(msg.groups || []);
             break;
 
+          case 'notes.groups.delete.ack':
+            setGroups(msg.groups || []);
+            setNotes(msg.notes || []);
+            break;
+
           case 'notes.add.ack':
             setNotes(prev => [...prev, msg.note]);
             setGroups(prev => {
@@ -107,6 +113,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
           case 'notes.list.error':
           case 'notes.groups.list.error':
           case 'notes.groups.add.error':
+          case 'notes.groups.delete.error':
           case 'notes.image.upload.error':
           case 'notes.add.error':
           case 'notes.update.error':
@@ -227,6 +234,51 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
       reader.readAsDataURL(file);
     });
   }, []);
+
+  const deleteGroup = useCallback(
+    async (group: string): Promise<string[]> => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket not connected');
+      }
+
+      return new Promise((resolve, reject) => {
+        const requestId = uuidv4();
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        const handleResponse = (event: MessageEvent) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.requestId !== requestId) return;
+
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+
+            if (msg.type === 'notes.groups.delete.ack') {
+              setGroups(msg.groups || []);
+              setNotes(msg.notes || []);
+              resolve(msg.groups || []);
+            } else if (msg.type === 'notes.groups.delete.error') {
+              reject(new Error(msg.error));
+            }
+          } catch (err) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+            reject(err);
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          ws.removeEventListener('message', handleResponse);
+          reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
+
+        ws.addEventListener('message', handleResponse);
+        ws.send(JSON.stringify({ type: 'notes.groups.delete', requestId, group }));
+      });
+    },
+    [wsRef]
+  );
 
   const uploadNoteImage = useCallback(
     async (file: File): Promise<string> => {
@@ -389,6 +441,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
     error,
     addNote,
     addGroup,
+    deleteGroup,
     uploadNoteImage,
     updateNote,
     deleteNote,

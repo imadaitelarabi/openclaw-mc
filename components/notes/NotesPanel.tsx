@@ -5,8 +5,8 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
-import { Copy, Trash2, Image as ImageIcon, Plus, Send, X } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { Copy, Trash2, Image as ImageIcon, Plus, Send, X, ChevronDown } from 'lucide-react';
 import type { Note } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/useToast';
@@ -20,6 +20,7 @@ interface NotesPanelProps {
   selectedGroup?: string | null;
   onAddNote: (content: string, group: string, imageUrl?: string) => Promise<void>;
   onCreateGroup: (group: string) => Promise<void>;
+  onDeleteGroup: (group: string) => Promise<void>;
   onUploadNoteImage: (file: File) => Promise<string>;
   onDeleteNote: (id: string) => Promise<void>;
 }
@@ -30,6 +31,7 @@ export function NotesPanel({
   selectedGroup,
   onAddNote,
   onCreateGroup,
+  onDeleteGroup,
   onUploadNoteImage,
   onDeleteNote,
 }: NotesPanelProps) {
@@ -39,9 +41,13 @@ export function NotesPanel({
   const [newGroupName, setNewGroupName] = useState('');
   const [attachedImage, setAttachedImage] = useState<File | null>(null);
   const [attachedImageName, setAttachedImageName] = useState('');
+  const [isGroupMenuOpen, setIsGroupMenuOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notePendingDelete, setNotePendingDelete] = useState<Note | null>(null);
   const [isDeletingNote, setIsDeletingNote] = useState(false);
+  const [groupPendingDelete, setGroupPendingDelete] = useState<string | null>(null);
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
+  const groupMenuRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -56,6 +62,26 @@ export function NotesPanel({
     const uniqueGroups = new Set([...defaultGroups, ...groups, ...noteGroups]);
     return Array.from(uniqueGroups).sort();
   }, [groups, notes]);
+
+  const noteCountsByGroup = useMemo(() => {
+    return notes.reduce((acc, note) => {
+      acc.set(note.group, (acc.get(note.group) ?? 0) + 1);
+      return acc;
+    }, new Map<string, number>());
+  }, [notes]);
+
+  useEffect(() => {
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (!groupMenuRef.current) return;
+
+      if (!groupMenuRef.current.contains(event.target as Node)) {
+        setIsGroupMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () => document.removeEventListener('mousedown', handleDocumentClick);
+  }, []);
 
   // Filter notes by selected group
   const filteredNotes = useMemo(() => {
@@ -154,6 +180,10 @@ export function NotesPanel({
     event.target.value = '';
   };
 
+  const isGroupDeletable = (group: string) => {
+    return group.toLowerCase() !== 'general';
+  };
+
   const handleConfirmDelete = async () => {
     if (!notePendingDelete) {
       return;
@@ -165,6 +195,23 @@ export function NotesPanel({
       setNotePendingDelete(null);
     } finally {
       setIsDeletingNote(false);
+    }
+  };
+
+  const handleConfirmDeleteGroup = async () => {
+    if (!groupPendingDelete) {
+      return;
+    }
+
+    setIsDeletingGroup(true);
+    try {
+      await onDeleteGroup(groupPendingDelete);
+      if (selectedNoteGroup.toLowerCase() === groupPendingDelete.toLowerCase()) {
+        setSelectedNoteGroup('General');
+      }
+      setGroupPendingDelete(null);
+    } finally {
+      setIsDeletingGroup(false);
     }
   };
 
@@ -245,22 +292,61 @@ export function NotesPanel({
       <div className="p-3 md:p-4 border-t border-border bg-background/50 backdrop-blur">
         <form onSubmit={handleSubmit} className="space-y-2">
           <div className="flex items-center gap-2">
-            <label htmlFor="note-group" className="text-xs text-muted-foreground whitespace-nowrap">
+            <label className="text-xs text-muted-foreground whitespace-nowrap">
               Group:
             </label>
-            <select
-              id="note-group"
-              value={selectedNoteGroup}
-              onChange={(e) => setSelectedNoteGroup(e.target.value)}
-              className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-              disabled={isSubmitting}
-            >
-              {allGroups.map(group => (
-                <option key={group} value={group}>
-                  {group}
-                </option>
-              ))}
-            </select>
+            <div className="relative flex-1" ref={groupMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsGroupMenuOpen(prev => !prev)}
+                className="w-full bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm hover:bg-secondary transition-colors flex items-center justify-between"
+                disabled={isSubmitting}
+              >
+                <span>{selectedNoteGroup}</span>
+                <ChevronDown className="w-4 h-4 opacity-60" />
+              </button>
+
+              {isGroupMenuOpen && (
+                <div className="absolute top-full mt-2 left-0 right-0 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
+                  <div className="max-h-56 overflow-y-auto py-1">
+                    {allGroups.map(group => (
+                      <div
+                        key={group}
+                        className="w-full px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between gap-2"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedNoteGroup(group);
+                            setIsGroupMenuOpen(false);
+                          }}
+                          className="flex-1 text-left"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium">{group}</span>
+                            <span className="text-xs text-muted-foreground">{noteCountsByGroup.get(group) ?? 0}</span>
+                          </div>
+                        </button>
+
+                        {isGroupDeletable(group) && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setGroupPendingDelete(group);
+                            }}
+                            className="p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            title={`Delete ${group}`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setShowCreateGroupInput(prev => !prev)}
@@ -393,6 +479,26 @@ export function NotesPanel({
         cancelText="Cancel"
         variant="danger"
         loading={isDeletingNote}
+      />
+
+      <ConfirmationModal
+        isOpen={groupPendingDelete !== null}
+        onClose={() => {
+          if (!isDeletingGroup) {
+            setGroupPendingDelete(null);
+          }
+        }}
+        onConfirm={handleConfirmDeleteGroup}
+        title="Delete Group"
+        message={
+          groupPendingDelete
+            ? `Are you sure you want to delete "${groupPendingDelete}"? Notes in this group will be moved to General.`
+            : 'Are you sure you want to delete this group?'
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={isDeletingGroup}
       />
     </div>
   );

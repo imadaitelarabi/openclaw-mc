@@ -15,6 +15,7 @@ interface NotesStorage {
 }
 
 const DEFAULT_NOTE_GROUPS = ['General', 'Commands', 'Ideas', 'Snippets'];
+const FALLBACK_GROUP = 'General';
 
 export class NotesManager {
   private configDir: string;
@@ -161,6 +162,43 @@ export class NotesManager {
   public addGroup(group: string): string[] {
     const normalized = this.normalizeGroupName(group);
     this.groups = this.mergeGroups(this.groups, [normalized]);
+    this.saveNotes();
+    return this.groups;
+  }
+
+  public deleteGroup(group: string): string[] {
+    const normalized = this.normalizeGroupName(group);
+
+    if (normalized.toLowerCase() === FALLBACK_GROUP.toLowerCase()) {
+      throw new Error('General group cannot be deleted');
+    }
+
+    const existingGroup = this.groups.find(
+      existing => existing.toLowerCase() === normalized.toLowerCase()
+    );
+
+    if (!existingGroup) {
+      throw new Error(`Group not found: ${normalized}`);
+    }
+
+    this.groups = this.groups.filter(
+      existing => existing.toLowerCase() !== normalized.toLowerCase()
+    );
+    this.groups = this.mergeGroups(this.groups, [FALLBACK_GROUP]);
+
+    const now = Date.now();
+    this.notes = this.notes.map(note => {
+      if (note.group.toLowerCase() !== normalized.toLowerCase()) {
+        return note;
+      }
+
+      return {
+        ...note,
+        group: FALLBACK_GROUP,
+        updatedAt: now,
+      };
+    });
+
     this.saveNotes();
     return this.groups;
   }

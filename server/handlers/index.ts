@@ -30,6 +30,7 @@ import {
   handleNotesList,
   handleNotesGroupsList,
   handleNotesGroupsAdd,
+  handleNotesGroupsDelete,
   handleNotesImageUpload,
   handleNotesAdd,
   handleNotesUpdate,
@@ -147,6 +148,10 @@ export async function handleMessage(
 
       case 'notes.groups.add':
         await handleNotesGroupsAdd(msg, ws);
+        break;
+
+      case 'notes.groups.delete':
+        await handleNotesGroupsDelete(msg, ws);
         break;
 
       case 'notes.image.upload':
