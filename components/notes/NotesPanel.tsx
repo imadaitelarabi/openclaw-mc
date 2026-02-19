@@ -57,9 +57,8 @@ export function NotesPanel({
   }, [selectedGroup]);
 
   const allGroups = useMemo(() => {
-    const defaultGroups = ['General', 'Commands', 'Ideas', 'Snippets'];
     const noteGroups = notes.map(note => note.group);
-    const uniqueGroups = new Set([...defaultGroups, ...groups, ...noteGroups]);
+    const uniqueGroups = new Set(['General', ...groups, ...noteGroups]);
     return Array.from(uniqueGroups).sort();
   }, [groups, notes]);
 

@@ -47,11 +47,11 @@ export class NotesManager {
 
         if (Array.isArray(parsed)) {
           this.notes = parsed;
-          this.groups = this.mergeGroups(DEFAULT_NOTE_GROUPS, this.notes.map(note => note.group));
+          this.groups = this.mergeGroups([FALLBACK_GROUP], this.notes.map(note => note.group));
         } else {
           this.notes = Array.isArray(parsed.notes) ? parsed.notes : [];
           const persistedGroups = Array.isArray(parsed.groups) ? parsed.groups : [];
-          this.groups = this.mergeGroups(DEFAULT_NOTE_GROUPS, persistedGroups, this.notes.map(note => note.group));
+          this.groups = this.mergeGroups([FALLBACK_GROUP], persistedGroups, this.notes.map(note => note.group));
         }
       } else {
         this.groups = [...DEFAULT_NOTE_GROUPS];

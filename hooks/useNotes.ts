@@ -27,7 +27,7 @@ interface UseNotesReturn {
 
 export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
   const [notes, setNotes] = useState<Note[]>([]);
-  const [groups, setGroups] = useState<string[]>(['General', 'Commands', 'Ideas', 'Snippets']);
+  const [groups, setGroups] = useState<string[]>(['General']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
