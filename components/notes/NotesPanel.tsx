@@ -307,7 +307,7 @@ export function NotesPanel({
               </button>
 
               {isGroupMenuOpen && (
-                <div className="absolute top-full mt-2 left-0 right-0 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
+                <div className="absolute bottom-full mb-2 left-0 right-0 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
                   <div className="max-h-56 overflow-y-auto py-1">
                     {allGroups.map(group => (
                       <div
