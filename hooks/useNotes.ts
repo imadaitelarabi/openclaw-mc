@@ -14,9 +14,10 @@ interface UseNotesProps {
 interface UseNotesReturn {
   notes: Note[];
   groups: string[];
+  allTags: string[];
   loading: boolean;
   error: string | null;
-  addNote: (content: string, group: string, imageUrl?: string) => Promise<Note>;
+  addNote: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<Note>;
   addGroup: (group: string) => Promise<string[]>;
   deleteGroup: (group: string) => Promise<string[]>;
   uploadNoteImage: (file: File) => Promise<string>;
@@ -25,9 +26,21 @@ interface UseNotesReturn {
   refreshNotes: () => Promise<void>;
 }
 
+/** Merges new tags into the existing sorted tag list, deduplicating. */
+function mergeTags(existing: string[], incoming?: string[]): string[] {
+  if (!Array.isArray(incoming) || incoming.length === 0) return existing;
+  const next = new Set(existing);
+  for (const tag of incoming) {
+    const trimmed = tag.trim();
+    if (trimmed) next.add(trimmed);
+  }
+  return Array.from(next).sort((a, b) => a.localeCompare(b));
+}
+
 export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
   const [notes, setNotes] = useState<Note[]>([]);
   const [groups, setGroups] = useState<string[]>(['General']);
+  const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,6 +86,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
           case 'notes.list.response':
             setNotes(msg.notes || []);
             setGroups(prev => (Array.isArray(msg.groups) && msg.groups.length > 0 ? msg.groups : prev));
+            setAllTags(Array.isArray(msg.allTags) ? msg.allTags : []);
             setLoading(false);
             setError(null);
             break;
@@ -98,12 +112,14 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
               if (exists) return prev;
               return [...prev, msg.note.group].sort((a, b) => a.localeCompare(b));
             });
+            setAllTags(prev => mergeTags(prev, msg.note?.tags));
             break;
 
           case 'notes.update.ack':
             setNotes(prev =>
               prev.map(n => (n.id === msg.note.id ? msg.note : n))
             );
+            setAllTags(prev => mergeTags(prev, msg.note?.tags));
             break;
 
           case 'notes.delete.ack':
@@ -132,7 +148,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
   }, [wsRef]);
 
   const addNote = useCallback(
-    async (content: string, group: string, imageUrl?: string): Promise<Note> => {
+    async (content: string, group: string, tags?: string[], imageUrl?: string): Promise<Note> => {
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         throw new Error('WebSocket not connected');
@@ -169,7 +185,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
         }, 30000);
 
         ws.addEventListener('message', handleResponse);
-        ws.send(JSON.stringify({ type: 'notes.add', requestId, content, group, imageUrl }));
+        ws.send(JSON.stringify({ type: 'notes.add', requestId, content, group, tags, imageUrl }));
       });
     },
     [wsRef]
@@ -438,6 +454,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
   return {
     notes,
     groups,
+    allTags,
     loading,
     error,
     addNote,

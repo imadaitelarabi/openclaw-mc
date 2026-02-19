@@ -11,6 +11,7 @@ export interface Note {
   id: string;
   content: string;
   group: string;
+  tags?: string[];
   createdAt: number;
   updatedAt: number;
   imageUrl?: string;
@@ -93,8 +94,8 @@ export type ClientMessage =
   | { type: 'notes.groups.add'; requestId?: string; group: string }
   | { type: 'notes.groups.delete'; requestId?: string; group: string }
   | { type: 'notes.image.upload'; requestId?: string; media: string; mimeType?: string; fileName?: string }
-  | { type: 'notes.add'; requestId?: string; content: string; group: string; imageUrl?: string }
-  | { type: 'notes.update'; requestId?: string; id: string; content?: string; group?: string; imageUrl?: string }
+  | { type: 'notes.add'; requestId?: string; content: string; group: string; tags?: string[]; imageUrl?: string }
+  | { type: 'notes.update'; requestId?: string; id: string; content?: string; group?: string; tags?: string[]; imageUrl?: string }
   | { type: 'notes.delete'; requestId?: string; id: string };
 
 // Server to Client Messages
@@ -119,7 +120,7 @@ export type ServerMessage =
   | { type: 'chat.abort.run.ack'; agentId: string; ok: boolean; error?: string }
   | { type: 'chat_history'; agentId: string; messages: unknown[] }
   | { type: 'chat_history_more'; agentId: string; sessionKey?: string; messages: unknown[]; before?: string }
-  | { type: 'notes.list.response'; requestId?: string; notes: Note[]; groups: string[] }
+  | { type: 'notes.list.response'; requestId?: string; notes: Note[]; groups: string[]; allTags: string[] }
   | { type: 'notes.groups.list.response'; requestId?: string; groups: string[] }
   | { type: 'notes.groups.add.ack'; requestId?: string; groups: string[]; group: string }
   | { type: 'notes.groups.delete.ack'; requestId?: string; groups: string[]; notes: Note[]; group: string }

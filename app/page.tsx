@@ -94,6 +94,7 @@ function MissionControlInner() {
   const {
     notes,
     groups: noteGroups,
+    allTags: noteTags,
     loading: notesLoading,
     error: notesError,
     addNote,
@@ -500,9 +501,9 @@ function MissionControlInner() {
     openPanel('notes', { selectedGroup: null });
   }, [openPanel]);
 
-  const handleAddNote = useCallback(async (content: string, group: string, imageUrl?: string) => {
+  const handleAddNote = useCallback(async (content: string, group: string, tags?: string[], imageUrl?: string) => {
     try {
-      await addNote(content, group, imageUrl);
+      await addNote(content, group, tags, imageUrl);
       toast({
         title: 'Note added',
         description: 'Your note has been saved.',
@@ -815,6 +816,7 @@ function MissionControlInner() {
             onUpdateCronJob={handleUpdateCronJobRequest}
             notes={notes}
             noteGroups={noteGroups}
+            allTags={noteTags}
             onAddNote={handleAddNote}
             onCreateNoteGroup={handleCreateNoteGroup}
             onDeleteNoteGroup={handleDeleteNoteGroup}

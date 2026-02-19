@@ -21,12 +21,14 @@ export async function handleNotesList(
   try {
     const notes = notesManager.listNotes();
     const groups = notesManager.listGroups();
+    const allTags = notesManager.listAllTags();
     ws.send(
       JSON.stringify({
         type: 'notes.list.response',
         requestId,
         notes,
         groups,
+        allTags,
       })
     );
   } catch (err) {
@@ -200,7 +202,7 @@ export async function handleNotesAdd(
   msg: Extract<ClientMessage, { type: 'notes.add' }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
-  const { requestId, content, group, imageUrl } = msg;
+  const { requestId, content, group, tags, imageUrl } = msg;
 
   if (!content || !group) {
     ws.send(
@@ -214,7 +216,7 @@ export async function handleNotesAdd(
   }
 
   try {
-    const note = notesManager.addNote(content, group, imageUrl);
+    const note = notesManager.addNote(content, group, tags, imageUrl);
     ws.send(
       JSON.stringify({
         type: 'notes.add.ack',
@@ -240,7 +242,7 @@ export async function handleNotesUpdate(
   msg: Extract<ClientMessage, { type: 'notes.update' }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
-  const { requestId, id, content, group, imageUrl } = msg;
+  const { requestId, id, content, group, tags, imageUrl } = msg;
 
   if (!id) {
     ws.send(
@@ -257,6 +259,7 @@ export async function handleNotesUpdate(
     const updates: Partial<Omit<Note, 'id' | 'createdAt'>> = {};
     if (content !== undefined) updates.content = content;
     if (group !== undefined) updates.group = group;
+    if (tags !== undefined) updates.tags = tags;
     if (imageUrl !== undefined) updates.imageUrl = imageUrl;
 
     const note = notesManager.updateNote(id, updates);

@@ -6,19 +6,21 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Copy, Trash2, Image as ImageIcon, Plus, Send, X, ChevronDown, Download } from 'lucide-react';
+import { Copy, Trash2, Image as ImageIcon, Plus, Send, X, ChevronDown, Download, Tag } from 'lucide-react';
 import type { Note } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/useToast';
 import { ConfirmationModal } from '@/components/modals';
 import { DEFAULT_ATTACHMENT_CONFIG } from '@/types/attachment';
 import { getFilesFromClipboard, validateFile } from '@/lib/file-utils';
+import { TagInput } from './TagInput';
 
 interface NotesPanelProps {
   notes: Note[];
   groups: string[];
+  allTags: string[];
   selectedGroup?: string | null;
-  onAddNote: (content: string, group: string, imageUrl?: string) => Promise<void>;
+  onAddNote: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<void>;
   onCreateGroup: (group: string) => Promise<void>;
   onDeleteGroup: (group: string) => Promise<void>;
   onUploadNoteImage: (file: File) => Promise<string>;
@@ -28,6 +30,7 @@ interface NotesPanelProps {
 export function NotesPanel({
   notes,
   groups,
+  allTags,
   selectedGroup,
   onAddNote,
   onCreateGroup,
@@ -36,7 +39,9 @@ export function NotesPanel({
   onDeleteNote,
 }: NotesPanelProps) {
   const [newNoteContent, setNewNoteContent] = useState('');
+  const [newNoteTags, setNewNoteTags] = useState<string[]>([]);
   const [activeGroup, setActiveGroup] = useState<string | null>(selectedGroup ?? null);
+  const [activeTagFilters, setActiveTagFilters] = useState<string[]>([]);
   const [selectedNoteGroup, setSelectedNoteGroup] = useState(selectedGroup || 'General');
   const [showCreateGroupInput, setShowCreateGroupInput] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -89,13 +94,19 @@ export function NotesPanel({
     return () => document.removeEventListener('mousedown', handleDocumentClick);
   }, []);
 
-  // Filter notes by active group
+  // Filter notes by active group and active tag filters
   const filteredNotes = useMemo(() => {
-    if (!activeGroup) {
-      return notes;
+    let result = notes;
+    if (activeGroup) {
+      result = result.filter(n => n.group === activeGroup);
     }
-    return notes.filter(n => n.group === activeGroup);
-  }, [notes, activeGroup]);
+    if (activeTagFilters.length > 0) {
+      result = result.filter(n =>
+        activeTagFilters.every(tag => Array.isArray(n.tags) && n.tags.includes(tag))
+      );
+    }
+    return result;
+  }, [notes, activeGroup, activeTagFilters]);
 
   // Sort notes by most recent first
   const sortedNotes = useMemo(() => {
@@ -181,8 +192,9 @@ export function NotesPanel({
         imageUrl = await onUploadNoteImage(attachedImage);
       }
 
-      await onAddNote(newNoteContent, selectedNoteGroup, imageUrl);
+      await onAddNote(newNoteContent, selectedNoteGroup, newNoteTags, imageUrl);
       setNewNoteContent('');
+      setNewNoteTags([]);
       setAttachedImage(null);
       setAttachedImageName('');
       // Switch group view only when filtered to a different group, so the new note is visible
@@ -318,6 +330,42 @@ export function NotesPanel({
         <p className="text-xs text-muted-foreground mt-0.5">
           {sortedNotes.length} {sortedNotes.length === 1 ? 'note' : 'notes'}
         </p>
+        {allTags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {allTags.map(tag => {
+              const isActive = activeTagFilters.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() =>
+                    setActiveTagFilters(prev =>
+                      isActive ? prev.filter(t => t !== tag) : [...prev, tag]
+                    )
+                  }
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-muted-foreground hover:bg-primary/15 hover:text-primary'
+                  }`}
+                >
+                  <Tag className="w-2.5 h-2.5" />
+                  {tag}
+                </button>
+              );
+            })}
+            {activeTagFilters.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveTagFilters([])}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-2.5 h-2.5" />
+                Clear
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Notes List */}
@@ -378,6 +426,27 @@ export function NotesPanel({
               <p className="text-sm whitespace-pre-wrap break-words mb-2">
                 {note.content}
               </p>
+
+              {/* Tags */}
+              {Array.isArray(note.tags) && note.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {note.tags.map(tag => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() =>
+                        setActiveTagFilters(prev =>
+                          prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                        )
+                      }
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                    >
+                      <Tag className="w-2.5 h-2.5" />
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Image Attachment */}
               {note.imageUrl && (
@@ -503,6 +572,13 @@ export function NotesPanel({
               </button>
             </div>
           )}
+
+          <TagInput
+            selectedTags={newNoteTags}
+            allTags={allTags}
+            onChange={setNewNoteTags}
+            disabled={isSubmitting}
+          />
 
           {attachedImageName && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 border border-border rounded-lg px-3 py-2">

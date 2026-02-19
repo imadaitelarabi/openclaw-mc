@@ -60,7 +60,8 @@ interface PanelContainerProps {
   // Notes-related props
   notes?: Note[];
   noteGroups?: string[];
-  onAddNote?: (content: string, group: string, imageUrl?: string) => Promise<void>;
+  allTags?: string[];
+  onAddNote?: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<void>;
   onCreateNoteGroup?: (group: string) => Promise<void>;
   onDeleteNoteGroup?: (group: string) => Promise<void>;
   onUploadNoteImage?: (file: File) => Promise<string>;
@@ -101,6 +102,7 @@ export function PanelContainer({
   onUpdateCronJob,
   notes = [],
   noteGroups = [],
+  allTags = [],
   onAddNote,
   onCreateNoteGroup,
   onDeleteNoteGroup,
@@ -265,6 +267,7 @@ export function PanelContainer({
               <NotesPanel
                 notes={notes}
                 groups={noteGroups}
+                allTags={allTags}
                 selectedGroup={panel.data?.selectedGroup}
                 onAddNote={onAddNote}
                 onCreateGroup={onCreateNoteGroup}

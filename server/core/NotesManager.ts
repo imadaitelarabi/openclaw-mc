@@ -224,10 +224,23 @@ export class NotesManager {
     return `/api/notes/images/${encodeURIComponent(storedFileName)}`;
   }
 
+  public listAllTags(): string[] {
+    const tagSet = new Set<string>();
+    for (const note of this.notes) {
+      if (Array.isArray(note.tags)) {
+        for (const tag of note.tags) {
+          const trimmed = tag.trim();
+          if (trimmed) tagSet.add(trimmed);
+        }
+      }
+    }
+    return Array.from(tagSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }
+
   /**
    * Add a new note
    */
-  public addNote(content: string, group: string, imageUrl?: string): Note {
+  public addNote(content: string, group: string, tags?: string[], imageUrl?: string): Note {
     const normalizedGroup = this.normalizeGroupName(group);
     this.groups = this.mergeGroups(this.groups, [normalizedGroup]);
 
@@ -236,6 +249,7 @@ export class NotesManager {
       id: uuidv4(),
       content,
       group: normalizedGroup,
+      tags: Array.isArray(tags) ? tags.map(t => t.trim()).filter(Boolean) : [],
       createdAt: now,
       updatedAt: now,
       imageUrl,
@@ -261,11 +275,16 @@ export class NotesManager {
       this.groups = this.mergeGroups(this.groups, [nextGroup]);
     }
 
+    const normalizedTags = updates.tags !== undefined
+      ? updates.tags.map(t => t.trim()).filter(Boolean)
+      : undefined;
+
     const note = this.notes[index];
     this.notes[index] = {
       ...note,
       ...updates,
       ...(nextGroup ? { group: nextGroup } : {}),
+      ...(normalizedTags !== undefined ? { tags: normalizedTags } : {}),
       updatedAt: Date.now(),
     };
 
