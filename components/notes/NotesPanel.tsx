@@ -6,7 +6,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Copy, Trash2, Image as ImageIcon, Plus, Send, X, ChevronDown } from 'lucide-react';
+import { Copy, Trash2, Image as ImageIcon, Plus, Send, X, ChevronDown, Download } from 'lucide-react';
 import type { Note } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/useToast';
@@ -69,6 +69,11 @@ export function NotesPanel({
     }, new Map<string, number>());
   }, [notes]);
 
+  const isImageClipboardSupported = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return Boolean(navigator?.clipboard?.write && typeof ClipboardItem !== 'undefined');
+  }, []);
+
   useEffect(() => {
     const handleDocumentClick = (event: MouseEvent) => {
       if (!groupMenuRef.current) return;
@@ -109,6 +114,58 @@ export function NotesPanel({
         variant: 'destructive',
       });
     }
+  };
+
+  const handleCopyNoteImage = async (imageUrl: string) => {
+    try {
+      if (!isImageClipboardSupported || typeof window === 'undefined') {
+        throw new Error('Image clipboard API not supported');
+      }
+
+      const absoluteUrl = imageUrl.startsWith('http')
+        ? imageUrl
+        : `${window.location.origin}${imageUrl}`;
+      const response = await fetch(absoluteUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch image');
+      }
+
+      const blob = await response.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type || 'image/png']: blob,
+        }),
+      ]);
+
+      toast({
+        title: 'Image copied to clipboard',
+        description: 'You can now paste the note image.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to copy image',
+        description: 'Could not copy note image to clipboard',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDownloadNoteImage = (imageUrl: string) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const absoluteUrl = imageUrl.startsWith('http')
+      ? imageUrl
+      : `${window.location.origin}${imageUrl}`;
+
+    const link = document.createElement('a');
+    link.href = absoluteUrl;
+    link.download = '';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -252,6 +309,24 @@ export function NotesPanel({
                   >
                     <Copy className="w-3 h-3" />
                   </button>
+                  {note.imageUrl && isImageClipboardSupported && (
+                    <button
+                      onClick={() => handleCopyNoteImage(note.imageUrl!)}
+                      className="p-1 rounded hover:bg-background transition-colors opacity-0 group-hover:opacity-100"
+                      title="Copy image to clipboard"
+                    >
+                      <ImageIcon className="w-3 h-3" />
+                    </button>
+                  )}
+                  {note.imageUrl && !isImageClipboardSupported && (
+                    <button
+                      onClick={() => handleDownloadNoteImage(note.imageUrl!)}
+                      className="p-1 rounded hover:bg-background transition-colors opacity-0 group-hover:opacity-100"
+                      title="Download image"
+                    >
+                      <Download className="w-3 h-3" />
+                    </button>
+                  )}
                   <button
                     onClick={() => setNotePendingDelete(note)}
                     className="p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
