@@ -17,10 +17,15 @@ interface ModelSelectorProps {
 export function ModelSelector({ models, currentModel, onChange, disabled }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [activeModel, setActiveModel] = useState(currentModel || '');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentModelData = models.find(m => m.id === currentModel);
-  const displayName = currentModelData?.alias || currentModel?.split('/').pop() || 'Select Model';
+  useEffect(() => {
+    setActiveModel(currentModel || '');
+  }, [currentModel]);
+
+  const currentModelData = models.find(m => m.id === activeModel);
+  const displayName = currentModelData?.alias || activeModel?.split('/').pop() || 'Select Model';
 
   const filteredModels = models.filter(m => 
     m.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -79,12 +84,13 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
                 <button
                   key={`${model.provider}:${model.id}`}
                   onClick={() => {
+                    setActiveModel(model.id);
                     onChange(model.id, model.provider);
                     setIsOpen(false);
                     setSearch('');
                   }}
                   className={`w-full text-left px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground transition-colors ${
-                    model.id === currentModel ? 'bg-accent/50 text-primary' : ''
+                    model.id === activeModel ? 'bg-accent/50 text-primary' : ''
                   }`}
                 >
                   <div className="font-medium">{model.alias || model.id.split('/').pop()}</div>
