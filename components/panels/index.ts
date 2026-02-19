@@ -6,3 +6,4 @@ export { UpdateAgentPanel } from './UpdateAgentPanel';
 export { CreateCronPanel } from './CreateCronPanel';
 export { UpdateCronPanel } from './UpdateCronPanel';
 export { ExtensionOnboardingPanel } from './ExtensionOnboardingPanel';
+export { TagsSettingsPanel } from './TagsSettingsPanel';

@@ -11,6 +11,7 @@ export interface Note {
   id: string;
   content: string;
   group: string;
+  tags?: string[];
   createdAt: number;
   updatedAt: number;
   imageUrl?: string;
@@ -93,8 +94,10 @@ export type ClientMessage =
   | { type: 'notes.groups.add'; requestId?: string; group: string }
   | { type: 'notes.groups.delete'; requestId?: string; group: string }
   | { type: 'notes.image.upload'; requestId?: string; media: string; mimeType?: string; fileName?: string }
-  | { type: 'notes.add'; requestId?: string; content: string; group: string; imageUrl?: string }
-  | { type: 'notes.update'; requestId?: string; id: string; content?: string; group?: string; imageUrl?: string }
+  | { type: 'notes.add'; requestId?: string; content: string; group: string; tags?: string[]; imageUrl?: string }
+  | { type: 'notes.update'; requestId?: string; id: string; content?: string; group?: string; tags?: string[]; imageUrl?: string }
+  | { type: 'notes.tags.color.set'; requestId?: string; tag: string; color: string }
+  | { type: 'notes.tags.delete'; requestId?: string; tag: string }
   | { type: 'notes.delete'; requestId?: string; id: string };
 
 // Server to Client Messages
@@ -119,13 +122,15 @@ export type ServerMessage =
   | { type: 'chat.abort.run.ack'; agentId: string; ok: boolean; error?: string }
   | { type: 'chat_history'; agentId: string; messages: unknown[] }
   | { type: 'chat_history_more'; agentId: string; sessionKey?: string; messages: unknown[]; before?: string }
-  | { type: 'notes.list.response'; requestId?: string; notes: Note[]; groups: string[] }
+  | { type: 'notes.list.response'; requestId?: string; notes: Note[]; groups: string[]; allTags: string[]; tagColors: Record<string, string> }
   | { type: 'notes.groups.list.response'; requestId?: string; groups: string[] }
   | { type: 'notes.groups.add.ack'; requestId?: string; groups: string[]; group: string }
   | { type: 'notes.groups.delete.ack'; requestId?: string; groups: string[]; notes: Note[]; group: string }
   | { type: 'notes.image.upload.ack'; requestId?: string; imageUrl: string }
-  | { type: 'notes.add.ack'; requestId?: string; note: Note }
-  | { type: 'notes.update.ack'; requestId?: string; note: Note }
+  | { type: 'notes.add.ack'; requestId?: string; note: Note; tagColors: Record<string, string> }
+  | { type: 'notes.update.ack'; requestId?: string; note: Note; tagColors: Record<string, string> }
+  | { type: 'notes.tags.color.set.ack'; requestId?: string; tag: string; color: string; tagColors: Record<string, string> }
+  | { type: 'notes.tags.delete.ack'; requestId?: string; tag: string; notes: Note[]; allTags: string[]; tagColors: Record<string, string> }
   | { type: 'notes.delete.ack'; requestId?: string; id: string }
   | { type: 'notes.list.error'; requestId?: string; error: string }
   | { type: 'notes.groups.list.error'; requestId?: string; error: string }
@@ -134,6 +139,8 @@ export type ServerMessage =
   | { type: 'notes.image.upload.error'; requestId?: string; error: string }
   | { type: 'notes.add.error'; requestId?: string; error: string }
   | { type: 'notes.update.error'; requestId?: string; error: string }
+  | { type: 'notes.tags.color.set.error'; requestId?: string; error: string }
+  | { type: 'notes.tags.delete.error'; requestId?: string; error: string }
   | { type: 'notes.delete.error'; requestId?: string; error: string }
   | { type: 'event'; event: string; payload: Record<string, unknown> };
 

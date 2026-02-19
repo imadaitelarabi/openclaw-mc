@@ -193,6 +193,9 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         case 'update-cron':
           title = data?.jobName ? `Edit ${data.jobName}` : 'Edit Cron Job';
           break;
+        case 'tags-settings':
+          title = 'Tags Settings';
+          break;
         default:
           title = type;
       }

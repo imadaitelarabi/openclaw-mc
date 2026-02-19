@@ -9,6 +9,7 @@ import { UpdateAgentPanel } from './UpdateAgentPanel';
 import { CreateCronPanel } from './CreateCronPanel';
 import { UpdateCronPanel } from './UpdateCronPanel';
 import { ExtensionOnboardingPanel } from './ExtensionOnboardingPanel';
+import { TagsSettingsPanel } from './TagsSettingsPanel';
 import { CronPanel } from '../cron';
 import { NotesPanel } from '../notes';
 import type { CronJob } from '@/types';
@@ -60,7 +61,12 @@ interface PanelContainerProps {
   // Notes-related props
   notes?: Note[];
   noteGroups?: string[];
-  onAddNote?: (content: string, group: string, imageUrl?: string) => Promise<void>;
+  allTags?: string[];
+  tagColors?: Record<string, string>;
+  onAddNote?: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<void>;
+  onUpdateNote?: (id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>) => Promise<void>;
+  onSetTagColor?: (tag: string, color: string) => Promise<void>;
+  onDeleteTag?: (tag: string) => Promise<void>;
   onCreateNoteGroup?: (group: string) => Promise<void>;
   onDeleteNoteGroup?: (group: string) => Promise<void>;
   onUploadNoteImage?: (file: File) => Promise<string>;
@@ -101,7 +107,12 @@ export function PanelContainer({
   onUpdateCronJob,
   notes = [],
   noteGroups = [],
+  allTags = [],
+  tagColors = {},
   onAddNote,
+  onUpdateNote,
+  onSetTagColor,
+  onDeleteTag,
   onCreateNoteGroup,
   onDeleteNoteGroup,
   onUploadNoteImage,
@@ -261,16 +272,28 @@ export function PanelContainer({
               })()
             )}
 
-            {panel.type === 'notes' && onAddNote && onCreateNoteGroup && onDeleteNoteGroup && onUploadNoteImage && onDeleteNote && (
+            {panel.type === 'notes' && onAddNote && onUpdateNote && onCreateNoteGroup && onDeleteNoteGroup && onUploadNoteImage && onDeleteNote && (
               <NotesPanel
                 notes={notes}
                 groups={noteGroups}
+                allTags={allTags}
+                tagColors={tagColors}
                 selectedGroup={panel.data?.selectedGroup}
                 onAddNote={onAddNote}
+                onUpdateNote={onUpdateNote}
                 onCreateGroup={onCreateNoteGroup}
                 onDeleteGroup={onDeleteNoteGroup}
                 onUploadNoteImage={onUploadNoteImage}
                 onDeleteNote={onDeleteNote}
+              />
+            )}
+
+            {panel.type === 'tags-settings' && onSetTagColor && onDeleteTag && (
+              <TagsSettingsPanel
+                allTags={allTags}
+                tagColors={tagColors}
+                onSetTagColor={onSetTagColor}
+                onDeleteTag={onDeleteTag}
               />
             )}
           </div>

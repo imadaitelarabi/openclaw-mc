@@ -94,9 +94,13 @@ function MissionControlInner() {
   const {
     notes,
     groups: noteGroups,
+    allTags: noteTags,
+    tagColors,
     loading: notesLoading,
     error: notesError,
     addNote,
+    setTagColor,
+    deleteTag,
     addGroup,
     deleteGroup,
     uploadNoteImage,
@@ -419,6 +423,10 @@ function MissionControlInner() {
     openPanel('extension-onboarding', { extensionName });
   }, [openPanel]);
 
+  const handleOpenTagsSettings = useCallback(() => {
+    openPanel('tags-settings');
+  }, [openPanel]);
+
   // Cron handlers
   const handleSelectCronJob = useCallback((jobId: string) => {
     const job = cronJobs.find(j => j.id === jobId);
@@ -500,9 +508,9 @@ function MissionControlInner() {
     openPanel('notes', { selectedGroup: null });
   }, [openPanel]);
 
-  const handleAddNote = useCallback(async (content: string, group: string, imageUrl?: string) => {
+  const handleAddNote = useCallback(async (content: string, group: string, tags?: string[], imageUrl?: string) => {
     try {
-      await addNote(content, group, imageUrl);
+      await addNote(content, group, tags, imageUrl);
       toast({
         title: 'Note added',
         description: 'Your note has been saved.',
@@ -576,6 +584,53 @@ function MissionControlInner() {
       throw err;
     }
   }, [deleteNote, toast]);
+
+  const handleUpdateNote = useCallback(async (id: string, updates: any) => {
+    try {
+      await updateNote(id, updates);
+      toast({
+        title: 'Note updated',
+        description: 'Your changes were saved.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to update note',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [toast, updateNote]);
+
+  const handleSetTagColor = useCallback(async (tag: string, color: string) => {
+    try {
+      await setTagColor(tag, color);
+    } catch (err) {
+      toast({
+        title: 'Failed to set tag color',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [setTagColor, toast]);
+
+  const handleDeleteTag = useCallback(async (tag: string) => {
+    try {
+      await deleteTag(tag);
+      toast({
+        title: 'Tag deleted',
+        description: `Removed "${tag}" from all notes.`,
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to delete tag',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [deleteTag, toast]);
 
   const handleCreateAgentRequest = useCallback(async (payload: {
     id?: string;
@@ -815,7 +870,12 @@ function MissionControlInner() {
             onUpdateCronJob={handleUpdateCronJobRequest}
             notes={notes}
             noteGroups={noteGroups}
+            allTags={noteTags}
+            tagColors={tagColors}
             onAddNote={handleAddNote}
+            onUpdateNote={handleUpdateNote}
+            onSetTagColor={handleSetTagColor}
+            onDeleteTag={handleDeleteTag}
             onCreateNoteGroup={handleCreateNoteGroup}
             onDeleteNoteGroup={handleDeleteNoteGroup}
             onUploadNoteImage={handleUploadNoteImage}
@@ -844,6 +904,7 @@ function MissionControlInner() {
           onAddGateway={() => setShowSetup(true)}
           onRemoveGateway={(id) => sendMessage({ type: 'gateways.remove', id })}
           onOpenExtensionOnboarding={handleOpenExtensionOnboarding}
+          onOpenTagsSettings={handleOpenTagsSettings}
           cronJobs={cronJobs}
           cronStatus={cronStatus}
           isCronMenuOpen={isCronMenuOpen}

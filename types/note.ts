@@ -6,6 +6,7 @@ export interface Note {
   id: string;              // Unique note ID (UUID)
   content: string;         // Note text content
   group: string;           // Category/group (e.g., "Commands", "Ideas", "Snippets")
+  tags?: string[];         // Optional tags for multi-context categorization
   createdAt: number;       // Timestamp in milliseconds
   updatedAt: number;       // Timestamp in milliseconds
   imageUrl?: string;       // Optional image attachment URL/path

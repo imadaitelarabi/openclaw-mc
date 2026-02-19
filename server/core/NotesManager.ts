@@ -12,6 +12,7 @@ import type { Note } from '../types/internal';
 interface NotesStorage {
   notes: Note[];
   groups: string[];
+  tagColors?: Record<string, string>;
 }
 
 const DEFAULT_NOTE_GROUPS = ['General', 'Commands', 'Ideas', 'Snippets'];
@@ -23,6 +24,7 @@ export class NotesManager {
   private imagesDir: string;
   private notes: Note[] = [];
   private groups: string[] = [...DEFAULT_NOTE_GROUPS];
+  private tagColors: Record<string, string> = {};
 
   constructor() {
     this.configDir = path.join(os.homedir(), '.oc-mission-control');
@@ -48,19 +50,27 @@ export class NotesManager {
         if (Array.isArray(parsed)) {
           this.notes = parsed;
           this.groups = this.mergeGroups([FALLBACK_GROUP], this.notes.map(note => note.group));
+          this.tagColors = {};
         } else {
           this.notes = Array.isArray(parsed.notes) ? parsed.notes : [];
           const persistedGroups = Array.isArray(parsed.groups) ? parsed.groups : [];
           this.groups = this.mergeGroups([FALLBACK_GROUP], persistedGroups, this.notes.map(note => note.group));
+          this.tagColors = (parsed.tagColors && typeof parsed.tagColors === 'object')
+            ? parsed.tagColors
+            : {};
         }
+
+        this.ensureTagColors(this.listAllTags());
       } else {
         this.groups = [...DEFAULT_NOTE_GROUPS];
+        this.tagColors = {};
         this.saveNotes();
       }
     } catch (err) {
       console.error('[NotesManager] Failed to load notes:', err);
       this.notes = [];
       this.groups = [...DEFAULT_NOTE_GROUPS];
+      this.tagColors = {};
     }
   }
 
@@ -69,6 +79,7 @@ export class NotesManager {
       const payload: NotesStorage = {
         notes: this.notes,
         groups: this.groups,
+        tagColors: this.tagColors,
       };
 
       fs.writeFileSync(this.notesPath, JSON.stringify(payload, null, 2), 'utf-8');
@@ -224,10 +235,182 @@ export class NotesManager {
     return `/api/notes/images/${encodeURIComponent(storedFileName)}`;
   }
 
+  public listAllTags(): string[] {
+    const tagSet = new Set<string>();
+    for (const note of this.notes) {
+      if (Array.isArray(note.tags)) {
+        for (const tag of note.tags) {
+          const trimmed = tag.trim();
+          if (trimmed) tagSet.add(trimmed);
+        }
+      }
+    }
+    return Array.from(tagSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }
+
+  private normalizeHexColor(color: string): string {
+    const trimmed = color.trim();
+    const hexMatch = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(trimmed);
+    if (!hexMatch) {
+      throw new Error('Invalid color. Use hex format like #3b82f6');
+    }
+
+    const hex = hexMatch[1];
+    if (hex.length === 3) {
+      return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`.toLowerCase();
+    }
+
+    return `#${hex.toLowerCase()}`;
+  }
+
+  private hashTag(tag: string): number {
+    let hash = 0;
+    for (let index = 0; index < tag.length; index += 1) {
+      hash = ((hash << 5) - hash) + tag.charCodeAt(index);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+
+  private hslToHex(hue: number, saturation: number, lightness: number): string {
+    const normalizedS = saturation / 100;
+    const normalizedL = lightness / 100;
+    const chroma = (1 - Math.abs((2 * normalizedL) - 1)) * normalizedS;
+    const huePrime = hue / 60;
+    const secondComponent = chroma * (1 - Math.abs((huePrime % 2) - 1));
+
+    let redPrime = 0;
+    let greenPrime = 0;
+    let bluePrime = 0;
+
+    if (huePrime >= 0 && huePrime < 1) {
+      redPrime = chroma;
+      greenPrime = secondComponent;
+    } else if (huePrime >= 1 && huePrime < 2) {
+      redPrime = secondComponent;
+      greenPrime = chroma;
+    } else if (huePrime >= 2 && huePrime < 3) {
+      greenPrime = chroma;
+      bluePrime = secondComponent;
+    } else if (huePrime >= 3 && huePrime < 4) {
+      greenPrime = secondComponent;
+      bluePrime = chroma;
+    } else if (huePrime >= 4 && huePrime < 5) {
+      redPrime = secondComponent;
+      bluePrime = chroma;
+    } else {
+      redPrime = chroma;
+      bluePrime = secondComponent;
+    }
+
+    const offset = normalizedL - (chroma / 2);
+    const red = Math.round((redPrime + offset) * 255);
+    const green = Math.round((greenPrime + offset) * 255);
+    const blue = Math.round((bluePrime + offset) * 255);
+
+    const toHex = (channel: number) => channel.toString(16).padStart(2, '0');
+    return `#${toHex(red)}${toHex(green)}${toHex(blue)}`;
+  }
+
+  private generateTagColor(tag: string): string {
+    const hash = this.hashTag(tag.toLowerCase());
+    const hue = hash % 360;
+    const saturation = 58 + (hash % 12);
+    const lightness = 42 + (hash % 10);
+    return this.hslToHex(hue, saturation, lightness);
+  }
+
+  private ensureTagColors(tags: string[]): boolean {
+    let changed = false;
+    for (const tag of tags) {
+      if (!this.tagColors[tag]) {
+        this.tagColors[tag] = this.generateTagColor(tag);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  public listTagColors(): Record<string, string> {
+    const tags = this.listAllTags();
+    const changed = this.ensureTagColors(tags);
+    if (changed) {
+      this.saveNotes();
+    }
+
+    const response: Record<string, string> = {};
+    for (const tag of tags) {
+      if (this.tagColors[tag]) {
+        response[tag] = this.tagColors[tag];
+      }
+    }
+    return response;
+  }
+
+  public setTagColor(tag: string, color: string): Record<string, string> {
+    const normalizedTag = tag.trim();
+    if (!normalizedTag) {
+      throw new Error('Tag is required');
+    }
+
+    const allTags = this.listAllTags();
+    if (!allTags.some(existing => existing.toLowerCase() === normalizedTag.toLowerCase())) {
+      throw new Error(`Unknown tag: ${normalizedTag}`);
+    }
+
+    const canonicalTag = allTags.find(existing => existing.toLowerCase() === normalizedTag.toLowerCase()) || normalizedTag;
+    this.tagColors[canonicalTag] = this.normalizeHexColor(color);
+    this.saveNotes();
+    return this.listTagColors();
+  }
+
+  public deleteTag(tag: string): { notes: Note[]; allTags: string[]; tagColors: Record<string, string> } {
+    const normalizedTag = tag.trim();
+    if (!normalizedTag) {
+      throw new Error('Tag is required');
+    }
+
+    const allTags = this.listAllTags();
+    const canonicalTag = allTags.find(existing => existing.toLowerCase() === normalizedTag.toLowerCase());
+    if (!canonicalTag) {
+      throw new Error(`Unknown tag: ${normalizedTag}`);
+    }
+
+    const now = Date.now();
+    this.notes = this.notes.map(note => {
+      if (!Array.isArray(note.tags) || note.tags.length === 0) {
+        return note;
+      }
+
+      const nextTags = note.tags.filter(existing => existing.toLowerCase() !== canonicalTag.toLowerCase());
+      if (nextTags.length === note.tags.length) {
+        return note;
+      }
+
+      return {
+        ...note,
+        tags: nextTags,
+        updatedAt: now,
+      };
+    });
+
+    delete this.tagColors[canonicalTag];
+
+    this.saveNotes();
+
+    const remainingTags = this.listAllTags();
+    const tagColors = this.listTagColors();
+    return {
+      notes: this.notes,
+      allTags: remainingTags,
+      tagColors,
+    };
+  }
+
   /**
    * Add a new note
    */
-  public addNote(content: string, group: string, imageUrl?: string): Note {
+  public addNote(content: string, group: string, tags?: string[], imageUrl?: string): Note {
     const normalizedGroup = this.normalizeGroupName(group);
     this.groups = this.mergeGroups(this.groups, [normalizedGroup]);
 
@@ -236,12 +419,16 @@ export class NotesManager {
       id: uuidv4(),
       content,
       group: normalizedGroup,
+      tags: Array.isArray(tags) ? tags.map(t => t.trim()).filter(Boolean) : [],
       createdAt: now,
       updatedAt: now,
       imageUrl,
     };
 
     this.notes.push(note);
+    if (Array.isArray(note.tags) && note.tags.length > 0) {
+      this.ensureTagColors(note.tags);
+    }
     this.saveNotes();
     return note;
   }
@@ -261,13 +448,22 @@ export class NotesManager {
       this.groups = this.mergeGroups(this.groups, [nextGroup]);
     }
 
+    const normalizedTags = updates.tags !== undefined
+      ? updates.tags.map(t => t.trim()).filter(Boolean)
+      : undefined;
+
     const note = this.notes[index];
     this.notes[index] = {
       ...note,
       ...updates,
       ...(nextGroup ? { group: nextGroup } : {}),
+      ...(normalizedTags !== undefined ? { tags: normalizedTags } : {}),
       updatedAt: Date.now(),
     };
+
+    if (normalizedTags !== undefined && normalizedTags.length > 0) {
+      this.ensureTagColors(normalizedTags);
+    }
 
     this.saveNotes();
 

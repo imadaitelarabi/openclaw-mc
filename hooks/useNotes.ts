@@ -14,9 +14,13 @@ interface UseNotesProps {
 interface UseNotesReturn {
   notes: Note[];
   groups: string[];
+  allTags: string[];
+  tagColors: Record<string, string>;
   loading: boolean;
   error: string | null;
-  addNote: (content: string, group: string, imageUrl?: string) => Promise<Note>;
+  addNote: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<Note>;
+  setTagColor: (tag: string, color: string) => Promise<Record<string, string>>;
+  deleteTag: (tag: string) => Promise<{ notes: Note[]; allTags: string[]; tagColors: Record<string, string> }>;
   addGroup: (group: string) => Promise<string[]>;
   deleteGroup: (group: string) => Promise<string[]>;
   uploadNoteImage: (file: File) => Promise<string>;
@@ -25,9 +29,36 @@ interface UseNotesReturn {
   refreshNotes: () => Promise<void>;
 }
 
+/** Merges new tags into the existing sorted tag list, deduplicating. */
+function mergeTags(existing: string[], incoming?: string[]): string[] {
+  if (!Array.isArray(incoming) || incoming.length === 0) return existing;
+  const next = new Set(existing);
+  for (const tag of incoming) {
+    const trimmed = tag.trim();
+    if (trimmed) next.add(trimmed);
+  }
+  return Array.from(next).sort((a, b) => a.localeCompare(b));
+}
+
+function mergeTagColors(
+  existing: Record<string, string>,
+  incoming?: Record<string, string>
+): Record<string, string> {
+  if (!incoming || typeof incoming !== 'object') {
+    return existing;
+  }
+
+  return {
+    ...existing,
+    ...incoming,
+  };
+}
+
 export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
   const [notes, setNotes] = useState<Note[]>([]);
   const [groups, setGroups] = useState<string[]>(['General']);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [tagColors, setTagColors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,6 +104,8 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
           case 'notes.list.response':
             setNotes(msg.notes || []);
             setGroups(prev => (Array.isArray(msg.groups) && msg.groups.length > 0 ? msg.groups : prev));
+            setAllTags(Array.isArray(msg.allTags) ? msg.allTags : []);
+            setTagColors((msg.tagColors && typeof msg.tagColors === 'object') ? msg.tagColors : {});
             setLoading(false);
             setError(null);
             break;
@@ -98,12 +131,26 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
               if (exists) return prev;
               return [...prev, msg.note.group].sort((a, b) => a.localeCompare(b));
             });
+            setAllTags(prev => mergeTags(prev, msg.note?.tags));
+            setTagColors(prev => mergeTagColors(prev, msg.tagColors));
             break;
 
           case 'notes.update.ack':
             setNotes(prev =>
               prev.map(n => (n.id === msg.note.id ? msg.note : n))
             );
+            setAllTags(prev => mergeTags(prev, msg.note?.tags));
+            setTagColors(prev => mergeTagColors(prev, msg.tagColors));
+            break;
+
+          case 'notes.tags.color.set.ack':
+            setTagColors(prev => mergeTagColors(prev, msg.tagColors));
+            break;
+
+          case 'notes.tags.delete.ack':
+            setNotes(Array.isArray(msg.notes) ? msg.notes : []);
+            setAllTags(Array.isArray(msg.allTags) ? msg.allTags : []);
+            setTagColors((msg.tagColors && typeof msg.tagColors === 'object') ? msg.tagColors : {});
             break;
 
           case 'notes.delete.ack':
@@ -117,6 +164,8 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
           case 'notes.image.upload.error':
           case 'notes.add.error':
           case 'notes.update.error':
+          case 'notes.tags.color.set.error':
+          case 'notes.tags.delete.error':
           case 'notes.delete.error':
             setError(msg.error);
             setLoading(false);
@@ -132,7 +181,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
   }, [wsRef]);
 
   const addNote = useCallback(
-    async (content: string, group: string, imageUrl?: string): Promise<Note> => {
+    async (content: string, group: string, tags?: string[], imageUrl?: string): Promise<Note> => {
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
         throw new Error('WebSocket not connected');
@@ -169,7 +218,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
         }, 30000);
 
         ws.addEventListener('message', handleResponse);
-        ws.send(JSON.stringify({ type: 'notes.add', requestId, content, group, imageUrl }));
+        ws.send(JSON.stringify({ type: 'notes.add', requestId, content, group, tags, imageUrl }));
       });
     },
     [wsRef]
@@ -435,12 +484,115 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
     requestNotesBootstrap();
   }, [requestNotesBootstrap, wsRef]);
 
+  const setTagColor = useCallback(
+    async (tag: string, color: string): Promise<Record<string, string>> => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket not connected');
+      }
+
+      return new Promise((resolve, reject) => {
+        const requestId = uuidv4();
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        const handleResponse = (event: MessageEvent) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.requestId !== requestId) return;
+
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+
+            if (msg.type === 'notes.tags.color.set.ack') {
+              const next = (msg.tagColors && typeof msg.tagColors === 'object')
+                ? msg.tagColors
+                : {};
+              setTagColors(next);
+              resolve(next);
+            } else if (msg.type === 'notes.tags.color.set.error') {
+              reject(new Error(msg.error));
+            }
+          } catch (err) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+            reject(err);
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          ws.removeEventListener('message', handleResponse);
+          reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
+
+        ws.addEventListener('message', handleResponse);
+        ws.send(JSON.stringify({ type: 'notes.tags.color.set', requestId, tag, color }));
+      });
+    },
+    [wsRef]
+  );
+
+  const deleteTag = useCallback(
+    async (tag: string): Promise<{ notes: Note[]; allTags: string[]; tagColors: Record<string, string> }> => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket not connected');
+      }
+
+      return new Promise((resolve, reject) => {
+        const requestId = uuidv4();
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        const handleResponse = (event: MessageEvent) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.requestId !== requestId) return;
+
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+
+            if (msg.type === 'notes.tags.delete.ack') {
+              const next = {
+                notes: Array.isArray(msg.notes) ? msg.notes : [],
+                allTags: Array.isArray(msg.allTags) ? msg.allTags : [],
+                tagColors: (msg.tagColors && typeof msg.tagColors === 'object') ? msg.tagColors : {},
+              };
+
+              setNotes(next.notes);
+              setAllTags(next.allTags);
+              setTagColors(next.tagColors);
+              resolve(next);
+            } else if (msg.type === 'notes.tags.delete.error') {
+              reject(new Error(msg.error));
+            }
+          } catch (err) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+            reject(err);
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          ws.removeEventListener('message', handleResponse);
+          reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
+
+        ws.addEventListener('message', handleResponse);
+        ws.send(JSON.stringify({ type: 'notes.tags.delete', requestId, tag }));
+      });
+    },
+    [wsRef]
+  );
+
   return {
     notes,
     groups,
+    allTags,
+    tagColors,
     loading,
     error,
     addNote,
+    setTagColor,
+    deleteTag,
     addGroup,
     deleteGroup,
     uploadNoteImage,

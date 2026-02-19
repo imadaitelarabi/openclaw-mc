@@ -21,12 +21,16 @@ export async function handleNotesList(
   try {
     const notes = notesManager.listNotes();
     const groups = notesManager.listGroups();
+    const allTags = notesManager.listAllTags();
+    const tagColors = notesManager.listTagColors();
     ws.send(
       JSON.stringify({
         type: 'notes.list.response',
         requestId,
         notes,
         groups,
+        allTags,
+        tagColors,
       })
     );
   } catch (err) {
@@ -200,7 +204,7 @@ export async function handleNotesAdd(
   msg: Extract<ClientMessage, { type: 'notes.add' }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
-  const { requestId, content, group, imageUrl } = msg;
+  const { requestId, content, group, tags, imageUrl } = msg;
 
   if (!content || !group) {
     ws.send(
@@ -214,12 +218,14 @@ export async function handleNotesAdd(
   }
 
   try {
-    const note = notesManager.addNote(content, group, imageUrl);
+    const note = notesManager.addNote(content, group, tags, imageUrl);
+    const tagColors = notesManager.listTagColors();
     ws.send(
       JSON.stringify({
         type: 'notes.add.ack',
         requestId,
         note,
+        tagColors,
       })
     );
   } catch (err) {
@@ -240,7 +246,7 @@ export async function handleNotesUpdate(
   msg: Extract<ClientMessage, { type: 'notes.update' }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
-  const { requestId, id, content, group, imageUrl } = msg;
+  const { requestId, id, content, group, tags, imageUrl } = msg;
 
   if (!id) {
     ws.send(
@@ -257,14 +263,17 @@ export async function handleNotesUpdate(
     const updates: Partial<Omit<Note, 'id' | 'createdAt'>> = {};
     if (content !== undefined) updates.content = content;
     if (group !== undefined) updates.group = group;
+    if (tags !== undefined) updates.tags = tags;
     if (imageUrl !== undefined) updates.imageUrl = imageUrl;
 
     const note = notesManager.updateNote(id, updates);
+    const tagColors = notesManager.listTagColors();
     ws.send(
       JSON.stringify({
         type: 'notes.update.ack',
         requestId,
         note,
+        tagColors,
       })
     );
   } catch (err) {
@@ -324,6 +333,91 @@ export async function handleNotesDelete(
         type: 'notes.delete.error',
         requestId,
         error: (err as Error).message || 'Failed to delete note',
+      })
+    );
+  }
+}
+
+/**
+ * Set a global color for a tag
+ */
+export async function handleNotesTagColorSet(
+  msg: Extract<ClientMessage, { type: 'notes.tags.color.set' }>,
+  ws: ExtendedWebSocket
+): Promise<void> {
+  const { requestId, tag, color } = msg;
+
+  if (!tag?.trim() || !color?.trim()) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.color.set.error',
+        requestId,
+        error: 'Tag and color are required',
+      })
+    );
+    return;
+  }
+
+  try {
+    const tagColors = notesManager.setTagColor(tag, color);
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.color.set.ack',
+        requestId,
+        tag,
+        color,
+        tagColors,
+      })
+    );
+  } catch (err) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.color.set.error',
+        requestId,
+        error: (err as Error).message || 'Failed to set tag color',
+      })
+    );
+  }
+}
+
+/**
+ * Delete a tag globally from all notes
+ */
+export async function handleNotesTagDelete(
+  msg: Extract<ClientMessage, { type: 'notes.tags.delete' }>,
+  ws: ExtendedWebSocket
+): Promise<void> {
+  const { requestId, tag } = msg;
+
+  if (!tag?.trim()) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.delete.error',
+        requestId,
+        error: 'Tag is required',
+      })
+    );
+    return;
+  }
+
+  try {
+    const result = notesManager.deleteTag(tag);
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.delete.ack',
+        requestId,
+        tag,
+        notes: result.notes,
+        allTags: result.allTags,
+        tagColors: result.tagColors,
+      })
+    );
+  } catch (err) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.delete.error',
+        requestId,
+        error: (err as Error).message || 'Failed to delete tag',
       })
     );
   }

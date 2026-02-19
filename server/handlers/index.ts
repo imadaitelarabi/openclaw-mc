@@ -35,6 +35,8 @@ import {
   handleNotesAdd,
   handleNotesUpdate,
   handleNotesDelete,
+  handleNotesTagColorSet,
+  handleNotesTagDelete,
 } from './notes.handler';
 
 // Singleton config manager (shared with GatewayClient)
@@ -168,6 +170,14 @@ export async function handleMessage(
 
       case 'notes.delete':
         await handleNotesDelete(msg, ws);
+        break;
+
+      case 'notes.tags.color.set':
+        await handleNotesTagColorSet(msg, ws);
+        break;
+
+      case 'notes.tags.delete':
+        await handleNotesTagDelete(msg, ws);
         break;
 
       default:
