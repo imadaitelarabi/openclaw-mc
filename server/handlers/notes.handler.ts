@@ -22,6 +22,7 @@ export async function handleNotesList(
     const notes = notesManager.listNotes();
     const groups = notesManager.listGroups();
     const allTags = notesManager.listAllTags();
+    const tagColors = notesManager.listTagColors();
     ws.send(
       JSON.stringify({
         type: 'notes.list.response',
@@ -29,6 +30,7 @@ export async function handleNotesList(
         notes,
         groups,
         allTags,
+        tagColors,
       })
     );
   } catch (err) {
@@ -217,11 +219,13 @@ export async function handleNotesAdd(
 
   try {
     const note = notesManager.addNote(content, group, tags, imageUrl);
+    const tagColors = notesManager.listTagColors();
     ws.send(
       JSON.stringify({
         type: 'notes.add.ack',
         requestId,
         note,
+        tagColors,
       })
     );
   } catch (err) {
@@ -263,11 +267,13 @@ export async function handleNotesUpdate(
     if (imageUrl !== undefined) updates.imageUrl = imageUrl;
 
     const note = notesManager.updateNote(id, updates);
+    const tagColors = notesManager.listTagColors();
     ws.send(
       JSON.stringify({
         type: 'notes.update.ack',
         requestId,
         note,
+        tagColors,
       })
     );
   } catch (err) {
@@ -327,6 +333,48 @@ export async function handleNotesDelete(
         type: 'notes.delete.error',
         requestId,
         error: (err as Error).message || 'Failed to delete note',
+      })
+    );
+  }
+}
+
+/**
+ * Set a global color for a tag
+ */
+export async function handleNotesTagColorSet(
+  msg: Extract<ClientMessage, { type: 'notes.tags.color.set' }>,
+  ws: ExtendedWebSocket
+): Promise<void> {
+  const { requestId, tag, color } = msg;
+
+  if (!tag?.trim() || !color?.trim()) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.color.set.error',
+        requestId,
+        error: 'Tag and color are required',
+      })
+    );
+    return;
+  }
+
+  try {
+    const tagColors = notesManager.setTagColor(tag, color);
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.color.set.ack',
+        requestId,
+        tag,
+        color,
+        tagColors,
+      })
+    );
+  } catch (err) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.color.set.error',
+        requestId,
+        error: (err as Error).message || 'Failed to set tag color',
       })
     );
   }

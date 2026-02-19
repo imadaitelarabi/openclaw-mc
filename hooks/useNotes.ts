@@ -15,9 +15,11 @@ interface UseNotesReturn {
   notes: Note[];
   groups: string[];
   allTags: string[];
+  tagColors: Record<string, string>;
   loading: boolean;
   error: string | null;
   addNote: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<Note>;
+  setTagColor: (tag: string, color: string) => Promise<Record<string, string>>;
   addGroup: (group: string) => Promise<string[]>;
   deleteGroup: (group: string) => Promise<string[]>;
   uploadNoteImage: (file: File) => Promise<string>;
@@ -37,10 +39,25 @@ function mergeTags(existing: string[], incoming?: string[]): string[] {
   return Array.from(next).sort((a, b) => a.localeCompare(b));
 }
 
+function mergeTagColors(
+  existing: Record<string, string>,
+  incoming?: Record<string, string>
+): Record<string, string> {
+  if (!incoming || typeof incoming !== 'object') {
+    return existing;
+  }
+
+  return {
+    ...existing,
+    ...incoming,
+  };
+}
+
 export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
   const [notes, setNotes] = useState<Note[]>([]);
   const [groups, setGroups] = useState<string[]>(['General']);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [tagColors, setTagColors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,6 +104,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
             setNotes(msg.notes || []);
             setGroups(prev => (Array.isArray(msg.groups) && msg.groups.length > 0 ? msg.groups : prev));
             setAllTags(Array.isArray(msg.allTags) ? msg.allTags : []);
+            setTagColors((msg.tagColors && typeof msg.tagColors === 'object') ? msg.tagColors : {});
             setLoading(false);
             setError(null);
             break;
@@ -113,6 +131,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
               return [...prev, msg.note.group].sort((a, b) => a.localeCompare(b));
             });
             setAllTags(prev => mergeTags(prev, msg.note?.tags));
+            setTagColors(prev => mergeTagColors(prev, msg.tagColors));
             break;
 
           case 'notes.update.ack':
@@ -120,6 +139,11 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
               prev.map(n => (n.id === msg.note.id ? msg.note : n))
             );
             setAllTags(prev => mergeTags(prev, msg.note?.tags));
+            setTagColors(prev => mergeTagColors(prev, msg.tagColors));
+            break;
+
+          case 'notes.tags.color.set.ack':
+            setTagColors(prev => mergeTagColors(prev, msg.tagColors));
             break;
 
           case 'notes.delete.ack':
@@ -133,6 +157,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
           case 'notes.image.upload.error':
           case 'notes.add.error':
           case 'notes.update.error':
+          case 'notes.tags.color.set.error':
           case 'notes.delete.error':
             setError(msg.error);
             setLoading(false);
@@ -451,13 +476,62 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
     requestNotesBootstrap();
   }, [requestNotesBootstrap, wsRef]);
 
+  const setTagColor = useCallback(
+    async (tag: string, color: string): Promise<Record<string, string>> => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket not connected');
+      }
+
+      return new Promise((resolve, reject) => {
+        const requestId = uuidv4();
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        const handleResponse = (event: MessageEvent) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.requestId !== requestId) return;
+
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+
+            if (msg.type === 'notes.tags.color.set.ack') {
+              const next = (msg.tagColors && typeof msg.tagColors === 'object')
+                ? msg.tagColors
+                : {};
+              setTagColors(next);
+              resolve(next);
+            } else if (msg.type === 'notes.tags.color.set.error') {
+              reject(new Error(msg.error));
+            }
+          } catch (err) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+            reject(err);
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          ws.removeEventListener('message', handleResponse);
+          reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
+
+        ws.addEventListener('message', handleResponse);
+        ws.send(JSON.stringify({ type: 'notes.tags.color.set', requestId, tag, color }));
+      });
+    },
+    [wsRef]
+  );
+
   return {
     notes,
     groups,
     allTags,
+    tagColors,
     loading,
     error,
     addNote,
+    setTagColor,
     addGroup,
     deleteGroup,
     uploadNoteImage,

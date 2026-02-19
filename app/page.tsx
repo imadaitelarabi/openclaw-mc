@@ -95,9 +95,11 @@ function MissionControlInner() {
     notes,
     groups: noteGroups,
     allTags: noteTags,
+    tagColors,
     loading: notesLoading,
     error: notesError,
     addNote,
+    setTagColor,
     addGroup,
     deleteGroup,
     uploadNoteImage,
@@ -578,6 +580,36 @@ function MissionControlInner() {
     }
   }, [deleteNote, toast]);
 
+  const handleUpdateNote = useCallback(async (id: string, updates: any) => {
+    try {
+      await updateNote(id, updates);
+      toast({
+        title: 'Note updated',
+        description: 'Your changes were saved.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to update note',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [toast, updateNote]);
+
+  const handleSetTagColor = useCallback(async (tag: string, color: string) => {
+    try {
+      await setTagColor(tag, color);
+    } catch (err) {
+      toast({
+        title: 'Failed to set tag color',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [setTagColor, toast]);
+
   const handleCreateAgentRequest = useCallback(async (payload: {
     id?: string;
     name: string;
@@ -817,7 +849,10 @@ function MissionControlInner() {
             notes={notes}
             noteGroups={noteGroups}
             allTags={noteTags}
+            tagColors={tagColors}
             onAddNote={handleAddNote}
+            onUpdateNote={handleUpdateNote}
+            onSetTagColor={handleSetTagColor}
             onCreateNoteGroup={handleCreateNoteGroup}
             onDeleteNoteGroup={handleDeleteNoteGroup}
             onUploadNoteImage={handleUploadNoteImage}

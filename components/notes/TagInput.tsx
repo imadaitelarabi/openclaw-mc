@@ -7,15 +7,17 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Tag } from 'lucide-react';
+import { asRgba, getTagColor } from '@/lib/tag-colors';
 
 interface TagInputProps {
   selectedTags: string[];
   allTags: string[];
+  tagColors?: Record<string, string>;
   onChange: (tags: string[]) => void;
   disabled?: boolean;
 }
 
-export function TagInput({ selectedTags, allTags, onChange, disabled }: TagInputProps) {
+export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled }: TagInputProps) {
   const [inputValue, setInputValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -92,7 +94,11 @@ export function TagInput({ selectedTags, allTags, onChange, disabled }: TagInput
         {selectedTags.map(tag => (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-medium"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+            style={{
+              backgroundColor: asRgba(getTagColor(tag, tagColors), 0.2),
+              color: getTagColor(tag, tagColors),
+            }}
           >
             {tag}
             {!disabled && (
@@ -145,7 +151,7 @@ export function TagInput({ selectedTags, allTags, onChange, disabled }: TagInput
                 className="w-full px-3 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground transition-colors flex items-center gap-2"
               >
                 <Tag className="w-3 h-3 text-muted-foreground" />
-                {tag}
+                <span style={{ color: getTagColor(tag, tagColors) }}>{tag}</span>
               </button>
             ))}
             {showCreateOption && (

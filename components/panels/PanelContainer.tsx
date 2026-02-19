@@ -61,7 +61,10 @@ interface PanelContainerProps {
   notes?: Note[];
   noteGroups?: string[];
   allTags?: string[];
+  tagColors?: Record<string, string>;
   onAddNote?: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<void>;
+  onUpdateNote?: (id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>) => Promise<void>;
+  onSetTagColor?: (tag: string, color: string) => Promise<void>;
   onCreateNoteGroup?: (group: string) => Promise<void>;
   onDeleteNoteGroup?: (group: string) => Promise<void>;
   onUploadNoteImage?: (file: File) => Promise<string>;
@@ -103,7 +106,10 @@ export function PanelContainer({
   notes = [],
   noteGroups = [],
   allTags = [],
+  tagColors = {},
   onAddNote,
+  onUpdateNote,
+  onSetTagColor,
   onCreateNoteGroup,
   onDeleteNoteGroup,
   onUploadNoteImage,
@@ -263,13 +269,16 @@ export function PanelContainer({
               })()
             )}
 
-            {panel.type === 'notes' && onAddNote && onCreateNoteGroup && onDeleteNoteGroup && onUploadNoteImage && onDeleteNote && (
+            {panel.type === 'notes' && onAddNote && onUpdateNote && onSetTagColor && onCreateNoteGroup && onDeleteNoteGroup && onUploadNoteImage && onDeleteNote && (
               <NotesPanel
                 notes={notes}
                 groups={noteGroups}
                 allTags={allTags}
+                tagColors={tagColors}
                 selectedGroup={panel.data?.selectedGroup}
                 onAddNote={onAddNote}
+                onUpdateNote={onUpdateNote}
+                onSetTagColor={onSetTagColor}
                 onCreateGroup={onCreateNoteGroup}
                 onDeleteGroup={onDeleteNoteGroup}
                 onUploadNoteImage={onUploadNoteImage}
