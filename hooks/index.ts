@@ -9,3 +9,4 @@ export * from './useExtensionStatusBar';
 export * from './useExtensionChatInput';
 export * from './useCronJobs';
 export * from './useCronRuns';
+export * from './useNotes';

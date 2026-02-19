@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageSquare, LayoutGrid, Wifi, WifiOff } from "lucide-react";
-import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useSessionControl, useCronJobs } from "@/hooks";
+import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useSessionControl, useCronJobs, useNotes } from "@/hooks";
 import { StatusBar } from "@/components/layout";
 import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
@@ -26,6 +26,7 @@ function MissionControlInner() {
   const { layout, openPanel, closePanel, setActivePanel, updatePanelSettings, updatePanelSessionSettings, getActivePanel } = usePanels();
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [isCronMenuOpen, setIsCronMenuOpen] = useState(false);
+  const [isNotesMenuOpen, setIsNotesMenuOpen] = useState(false);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
   const [gateways, setGateways] = useState<any[]>([]);
   const [activeGatewayId, setActiveGatewayId] = useState<string | null>(null);
@@ -88,6 +89,17 @@ function MissionControlInner() {
       console.log('[App] Cron event:', event);
     }
   });
+
+  // Notes hook
+  const {
+    notes,
+    loading: notesLoading,
+    error: notesError,
+    addNote,
+    updateNote,
+    deleteNote,
+    refreshNotes,
+  } = useNotes({ wsRef });
 
   // Get the active panel and its settings
   const activePanel = getActivePanel();
@@ -473,6 +485,51 @@ function MissionControlInner() {
     return updatedJob;
   }, [updateCronJob, toast]);
 
+  // Notes handlers
+  const handleSelectNoteGroup = useCallback((group: string | null) => {
+    setIsNotesMenuOpen(false);
+    openPanel('notes', { selectedGroup: group });
+  }, [openPanel]);
+
+  const handleOpenNotes = useCallback(() => {
+    setIsNotesMenuOpen(false);
+    openPanel('notes', { selectedGroup: null });
+  }, [openPanel]);
+
+  const handleAddNote = useCallback(async (content: string, group: string, imageUrl?: string) => {
+    try {
+      await addNote(content, group, imageUrl);
+      toast({
+        title: 'Note added',
+        description: 'Your note has been saved.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to add note',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [addNote, toast]);
+
+  const handleDeleteNote = useCallback(async (id: string) => {
+    try {
+      await deleteNote(id);
+      toast({
+        title: 'Note deleted',
+        description: 'The note has been removed.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to delete note',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [deleteNote, toast]);
+
   const handleCreateAgentRequest = useCallback(async (payload: {
     id?: string;
     name: string;
@@ -709,6 +766,9 @@ function MissionControlInner() {
             onDeleteCronJob={handleDeleteCronJob}
             onCreateCronJob={handleCreateCronJobRequest}
             onUpdateCronJob={handleUpdateCronJobRequest}
+            notes={notes}
+            onAddNote={handleAddNote}
+            onDeleteNote={handleDeleteNote}
           />
         )}
       </div>
@@ -744,6 +804,11 @@ function MissionControlInner() {
           }}
           onSelectCronJob={handleSelectCronJob}
           onCreateCronJob={handleOpenCreateCronPanel}
+          notes={notes}
+          isNotesMenuOpen={isNotesMenuOpen}
+          onToggleNotesMenu={() => setIsNotesMenuOpen(!isNotesMenuOpen)}
+          onSelectNoteGroup={handleSelectNoteGroup}
+          onOpenNotes={handleOpenNotes}
         />
       </div>
 
@@ -780,10 +845,11 @@ function MissionControlInner() {
       />
       
       {/* Click outside desktop menu */}
-      {(isAgentMenuOpen || isCronMenuOpen) && (
+      {(isAgentMenuOpen || isCronMenuOpen || isNotesMenuOpen) && (
         <div className="fixed inset-0 z-40" onClick={() => {
           setIsAgentMenuOpen(false);
           setIsCronMenuOpen(false);
+          setIsNotesMenuOpen(false);
         }} />
       )}
 

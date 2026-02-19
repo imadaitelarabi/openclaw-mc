@@ -77,7 +77,11 @@ export type ClientMessage =
   | { type: 'cron.update'; requestId?: string; jobId: string; updates: any }
   | { type: 'cron.delete'; requestId?: string; jobId: string }
   | { type: 'cron.runs'; requestId?: string; jobId: string; limit?: number }
-  | { type: 'cron.run'; requestId?: string; jobId: string; mode?: string };
+  | { type: 'cron.run'; requestId?: string; jobId: string; mode?: string }
+  | { type: 'notes.list'; requestId?: string }
+  | { type: 'notes.add'; requestId?: string; content: string; group: string; imageUrl?: string }
+  | { type: 'notes.update'; requestId?: string; id: string; content?: string; group?: string; imageUrl?: string }
+  | { type: 'notes.delete'; requestId?: string; id: string };
 
 // Server to Client Messages
 export type ServerMessage =
@@ -101,6 +105,14 @@ export type ServerMessage =
   | { type: 'chat.abort.run.ack'; agentId: string; ok: boolean; error?: string }
   | { type: 'chat_history'; agentId: string; messages: unknown[] }
   | { type: 'chat_history_more'; agentId: string; sessionKey?: string; messages: unknown[]; before?: string }
+  | { type: 'notes.list.response'; requestId?: string; notes: any[] }
+  | { type: 'notes.add.ack'; requestId?: string; note: any }
+  | { type: 'notes.update.ack'; requestId?: string; note: any }
+  | { type: 'notes.delete.ack'; requestId?: string; id: string }
+  | { type: 'notes.list.error'; requestId?: string; error: string }
+  | { type: 'notes.add.error'; requestId?: string; error: string }
+  | { type: 'notes.update.error'; requestId?: string; error: string }
+  | { type: 'notes.delete.error'; requestId?: string; error: string }
   | { type: 'event'; event: string; payload: Record<string, unknown> };
 
 // Transformed types for client display

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Panel } from '@/types';
+import type { Panel, Note } from '@/types';
 import { getStreamKey } from '@/lib/gateway-utils';
 import { PanelHeader } from './PanelHeader';
 import { ChatPanel } from './ChatPanel';
@@ -10,6 +10,7 @@ import { CreateCronPanel } from './CreateCronPanel';
 import { UpdateCronPanel } from './UpdateCronPanel';
 import { ExtensionOnboardingPanel } from './ExtensionOnboardingPanel';
 import { CronPanel } from '../cron';
+import { NotesPanel } from '../notes';
 import type { CronJob } from '@/types';
 
 interface PanelContainerProps {
@@ -55,6 +56,11 @@ interface PanelContainerProps {
   onDeleteCronJob?: (jobId: string) => void;
   onCreateCronJob?: (payload: Omit<CronJob, 'id' | 'createdAtMs' | 'updatedAtMs'>) => Promise<CronJob>;
   onUpdateCronJob?: (payload: { jobId: string; updates: Partial<CronJob> }) => Promise<CronJob>;
+
+  // Notes-related props
+  notes?: Note[];
+  onAddNote?: (content: string, group: string, imageUrl?: string) => Promise<void>;
+  onDeleteNote?: (id: string) => Promise<void>;
 }
 
 export function PanelContainer({
@@ -89,6 +95,9 @@ export function PanelContainer({
   onDeleteCronJob,
   onCreateCronJob,
   onUpdateCronJob,
+  notes = [],
+  onAddNote,
+  onDeleteNote,
 }: PanelContainerProps) {
   if (panels.length === 0) {
     return null;
@@ -242,6 +251,15 @@ export function PanelContainer({
                   />
                 );
               })()
+            )}
+
+            {panel.type === 'notes' && onAddNote && onDeleteNote && (
+              <NotesPanel
+                notes={notes}
+                selectedGroup={panel.data?.selectedGroup}
+                onAddNote={onAddNote}
+                onDeleteNote={onDeleteNote}
+              />
             )}
           </div>
         </div>
