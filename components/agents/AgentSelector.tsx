@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { Zap, ChevronDown, Plus, Pencil, Trash2 } from 'lucide-react';
 import type { Agent } from '@/types';
 import type { AgentRunStatus } from '@/components/panels/PanelHeader';
@@ -27,6 +28,55 @@ export function AgentSelector({
   onDeleteAgent,
   agentStatuses = {},
 }: AgentSelectorProps) {
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const totalItems = agents.length + (onCreateAgent ? 1 : 0);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setActiveIndex(-1);
+    } else {
+      dropdownRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isOpen) onToggle();
+      setActiveIndex(0);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!isOpen) onToggle();
+      setActiveIndex(totalItems - 1);
+    } else if (e.key === 'Escape' && isOpen) {
+      e.preventDefault();
+      onToggle();
+    }
+  };
+
+  const handleDropdownKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev + 1) % totalItems);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev - 1 + totalItems) % totalItems);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < agents.length) {
+        onSelect(agents[activeIndex].id);
+        onToggle();
+      } else if (activeIndex === agents.length && onCreateAgent) {
+        onCreateAgent();
+        onToggle();
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onToggle();
+    }
+  };
+
   function getPulseClass(status: AgentRunStatus | undefined): string | null {
     if (!status || status === 'idle') return null;
     if (status === 'thinking' || status === 'tool') return 'bg-amber-400 animate-pulse';
@@ -38,6 +88,7 @@ export function AgentSelector({
     <div className="relative">
       <button 
         onClick={onToggle}
+        onKeyDown={handleTriggerKeyDown}
         className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors"
       >
         <Zap className="w-3 h-3 text-primary" />
@@ -48,21 +99,27 @@ export function AgentSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-64 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+        <div
+          ref={dropdownRef}
+          className="absolute bottom-full left-0 mb-2 w-64 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+          onKeyDown={handleDropdownKeyDown}
+          tabIndex={-1}
+        >
           <div className="p-2 border-b border-border bg-muted/50 text-muted-foreground font-medium">
             Switch Agent
           </div>
           <div className="max-h-64 overflow-y-auto py-1">
-            {agents.map(agent => (
+            {agents.map((agent, index) => (
               <button
                 key={agent.id}
                 onClick={() => {
                   onSelect(agent.id);
                   onToggle();
                 }}
+                onMouseEnter={() => setActiveIndex(index)}
                 className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-accent hover:text-accent-foreground transition-colors ${
                   selectedAgent === agent.id ? "bg-accent/50 text-primary" : ""
-                }`}
+                } ${activeIndex === index ? "bg-accent text-accent-foreground" : ""}`}
               >
                 <div className="flex items-center gap-2">
                   <span>{agent.emoji || "🤖"}</span>
@@ -123,7 +180,10 @@ export function AgentSelector({
                   onCreateAgent();
                   onToggle();
                 }}
-                className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+                onMouseEnter={() => setActiveIndex(agents.length)}
+                className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors ${
+                  activeIndex === agents.length ? "bg-accent text-accent-foreground" : ""
+                }`}
               >
                 <Plus className="w-4 h-4 text-primary" />
                 <span className="text-primary font-medium">Create New Agent</span>

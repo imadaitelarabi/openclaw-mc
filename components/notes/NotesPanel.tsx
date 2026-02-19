@@ -6,7 +6,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Copy, Trash2, Image as ImageIcon, Plus, Send, X, ChevronDown, Download, Tag, Check } from 'lucide-react';
+import { Copy, Trash2, Image as ImageIcon, Plus, Send, X, ChevronDown, Download, Tag, Check, Pencil } from 'lucide-react';
 import type { Note } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/useToast';
@@ -50,6 +50,9 @@ export function NotesPanel({
   const [editingNoteTagId, setEditingNoteTagId] = useState<string | null>(null);
   const [tagDraftsByNoteId, setTagDraftsByNoteId] = useState<Record<string, string[]>>({});
   const [savingTagNoteId, setSavingTagNoteId] = useState<string | null>(null);
+  const [editingNoteContentId, setEditingNoteContentId] = useState<string | null>(null);
+  const [editingNoteContent, setEditingNoteContent] = useState('');
+  const [savingNoteContentId, setSavingNoteContentId] = useState<string | null>(null);
   const [selectedNoteGroup, setSelectedNoteGroup] = useState(selectedGroup || 'General');
   const [showCreateGroupInput, setShowCreateGroupInput] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -324,6 +327,31 @@ export function NotesPanel({
     }
   };
 
+  const handleStartEditNoteContent = (note: Note) => {
+    setEditingNoteContentId(note.id);
+    setEditingNoteContent(note.content);
+  };
+
+  const handleSaveNoteContent = async (noteId: string) => {
+    setSavingNoteContentId(noteId);
+    try {
+      await onUpdateNote(noteId, { content: editingNoteContent });
+      setEditingNoteContentId(null);
+    } finally {
+      setSavingNoteContentId(null);
+    }
+  };
+
+  const handleCancelEditNoteContent = () => {
+    setEditingNoteContentId(null);
+    setEditingNoteContent('');
+  };
+
+  const autoResizeTextarea = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 300) + 'px';
+  };
+
   const handleConfirmDelete = async () => {
     if (!notePendingDelete) {
       return;
@@ -503,6 +531,13 @@ export function NotesPanel({
                     </button>
                   )}
                   <button
+                    onClick={() => handleStartEditNoteContent(note)}
+                    className="p-1 rounded hover:bg-background transition-colors opacity-0 group-hover:opacity-100"
+                    title="Edit note"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button
                     onClick={() => setNotePendingDelete(note)}
                     className="p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                     title="Delete note"
@@ -513,17 +548,56 @@ export function NotesPanel({
               </div>
 
               {/* Note Content */}
-              <p className={`text-sm whitespace-pre-wrap break-words mb-2 ${isExpanded ? '' : 'line-clamp-4'}`}>
-                {note.content}
-              </p>
-              {shouldShowExpandToggle && (
-                <button
-                  type="button"
-                  onClick={() => toggleExpandedNote(note.id)}
-                  className="text-xs text-primary hover:underline mb-2"
-                >
-                  {isExpanded ? 'Show less' : 'Show more'}
-                </button>
+              {editingNoteContentId === note.id ? (
+                <div className="mb-2 space-y-2">
+                  <textarea
+                    value={editingNoteContent}
+                    onChange={(e) => {
+                      setEditingNoteContent(e.target.value);
+                      requestAnimationFrame(() => autoResizeTextarea(e.target as HTMLTextAreaElement));
+                    }}
+                    className="w-full bg-background border border-primary/50 rounded-lg px-3 py-2 text-sm font-sans resize-none overflow-y-auto max-h-[300px] min-h-[80px] focus:outline-none"
+                    disabled={savingNoteContentId === note.id}
+                    autoFocus
+                    ref={(el) => {
+                      if (el) autoResizeTextarea(el);
+                    }}
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveNoteContent(note.id)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                      disabled={savingNoteContentId === note.id}
+                    >
+                      <Check className="w-3 h-3" />
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEditNoteContent}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      disabled={savingNoteContentId === note.id}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className={`text-sm whitespace-pre-wrap break-words mb-2 ${isExpanded ? '' : 'line-clamp-4'}`}>
+                    {note.content}
+                  </p>
+                  {shouldShowExpandToggle && (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpandedNote(note.id)}
+                      className="text-xs text-primary hover:underline mb-2"
+                    >
+                      {isExpanded ? 'Show less' : 'Show more'}
+                    </button>
+                  )}
+                </>
               )}
 
               {/* Tags */}

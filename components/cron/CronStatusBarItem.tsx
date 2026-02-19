@@ -3,6 +3,7 @@
  * Shows next scheduled job and running state, with dropdown menu for job selection
  */
 
+import { useState, useEffect, useRef } from 'react';
 import { Clock, ChevronDown, Play } from 'lucide-react';
 import type { CronJob, CronStatus } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -25,7 +26,17 @@ export function CronStatusBarItem({
   onSelectJob,
   onCreateJob,
 }: CronStatusBarItemProps) {
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const safeJobs = jobs.filter((job): job is CronJob => Boolean(job && job.id));
+
+  useEffect(() => {
+    if (!isOpen) {
+      setActiveIndex(-1);
+    } else {
+      dropdownRef.current?.focus();
+    }
+  }, [isOpen]);
 
   // Find next scheduled job and running jobs
   const nextJob = safeJobs
@@ -56,10 +67,46 @@ export function CronStatusBarItem({
     return null;
   }
 
+  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isOpen) onToggle();
+      setActiveIndex(0);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!isOpen) onToggle();
+      setActiveIndex(sortedJobs.length - 1);
+    } else if (e.key === 'Escape' && isOpen) {
+      e.preventDefault();
+      onToggle();
+    }
+  };
+
+  const handleDropdownKeyDown = (e: React.KeyboardEvent) => {
+    if (sortedJobs.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev + 1) % sortedJobs.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev - 1 + sortedJobs.length) % sortedJobs.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < sortedJobs.length) {
+        onSelectJob(sortedJobs[activeIndex].id);
+        onToggle();
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onToggle();
+    }
+  };
+
   return (
     <div className="relative">
       <button
         onClick={onToggle}
+        onKeyDown={handleTriggerKeyDown}
         className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors"
       >
         <Clock className={`w-3 h-3 ${isRunning ? 'text-green-500 animate-pulse' : 'text-muted-foreground'}`} />
@@ -78,7 +125,12 @@ export function CronStatusBarItem({
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full right-0 mb-2 w-64 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
+        <div
+          ref={dropdownRef}
+          className="absolute bottom-full right-0 mb-2 w-64 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50"
+          onKeyDown={handleDropdownKeyDown}
+          tabIndex={-1}
+        >
           <div className="p-2 border-b border-border bg-muted/50 flex items-center justify-between gap-2">
             <span className="text-muted-foreground font-medium">Cron Jobs ({safeJobs.length})</span>
             {onCreateJob && (
@@ -96,7 +148,7 @@ export function CronStatusBarItem({
                 No cron jobs configured
               </div>
             ) : (
-              sortedJobs.map(job => {
+              sortedJobs.map((job, index) => {
                 const isJobRunning = job.enabled && job.state?.nextRunAtMs === 0;
                 const nextRun = job.state?.nextRunAtMs;
                 const nextRunLabel = nextRun && nextRun > 0
@@ -112,7 +164,10 @@ export function CronStatusBarItem({
                       onSelectJob(job.id);
                       onToggle();
                     }}
-                    className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+                    onMouseEnter={() => setActiveIndex(index)}
+                    className={`w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors ${
+                      activeIndex === index ? "bg-accent text-accent-foreground" : ""
+                    }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
