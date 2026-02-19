@@ -6,6 +6,16 @@
 import type { Agent, Session, ModelsListResponse } from './gateway';
 import type WebSocket from 'ws';
 
+// Note type for notes feature
+export interface Note {
+  id: string;
+  content: string;
+  group: string;
+  createdAt: number;
+  updatedAt: number;
+  imageUrl?: string;
+}
+
 // Gateway Configuration
 export interface GatewayConfig {
   id: string;
@@ -105,9 +115,9 @@ export type ServerMessage =
   | { type: 'chat.abort.run.ack'; agentId: string; ok: boolean; error?: string }
   | { type: 'chat_history'; agentId: string; messages: unknown[] }
   | { type: 'chat_history_more'; agentId: string; sessionKey?: string; messages: unknown[]; before?: string }
-  | { type: 'notes.list.response'; requestId?: string; notes: any[] }
-  | { type: 'notes.add.ack'; requestId?: string; note: any }
-  | { type: 'notes.update.ack'; requestId?: string; note: any }
+  | { type: 'notes.list.response'; requestId?: string; notes: Note[] }
+  | { type: 'notes.add.ack'; requestId?: string; note: Note }
+  | { type: 'notes.update.ack'; requestId?: string; note: Note }
   | { type: 'notes.delete.ack'; requestId?: string; id: string }
   | { type: 'notes.list.error'; requestId?: string; error: string }
   | { type: 'notes.add.error'; requestId?: string; error: string }

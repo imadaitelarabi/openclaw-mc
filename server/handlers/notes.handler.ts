@@ -3,7 +3,7 @@
  * Handles notes CRUD operations
  */
 
-import type { ExtendedWebSocket } from '../types/internal';
+import type { ExtendedWebSocket, ClientMessage, Note } from '../types/internal';
 import { NotesManager } from '../core/NotesManager';
 
 // Singleton notes manager
@@ -13,7 +13,7 @@ const notesManager = new NotesManager();
  * List all notes
  */
 export async function handleNotesList(
-  msg: any,
+  msg: Extract<ClientMessage, { type: 'notes.list' }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId } = msg;
@@ -42,7 +42,7 @@ export async function handleNotesList(
  * Add a new note
  */
 export async function handleNotesAdd(
-  msg: any,
+  msg: Extract<ClientMessage, { type: 'notes.add' }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, content, group, imageUrl } = msg;
@@ -82,7 +82,7 @@ export async function handleNotesAdd(
  * Update an existing note
  */
 export async function handleNotesUpdate(
-  msg: any,
+  msg: Extract<ClientMessage, { type: 'notes.update' }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, id, content, group, imageUrl } = msg;
@@ -99,7 +99,7 @@ export async function handleNotesUpdate(
   }
 
   try {
-    const updates: any = {};
+    const updates: Partial<Omit<Note, 'id' | 'createdAt'>> = {};
     if (content !== undefined) updates.content = content;
     if (group !== undefined) updates.group = group;
     if (imageUrl !== undefined) updates.imageUrl = imageUrl;
@@ -127,7 +127,7 @@ export async function handleNotesUpdate(
  * Delete a note
  */
 export async function handleNotesDelete(
-  msg: any,
+  msg: Extract<ClientMessage, { type: 'notes.delete' }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, id } = msg;
