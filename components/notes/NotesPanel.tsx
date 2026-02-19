@@ -5,11 +5,12 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
-import { Copy, Trash2, Image as ImageIcon, X } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Copy, Trash2, Image as ImageIcon, Plus, Send, X } from 'lucide-react';
 import type { Note } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/useToast';
+import { ConfirmationModal } from '@/components/modals';
 
 interface NotesPanelProps {
   notes: Note[];
@@ -26,10 +27,21 @@ export function NotesPanel({
 }: NotesPanelProps) {
   const [newNoteContent, setNewNoteContent] = useState('');
   const [selectedNoteGroup, setSelectedNoteGroup] = useState(selectedGroup || 'General');
+  const [createdGroups, setCreatedGroups] = useState<string[]>([]);
+  const [showCreateGroupInput, setShowCreateGroupInput] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showImageInput, setShowImageInput] = useState(false);
+  const [notePendingDelete, setNotePendingDelete] = useState<Note | null>(null);
+  const [isDeletingNote, setIsDeletingNote] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (selectedGroup) {
+      setSelectedNoteGroup(selectedGroup);
+    }
+  }, [selectedGroup]);
 
   // Extract unique groups from notes
   const groups = useMemo(() => {
@@ -40,9 +52,9 @@ export function NotesPanel({
   // Add default groups if none exist
   const allGroups = useMemo(() => {
     const defaultGroups = ['General', 'Commands', 'Ideas', 'Snippets'];
-    const uniqueGroups = new Set([...defaultGroups, ...groups]);
+    const uniqueGroups = new Set([...defaultGroups, ...groups, ...createdGroups]);
     return Array.from(uniqueGroups).sort();
-  }, [groups]);
+  }, [groups, createdGroups]);
 
   // Filter notes by selected group
   const filteredNotes = useMemo(() => {
@@ -90,6 +102,36 @@ export function NotesPanel({
     }
   };
 
+  const handleCreateGroup = () => {
+    const normalizedGroup = newGroupName.trim();
+    if (!normalizedGroup) {
+      return;
+    }
+
+    const exists = allGroups.some(group => group.toLowerCase() === normalizedGroup.toLowerCase());
+    if (!exists) {
+      setCreatedGroups(prev => [...prev, normalizedGroup]);
+    }
+
+    setSelectedNoteGroup(normalizedGroup);
+    setNewGroupName('');
+    setShowCreateGroupInput(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!notePendingDelete) {
+      return;
+    }
+
+    setIsDeletingNote(true);
+    try {
+      await onDeleteNote(notePendingDelete.id);
+      setNotePendingDelete(null);
+    } finally {
+      setIsDeletingNote(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
@@ -129,7 +171,7 @@ export function NotesPanel({
                     <Copy className="w-3 h-3" />
                   </button>
                   <button
-                    onClick={() => onDeleteNote(note.id)}
+                    onClick={() => setNotePendingDelete(note)}
                     className="p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
                     title="Delete note"
                   >
@@ -164,9 +206,8 @@ export function NotesPanel({
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-border p-4">
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Group Selector */}
+      <div className="p-3 md:p-4 border-t border-border bg-background/50 backdrop-blur">
+        <form onSubmit={handleSubmit} className="space-y-2">
           <div className="flex items-center gap-2">
             <label htmlFor="note-group" className="text-xs text-muted-foreground whitespace-nowrap">
               Group:
@@ -175,7 +216,7 @@ export function NotesPanel({
               id="note-group"
               value={selectedNoteGroup}
               onChange={(e) => setSelectedNoteGroup(e.target.value)}
-              className="flex-1 px-2 py-1 text-sm rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
               disabled={isSubmitting}
             >
               {allGroups.map(group => (
@@ -184,9 +225,52 @@ export function NotesPanel({
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => setShowCreateGroupInput(prev => !prev)}
+              className="bg-secondary/50 border border-border p-2 rounded-lg hover:bg-secondary transition-colors"
+              title="Create group"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Image URL Input (Optional) */}
+          {showCreateGroupInput && (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="New group name"
+                className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
+                disabled={isSubmitting}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleCreateGroup();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleCreateGroup}
+                className="px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Create
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateGroupInput(false);
+                  setNewGroupName('');
+                }}
+                className="p-2 rounded-lg hover:bg-secondary transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {showImageInput && (
             <div className="flex items-center gap-2">
               <input
@@ -194,7 +278,7 @@ export function NotesPanel({
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 placeholder="Image URL (optional)"
-                className="flex-1 px-3 py-2 text-sm rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
                 disabled={isSubmitting}
               />
               <button
@@ -203,51 +287,75 @@ export function NotesPanel({
                   setShowImageInput(false);
                   setImageUrl('');
                 }}
-                className="p-2 rounded hover:bg-secondary transition-colors"
+                className="p-2 rounded-lg hover:bg-secondary transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
           )}
 
-          {/* Note Input */}
-          <div className="flex items-end gap-2">
+          <div className="relative flex gap-2 md:gap-3 items-end">
+            <button
+              type="button"
+              onClick={() => setShowImageInput(prev => !prev)}
+              className="bg-secondary/50 border border-border p-2.5 rounded-lg hover:bg-secondary transition-colors shrink-0"
+              title="Attach image URL"
+            >
+              <ImageIcon className="w-4 h-4" />
+            </button>
+
             <textarea
               value={newNoteContent}
               onChange={(e) => setNewNoteContent(e.target.value)}
               placeholder="Write a note..."
-              className="flex-1 px-3 py-2 text-sm rounded border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none min-h-[60px]"
+              className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary/50 font-sans resize-none overflow-y-auto max-h-[200px] min-h-[46px] text-sm"
+              rows={1}
               disabled={isSubmitting}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                  handleSubmit(e);
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (newNoteContent.trim() && !isSubmitting) {
+                    void handleSubmit(e);
+                  }
                 }
               }}
             />
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => setShowImageInput(!showImageInput)}
-                className="p-2 rounded border border-border hover:bg-secondary transition-colors"
-                title="Add image"
-              >
-                <ImageIcon className="w-4 h-4" />
-              </button>
-              <button
-                type="submit"
-                disabled={!newNoteContent.trim() || isSubmitting}
-                className="px-4 py-2 text-sm rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isSubmitting ? 'Adding...' : 'Add'}
-              </button>
-            </div>
+
+            <button
+              type="submit"
+              disabled={!newNoteContent.trim() || isSubmitting}
+              className="bg-primary text-primary-foreground p-2.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              title="Add note"
+            >
+              <Send className="w-4 h-4" />
+            </button>
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Press <kbd className="px-1 py-0.5 rounded bg-secondary text-xs">Cmd/Ctrl + Enter</kbd> to add note
+            Press Enter to add note, Shift + Enter for newline
           </p>
         </form>
       </div>
+
+      <ConfirmationModal
+        isOpen={notePendingDelete !== null}
+        onClose={() => {
+          if (!isDeletingNote) {
+            setNotePendingDelete(null);
+          }
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Note"
+        message={
+          notePendingDelete
+            ? `Are you sure you want to delete this note from "${notePendingDelete.group}"? This action cannot be undone.`
+            : 'Are you sure you want to delete this note?'
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={isDeletingNote}
+      />
     </div>
   );
 }
