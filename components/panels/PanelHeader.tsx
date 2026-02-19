@@ -11,6 +11,8 @@ interface Model {
   provider?: string;
 }
 
+export type AgentRunStatus = 'idle' | 'thinking' | 'text' | 'tool' | 'completed';
+
 interface PanelHeaderProps {
   title: string;
   isActive: boolean;
@@ -31,6 +33,10 @@ interface PanelHeaderProps {
   thinkingMode?: 'off' | 'low' | 'medium' | 'high';
   onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
   onRefreshChat?: () => void;
+
+  // Activity pulse indicator
+  activeRunStatus?: AgentRunStatus;
+  onRunAcknowledged?: () => void;
 }
 
 export function PanelHeader({ 
@@ -51,6 +57,8 @@ export function PanelHeader({
   thinkingMode = 'low',
   onThinkingChange,
   onRefreshChat,
+  activeRunStatus = 'idle',
+  onRunAcknowledged,
 }: PanelHeaderProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
@@ -73,7 +81,22 @@ export function PanelHeader({
     }
   };
 
+  const handleFocus = () => {
+    if (activeRunStatus === 'completed' && onRunAcknowledged) {
+      onRunAcknowledged();
+    }
+  };
+
   const isChatPanel = Boolean(agentId);
+
+  const pulseColor =
+    activeRunStatus === 'thinking' || activeRunStatus === 'tool'
+      ? 'bg-amber-400'
+      : activeRunStatus === 'text'
+        ? 'bg-blue-400'
+        : activeRunStatus === 'completed'
+          ? 'bg-green-500'
+          : null;
 
   return (
     <div 
@@ -82,9 +105,18 @@ export function PanelHeader({
           ? 'bg-accent border-primary text-foreground' 
           : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
       }`}
-      onClick={onClick}
+      onClick={() => { onClick(); handleFocus(); }}
     >
-      <span className="font-medium text-sm truncate">{title}</span>
+      <div className="flex items-center gap-2 min-w-0">
+        {pulseColor && (
+          <span
+            className={`flex-shrink-0 w-2 h-2 rounded-full ${pulseColor} ${
+              activeRunStatus !== 'completed' ? 'animate-pulse' : ''
+            }`}
+          />
+        )}
+        <span className="font-medium text-sm truncate">{title}</span>
+      </div>
       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
         {/* Model Selector - only for chat panels */}
         {isChatPanel && models && onModelChange && (

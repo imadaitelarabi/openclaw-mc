@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { MessageSquare, LayoutGrid, Wifi, WifiOff } from "lucide-react";
 import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useSessionControl, useCronJobs, useNotes } from "@/hooks";
 import { StatusBar } from "@/components/layout";
@@ -11,6 +11,8 @@ import { PanelProvider, usePanels } from "@/contexts/PanelContext";
 import { PanelContainer } from "@/components/panels";
 import { ConfirmationModal } from "@/components/modals";
 import { uiStateStore } from "@/lib/ui-state-db";
+import { getStreamKey } from "@/lib/gateway-utils";
+import type { AgentRunStatus } from "@/components/panels/PanelHeader";
 
 export const dynamic = 'force-dynamic';
 
@@ -53,10 +55,12 @@ function MissionControlInner() {
     chatHistory, 
     chatStreams, 
     reasoningStreams,
-    activeRuns, 
+    activeRuns,
+    completedRuns,
     handleAgentEvent, 
     addUserMessage,
-    clearChatHistory
+    clearChatHistory,
+    clearCompletedRun,
   } = useAgentEvents();
 
   const onEventRef = useRef<(message: any) => void>(() => {});
@@ -125,6 +129,29 @@ function MissionControlInner() {
 
   // Session control hook for abort and reset
   const { abortRun, resetSession } = useSessionControl({ sendMessage });
+
+  // Compute per-agent run statuses for pulse indicators
+  const agentStatuses = useMemo<Record<string, AgentRunStatus>>(() => {
+    const statuses: Record<string, AgentRunStatus> = {};
+    for (const agent of agents) {
+      const runId = activeRuns[agent.id];
+      if (runId) {
+        const streamKey = getStreamKey(agent.id, runId);
+        if (reasoningStreams[streamKey]) {
+          statuses[agent.id] = 'thinking';
+        } else if (chatStreams[streamKey]) {
+          statuses[agent.id] = 'text';
+        } else {
+          statuses[agent.id] = 'tool';
+        }
+      } else if (completedRuns[agent.id]) {
+        statuses[agent.id] = 'completed';
+      } else {
+        statuses[agent.id] = 'idle';
+      }
+    }
+    return statuses;
+  }, [agents, activeRuns, chatStreams, reasoningStreams, completedRuns]);
 
   const handleAbortRun = useCallback((agentId: string) => {
     if (connectionStatus !== 'connected') {
@@ -849,6 +876,8 @@ function MissionControlInner() {
             chatStreams={chatStreams}
             reasoningStreams={reasoningStreams}
             activeRuns={activeRuns}
+            agentStatuses={agentStatuses}
+            onClearCompletedRun={clearCompletedRun}
             addUserMessage={addUserMessage}
             models={models}
             sessionSettings={sessionSettings}
@@ -897,6 +926,7 @@ function MissionControlInner() {
           onCreateAgent={handleCreateAgent}
           onEditAgent={handleEditAgent}
           onDeleteAgent={handleDeleteAgent}
+          agentStatuses={agentStatuses}
           
           gateways={gateways}
           activeGatewayId={activeGatewayId}

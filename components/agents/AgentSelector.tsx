@@ -1,5 +1,6 @@
 import { Zap, ChevronDown, Plus, Pencil, Trash2 } from 'lucide-react';
 import type { Agent } from '@/types';
+import type { AgentRunStatus } from '@/components/panels/PanelHeader';
 
 interface AgentSelectorProps {
   agents: Agent[];
@@ -11,6 +12,7 @@ interface AgentSelectorProps {
   onCreateAgent?: () => void;
   onEditAgent?: (agentId: string) => void;
   onDeleteAgent?: (agentId: string) => void;
+  agentStatuses?: Record<string, AgentRunStatus>;
 }
 
 export function AgentSelector({ 
@@ -22,8 +24,16 @@ export function AgentSelector({
   onSelect,
   onCreateAgent,
   onEditAgent,
-  onDeleteAgent
+  onDeleteAgent,
+  agentStatuses = {},
 }: AgentSelectorProps) {
+  function getPulseClass(status: AgentRunStatus | undefined): string | null {
+    if (!status || status === 'idle') return null;
+    if (status === 'thinking' || status === 'tool') return 'bg-amber-400 animate-pulse';
+    if (status === 'text') return 'bg-blue-400 animate-pulse';
+    if (status === 'completed') return 'bg-green-500';
+    return null;
+  }
   return (
     <div className="relative">
       <button 
@@ -59,9 +69,16 @@ export function AgentSelector({
                   <span>{agent.name}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  {agent.status === 'active' && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1" />
-                  )}
+                  {(() => {
+                    const pulseClass = getPulseClass(agentStatuses[agent.id]);
+                    if (pulseClass) {
+                      return <div className={`w-1.5 h-1.5 rounded-full ${pulseClass} mr-1`} />;
+                    }
+                    if (agent.status === 'active') {
+                      return <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1" />;
+                    }
+                    return null;
+                  })()}
                   {onEditAgent && (
                     <button
                       type="button"

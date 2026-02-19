@@ -1,4 +1,5 @@
 import type { Agent, ConnectionStatus, CronJob, CronStatus, Note } from '@/types';
+import type { AgentRunStatus } from '@/components/panels/PanelHeader';
 import { AgentSelector } from '../agents';
 import { GatewaySwitcher } from '../gateway/GatewaySwitcher';
 import { ExtensionStatusBarItem } from '../extensions';
@@ -20,6 +21,7 @@ interface StatusBarProps {
   onCreateAgent?: () => void;
   onEditAgent?: (agentId: string) => void;
   onDeleteAgent?: (agentId: string) => void;
+  agentStatuses?: Record<string, AgentRunStatus>;
   
   // Gateway management
   gateways: any[];
@@ -60,6 +62,7 @@ export function StatusBar({
   onCreateAgent,
   onEditAgent,
   onDeleteAgent,
+  agentStatuses = {},
   gateways,
   activeGatewayId,
   onSwitchGateway,
@@ -126,6 +129,7 @@ export function StatusBar({
         onCreateAgent={onCreateAgent}
         onEditAgent={onEditAgent}
         onDeleteAgent={onDeleteAgent}
+        agentStatuses={agentStatuses}
       />
 
       {/* Separator */}
