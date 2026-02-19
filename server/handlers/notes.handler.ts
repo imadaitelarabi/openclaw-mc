@@ -379,3 +379,46 @@ export async function handleNotesTagColorSet(
     );
   }
 }
+
+/**
+ * Delete a tag globally from all notes
+ */
+export async function handleNotesTagDelete(
+  msg: Extract<ClientMessage, { type: 'notes.tags.delete' }>,
+  ws: ExtendedWebSocket
+): Promise<void> {
+  const { requestId, tag } = msg;
+
+  if (!tag?.trim()) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.delete.error',
+        requestId,
+        error: 'Tag is required',
+      })
+    );
+    return;
+  }
+
+  try {
+    const result = notesManager.deleteTag(tag);
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.delete.ack',
+        requestId,
+        tag,
+        notes: result.notes,
+        allTags: result.allTags,
+        tagColors: result.tagColors,
+      })
+    );
+  } catch (err) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.delete.error',
+        requestId,
+        error: (err as Error).message || 'Failed to delete tag',
+      })
+    );
+  }
+}

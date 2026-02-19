@@ -25,6 +25,7 @@ interface NotesPanelProps {
   onAddNote: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<void>;
   onUpdateNote: (id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>) => Promise<void>;
   onSetTagColor: (tag: string, color: string) => Promise<void>;
+  onDeleteTag: (tag: string) => Promise<void>;
   onCreateGroup: (group: string) => Promise<void>;
   onDeleteGroup: (group: string) => Promise<void>;
   onUploadNoteImage: (file: File) => Promise<string>;
@@ -40,6 +41,7 @@ export function NotesPanel({
   onAddNote,
   onUpdateNote,
   onSetTagColor,
+  onDeleteTag,
   onCreateGroup,
   onDeleteGroup,
   onUploadNoteImage,
@@ -54,6 +56,8 @@ export function NotesPanel({
   const [savingTagNoteId, setSavingTagNoteId] = useState<string | null>(null);
   const [isTagColorEditorOpen, setIsTagColorEditorOpen] = useState(false);
   const [updatingTagColor, setUpdatingTagColor] = useState<string | null>(null);
+  const [tagPendingDelete, setTagPendingDelete] = useState<string | null>(null);
+  const [isDeletingTag, setIsDeletingTag] = useState(false);
   const [selectedNoteGroup, setSelectedNoteGroup] = useState(selectedGroup || 'General');
   const [showCreateGroupInput, setShowCreateGroupInput] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -333,6 +337,21 @@ export function NotesPanel({
     }
   };
 
+  const handleConfirmDeleteTag = async () => {
+    if (!tagPendingDelete) {
+      return;
+    }
+
+    setIsDeletingTag(true);
+    try {
+      await onDeleteTag(tagPendingDelete);
+      setTagPendingDelete(null);
+      setActiveTagFilters(prev => prev.filter(tag => tag.toLowerCase() !== tagPendingDelete.toLowerCase()));
+    } finally {
+      setIsDeletingTag(false);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!notePendingDelete) {
       return;
@@ -451,6 +470,15 @@ export function NotesPanel({
                   disabled={updatingTagColor === tag}
                 >
                   Random
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTagPendingDelete(tag)}
+                  className="text-xs text-destructive hover:opacity-80 transition-opacity"
+                  disabled={updatingTagColor === tag}
+                >
+                  Delete
                 </button>
               </div>
             ))}
@@ -832,6 +860,26 @@ export function NotesPanel({
         cancelText="Cancel"
         variant="danger"
         loading={isDeletingGroup}
+      />
+
+      <ConfirmationModal
+        isOpen={tagPendingDelete !== null}
+        onClose={() => {
+          if (!isDeletingTag) {
+            setTagPendingDelete(null);
+          }
+        }}
+        onConfirm={handleConfirmDeleteTag}
+        title="Delete Tag"
+        message={
+          tagPendingDelete
+            ? `Delete tag "${tagPendingDelete}" from all notes? This cannot be undone.`
+            : 'Delete this tag from all notes?'
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        loading={isDeletingTag}
       />
     </div>
   );

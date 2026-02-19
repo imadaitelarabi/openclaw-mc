@@ -100,6 +100,7 @@ function MissionControlInner() {
     error: notesError,
     addNote,
     setTagColor,
+    deleteTag,
     addGroup,
     deleteGroup,
     uploadNoteImage,
@@ -610,6 +611,23 @@ function MissionControlInner() {
     }
   }, [setTagColor, toast]);
 
+  const handleDeleteTag = useCallback(async (tag: string) => {
+    try {
+      await deleteTag(tag);
+      toast({
+        title: 'Tag deleted',
+        description: `Removed "${tag}" from all notes.`,
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to delete tag',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [deleteTag, toast]);
+
   const handleCreateAgentRequest = useCallback(async (payload: {
     id?: string;
     name: string;
@@ -853,6 +871,7 @@ function MissionControlInner() {
             onAddNote={handleAddNote}
             onUpdateNote={handleUpdateNote}
             onSetTagColor={handleSetTagColor}
+            onDeleteTag={handleDeleteTag}
             onCreateNoteGroup={handleCreateNoteGroup}
             onDeleteNoteGroup={handleDeleteNoteGroup}
             onUploadNoteImage={handleUploadNoteImage}

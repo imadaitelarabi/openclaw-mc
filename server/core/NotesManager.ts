@@ -364,6 +364,49 @@ export class NotesManager {
     return this.listTagColors();
   }
 
+  public deleteTag(tag: string): { notes: Note[]; allTags: string[]; tagColors: Record<string, string> } {
+    const normalizedTag = tag.trim();
+    if (!normalizedTag) {
+      throw new Error('Tag is required');
+    }
+
+    const allTags = this.listAllTags();
+    const canonicalTag = allTags.find(existing => existing.toLowerCase() === normalizedTag.toLowerCase());
+    if (!canonicalTag) {
+      throw new Error(`Unknown tag: ${normalizedTag}`);
+    }
+
+    const now = Date.now();
+    this.notes = this.notes.map(note => {
+      if (!Array.isArray(note.tags) || note.tags.length === 0) {
+        return note;
+      }
+
+      const nextTags = note.tags.filter(existing => existing.toLowerCase() !== canonicalTag.toLowerCase());
+      if (nextTags.length === note.tags.length) {
+        return note;
+      }
+
+      return {
+        ...note,
+        tags: nextTags,
+        updatedAt: now,
+      };
+    });
+
+    delete this.tagColors[canonicalTag];
+
+    this.saveNotes();
+
+    const remainingTags = this.listAllTags();
+    const tagColors = this.listTagColors();
+    return {
+      notes: this.notes,
+      allTags: remainingTags,
+      tagColors,
+    };
+  }
+
   /**
    * Add a new note
    */

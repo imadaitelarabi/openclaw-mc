@@ -20,6 +20,7 @@ interface UseNotesReturn {
   error: string | null;
   addNote: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<Note>;
   setTagColor: (tag: string, color: string) => Promise<Record<string, string>>;
+  deleteTag: (tag: string) => Promise<{ notes: Note[]; allTags: string[]; tagColors: Record<string, string> }>;
   addGroup: (group: string) => Promise<string[]>;
   deleteGroup: (group: string) => Promise<string[]>;
   uploadNoteImage: (file: File) => Promise<string>;
@@ -146,6 +147,12 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
             setTagColors(prev => mergeTagColors(prev, msg.tagColors));
             break;
 
+          case 'notes.tags.delete.ack':
+            setNotes(Array.isArray(msg.notes) ? msg.notes : []);
+            setAllTags(Array.isArray(msg.allTags) ? msg.allTags : []);
+            setTagColors((msg.tagColors && typeof msg.tagColors === 'object') ? msg.tagColors : {});
+            break;
+
           case 'notes.delete.ack':
             setNotes(prev => prev.filter(n => n.id !== msg.id));
             break;
@@ -158,6 +165,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
           case 'notes.add.error':
           case 'notes.update.error':
           case 'notes.tags.color.set.error':
+          case 'notes.tags.delete.error':
           case 'notes.delete.error':
             setError(msg.error);
             setLoading(false);
@@ -523,6 +531,58 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
     [wsRef]
   );
 
+  const deleteTag = useCallback(
+    async (tag: string): Promise<{ notes: Note[]; allTags: string[]; tagColors: Record<string, string> }> => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket not connected');
+      }
+
+      return new Promise((resolve, reject) => {
+        const requestId = uuidv4();
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        const handleResponse = (event: MessageEvent) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.requestId !== requestId) return;
+
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+
+            if (msg.type === 'notes.tags.delete.ack') {
+              const next = {
+                notes: Array.isArray(msg.notes) ? msg.notes : [],
+                allTags: Array.isArray(msg.allTags) ? msg.allTags : [],
+                tagColors: (msg.tagColors && typeof msg.tagColors === 'object') ? msg.tagColors : {},
+              };
+
+              setNotes(next.notes);
+              setAllTags(next.allTags);
+              setTagColors(next.tagColors);
+              resolve(next);
+            } else if (msg.type === 'notes.tags.delete.error') {
+              reject(new Error(msg.error));
+            }
+          } catch (err) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+            reject(err);
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          ws.removeEventListener('message', handleResponse);
+          reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
+
+        ws.addEventListener('message', handleResponse);
+        ws.send(JSON.stringify({ type: 'notes.tags.delete', requestId, tag }));
+      });
+    },
+    [wsRef]
+  );
+
   return {
     notes,
     groups,
@@ -532,6 +592,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
     error,
     addNote,
     setTagColor,
+    deleteTag,
     addGroup,
     deleteGroup,
     uploadNoteImage,

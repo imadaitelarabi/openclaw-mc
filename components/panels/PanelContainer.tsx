@@ -65,6 +65,7 @@ interface PanelContainerProps {
   onAddNote?: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<void>;
   onUpdateNote?: (id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>) => Promise<void>;
   onSetTagColor?: (tag: string, color: string) => Promise<void>;
+  onDeleteTag?: (tag: string) => Promise<void>;
   onCreateNoteGroup?: (group: string) => Promise<void>;
   onDeleteNoteGroup?: (group: string) => Promise<void>;
   onUploadNoteImage?: (file: File) => Promise<string>;
@@ -110,6 +111,7 @@ export function PanelContainer({
   onAddNote,
   onUpdateNote,
   onSetTagColor,
+  onDeleteTag,
   onCreateNoteGroup,
   onDeleteNoteGroup,
   onUploadNoteImage,
@@ -269,7 +271,7 @@ export function PanelContainer({
               })()
             )}
 
-            {panel.type === 'notes' && onAddNote && onUpdateNote && onSetTagColor && onCreateNoteGroup && onDeleteNoteGroup && onUploadNoteImage && onDeleteNote && (
+            {panel.type === 'notes' && onAddNote && onUpdateNote && onSetTagColor && onDeleteTag && onCreateNoteGroup && onDeleteNoteGroup && onUploadNoteImage && onDeleteNote && (
               <NotesPanel
                 notes={notes}
                 groups={noteGroups}
@@ -279,6 +281,7 @@ export function PanelContainer({
                 onAddNote={onAddNote}
                 onUpdateNote={onUpdateNote}
                 onSetTagColor={onSetTagColor}
+                onDeleteTag={onDeleteTag}
                 onCreateGroup={onCreateNoteGroup}
                 onDeleteGroup={onDeleteNoteGroup}
                 onUploadNoteImage={onUploadNoteImage}
