@@ -2,7 +2,7 @@
 
 import type { Panel, Note } from '@/types';
 import { getStreamKey } from '@/lib/gateway-utils';
-import { PanelHeader } from './PanelHeader';
+import { PanelHeader, type AgentRunStatus } from './PanelHeader';
 import { ChatPanel } from './ChatPanel';
 import { CreateAgentPanel } from './CreateAgentPanel';
 import { UpdateAgentPanel } from './UpdateAgentPanel';
@@ -28,6 +28,8 @@ interface PanelContainerProps {
   chatStreams: Record<string, string>;
   reasoningStreams: Record<string, string>;
   activeRuns: Record<string, string>;
+  agentStatuses: Record<string, AgentRunStatus>;
+  onClearCompletedRun?: (agentId: string) => void;
   addUserMessage: (agentId: string, message: string) => void;
   models: any[];
   sessionSettings: Record<string, any>;
@@ -85,6 +87,8 @@ export function PanelContainer({
   chatStreams,
   reasoningStreams,
   activeRuns,
+  agentStatuses,
+  onClearCompletedRun,
   addUserMessage,
   models,
   sessionSettings,
@@ -152,6 +156,8 @@ export function PanelContainer({
             thinkingMode={panel.type === 'chat' ? (panel.thinking || 'low') : undefined}
             onThinkingChange={panel.type === 'chat' ? onThinkingChange : undefined}
             onRefreshChat={panel.type === 'chat' && panel.agentId ? () => onRefreshChat?.(panel.agentId!) : undefined}
+            activeRunStatus={panel.type === 'chat' && panel.agentId ? (agentStatuses[panel.agentId] ?? 'idle') : 'idle'}
+            onRunAcknowledged={panel.type === 'chat' && panel.agentId ? () => onClearCompletedRun?.(panel.agentId!) : undefined}
           />
           
           <div 

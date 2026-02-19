@@ -528,6 +528,7 @@ interface AgentEventsState {
   chatStreams: Record<string, string>;
   reasoningStreams: Record<string, string>;
   activeRuns: Record<string, string>;
+  completedRuns: Record<string, boolean>;
 }
 
 /**
@@ -559,6 +560,7 @@ type AgentEventsAction =
   | { type: 'CLEAR_REASONING_STREAM'; streamKey: string }
   | { type: 'SET_ACTIVE_RUN'; agentId: string; runId: string }
   | { type: 'CLEAR_ACTIVE_RUN'; agentId: string; runId?: string }
+  | { type: 'CLEAR_COMPLETED_RUN'; agentId: string }
   | { type: 'RESTORE_STREAM_STATE'; activeRuns: Record<string, string>; chatStreams: Record<string, string>; reasoningStreams: Record<string, string> }
   | { type: 'BATCH_UPDATE'; updates: AgentEventsAction[] };
 
@@ -949,6 +951,7 @@ function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction):
       return {
         ...state,
         activeRuns: next,
+        completedRuns: { ...state.completedRuns, [action.agentId]: true },
       };
     }
 
@@ -958,6 +961,15 @@ function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction):
         activeRuns: { ...state.activeRuns, ...action.activeRuns },
         chatStreams: { ...state.chatStreams, ...action.chatStreams },
         reasoningStreams: { ...state.reasoningStreams, ...action.reasoningStreams },
+      };
+    }
+
+    case 'CLEAR_COMPLETED_RUN': {
+      const next = { ...state.completedRuns };
+      delete next[action.agentId];
+      return {
+        ...state,
+        completedRuns: next,
       };
     }
 
@@ -973,6 +985,7 @@ export function useAgentEvents() {
     chatStreams: {},
     reasoningStreams: {},
     activeRuns: {},
+    completedRuns: {},
   });
   
   // Refs to store latest accumulated text (synchronous, no state timing issues)
@@ -1612,13 +1625,22 @@ export function useAgentEvents() {
     });
   }, []);
 
+  const clearCompletedRun = useCallback((agentId: string) => {
+    dispatch({
+      type: 'CLEAR_COMPLETED_RUN',
+      agentId,
+    });
+  }, []);
+
   return {
     chatHistory: state.chatHistory,
     chatStreams: state.chatStreams,
     reasoningStreams: state.reasoningStreams,
     activeRuns: state.activeRuns,
+    completedRuns: state.completedRuns,
     handleAgentEvent,
     addUserMessage,
-    clearChatHistory
+    clearChatHistory,
+    clearCompletedRun,
   };
 }
