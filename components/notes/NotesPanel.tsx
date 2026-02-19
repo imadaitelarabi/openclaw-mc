@@ -12,7 +12,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/useToast';
 import { ConfirmationModal } from '@/components/modals';
 import { DEFAULT_ATTACHMENT_CONFIG } from '@/types/attachment';
-import { validateFile } from '@/lib/file-utils';
+import { getFilesFromClipboard, validateFile } from '@/lib/file-utils';
 
 interface NotesPanelProps {
   notes: Note[];
@@ -234,6 +234,37 @@ export function NotesPanel({
     setAttachedImage(file);
     setAttachedImageName(file.name);
     event.target.value = '';
+  };
+
+  const handlePasteImage = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = getFilesFromClipboard(event.clipboardData);
+    if (files.length === 0) {
+      return;
+    }
+
+    const firstImage = files.find(file => file.type.startsWith('image/'));
+    if (!firstImage) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const validation = validateFile(firstImage, DEFAULT_ATTACHMENT_CONFIG);
+    if (!validation.valid) {
+      toast({
+        title: 'Invalid image',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setAttachedImage(firstImage);
+    setAttachedImageName(firstImage.name || 'Pasted image');
+    toast({
+      title: 'Image attached',
+      description: firstImage.name || 'Pasted image',
+    });
   };
 
   const isGroupDeletable = (group: string) => {
@@ -505,6 +536,7 @@ export function NotesPanel({
             <textarea
               value={newNoteContent}
               onChange={(e) => setNewNoteContent(e.target.value)}
+              onPaste={handlePasteImage}
               placeholder="Write a note..."
               className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary/50 font-sans resize-none overflow-y-auto max-h-[200px] min-h-[46px] text-sm"
               rows={1}
