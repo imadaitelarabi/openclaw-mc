@@ -36,6 +36,7 @@ export function NotesPanel({
   onDeleteNote,
 }: NotesPanelProps) {
   const [newNoteContent, setNewNoteContent] = useState('');
+  const [activeGroup, setActiveGroup] = useState<string | null>(selectedGroup ?? null);
   const [selectedNoteGroup, setSelectedNoteGroup] = useState(selectedGroup || 'General');
   const [showCreateGroupInput, setShowCreateGroupInput] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -53,6 +54,7 @@ export function NotesPanel({
   useEffect(() => {
     if (selectedGroup) {
       setSelectedNoteGroup(selectedGroup);
+      setActiveGroup(selectedGroup);
     }
   }, [selectedGroup]);
 
@@ -87,13 +89,13 @@ export function NotesPanel({
     return () => document.removeEventListener('mousedown', handleDocumentClick);
   }, []);
 
-  // Filter notes by selected group
+  // Filter notes by active group
   const filteredNotes = useMemo(() => {
-    if (!selectedGroup) {
+    if (!activeGroup) {
       return notes;
     }
-    return notes.filter(n => n.group === selectedGroup);
-  }, [notes, selectedGroup]);
+    return notes.filter(n => n.group === activeGroup);
+  }, [notes, activeGroup]);
 
   // Sort notes by most recent first
   const sortedNotes = useMemo(() => {
@@ -183,6 +185,10 @@ export function NotesPanel({
       setNewNoteContent('');
       setAttachedImage(null);
       setAttachedImageName('');
+      // Switch group view only when filtered to a different group, so the new note is visible
+      if (activeGroup !== null && activeGroup !== selectedNoteGroup) {
+        setActiveGroup(selectedNoteGroup);
+      }
     } catch (err) {
       console.error('Failed to add note:', err);
     } finally {
@@ -307,7 +313,7 @@ export function NotesPanel({
       {/* Header */}
       <div className="px-4 py-3 border-b border-border">
         <h2 className="text-sm font-medium">
-          {selectedGroup ? `${selectedGroup} Notes` : 'All Notes'}
+          {activeGroup ? `${activeGroup} Notes` : 'All Notes'}
         </h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           {sortedNotes.length} {sortedNotes.length === 1 ? 'note' : 'notes'}

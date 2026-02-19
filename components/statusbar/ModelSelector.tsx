@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search, Cpu } from 'lucide-react';
 
 interface Model {
   id: string;
@@ -49,7 +49,7 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
         disabled={disabled}
         className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <span className="text-xs">🤖</span>
+        <Cpu className="w-3.5 h-3.5" />
         <span className="font-medium text-xs">{displayName}</span>
         <ChevronDown className="w-3 h-3 opacity-50" />
       </button>
