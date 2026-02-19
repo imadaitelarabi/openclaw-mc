@@ -423,6 +423,10 @@ function MissionControlInner() {
     openPanel('extension-onboarding', { extensionName });
   }, [openPanel]);
 
+  const handleOpenTagsSettings = useCallback(() => {
+    openPanel('tags-settings');
+  }, [openPanel]);
+
   // Cron handlers
   const handleSelectCronJob = useCallback((jobId: string) => {
     const job = cronJobs.find(j => j.id === jobId);
@@ -900,6 +904,7 @@ function MissionControlInner() {
           onAddGateway={() => setShowSetup(true)}
           onRemoveGateway={(id) => sendMessage({ type: 'gateways.remove', id })}
           onOpenExtensionOnboarding={handleOpenExtensionOnboarding}
+          onOpenTagsSettings={handleOpenTagsSettings}
           cronJobs={cronJobs}
           cronStatus={cronStatus}
           isCronMenuOpen={isCronMenuOpen}

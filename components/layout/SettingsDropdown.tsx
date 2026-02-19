@@ -11,11 +11,13 @@ interface ExtensionOption {
 interface SettingsDropdownProps {
   extensions?: ExtensionOption[];
   onSelectExtension?: (extensionName: string) => void;
+  onOpenTagsSettings?: () => void;
 }
 
 export function SettingsDropdown({
   extensions = [],
   onSelectExtension,
+  onOpenTagsSettings,
 }: SettingsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -41,6 +43,18 @@ export function SettingsDropdown({
           sideOffset={8}
           className="z-[110] min-w-[200px] bg-popover border border-border rounded-md shadow-lg p-1"
         >
+          <DropdownMenu.Item
+            onSelect={() => {
+              onOpenTagsSettings?.();
+              setIsOpen(false);
+            }}
+            className="w-full text-left px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs"
+          >
+            Tags
+          </DropdownMenu.Item>
+
+          <DropdownMenu.Separator className="h-px bg-border my-1" />
+
           <DropdownMenu.Sub>
             <DropdownMenu.SubTrigger className="w-full text-left px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs flex items-center justify-between gap-2 data-[state=open]:bg-accent">
               <span>Extensions</span>

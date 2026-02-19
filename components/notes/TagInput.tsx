@@ -15,9 +15,10 @@ interface TagInputProps {
   tagColors?: Record<string, string>;
   onChange: (tags: string[]) => void;
   disabled?: boolean;
+  autoOpenOnMount?: boolean;
 }
 
-export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled }: TagInputProps) {
+export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled, autoOpenOnMount = false }: TagInputProps) {
   const [inputValue, setInputValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -62,6 +63,19 @@ export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled 
     document.addEventListener('mousedown', handleDocumentClick);
     return () => document.removeEventListener('mousedown', handleDocumentClick);
   }, []);
+
+  useEffect(() => {
+    if (!autoOpenOnMount || disabled) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+      setIsOpen(true);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [autoOpenOnMount, disabled]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {

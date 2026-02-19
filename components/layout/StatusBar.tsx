@@ -30,6 +30,7 @@ interface StatusBarProps {
 
   // Extension onboarding
   onOpenExtensionOnboarding?: (extensionName: string) => void;
+  onOpenTagsSettings?: () => void;
 
   // Cron jobs
   cronJobs?: CronJob[];
@@ -65,6 +66,7 @@ export function StatusBar({
   onAddGateway,
   onRemoveGateway,
   onOpenExtensionOnboarding,
+  onOpenTagsSettings,
   cronJobs = [],
   cronStatus = null,
   isCronMenuOpen = false,
@@ -180,6 +182,7 @@ export function StatusBar({
       <SettingsDropdown
         extensions={availableExtensions}
         onSelectExtension={onOpenExtensionOnboarding}
+        onOpenTagsSettings={onOpenTagsSettings}
       />
 
       <div className="h-4 w-px bg-border" />

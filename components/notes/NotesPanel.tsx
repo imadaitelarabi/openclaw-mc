@@ -6,7 +6,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Copy, Trash2, Image as ImageIcon, Plus, Send, X, ChevronDown, Download, Tag, Palette, Check } from 'lucide-react';
+import { Copy, Trash2, Image as ImageIcon, Plus, Send, X, ChevronDown, Download, Tag, Check } from 'lucide-react';
 import type { Note } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/useToast';
@@ -24,8 +24,6 @@ interface NotesPanelProps {
   selectedGroup?: string | null;
   onAddNote: (content: string, group: string, tags?: string[], imageUrl?: string) => Promise<void>;
   onUpdateNote: (id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>) => Promise<void>;
-  onSetTagColor: (tag: string, color: string) => Promise<void>;
-  onDeleteTag: (tag: string) => Promise<void>;
   onCreateGroup: (group: string) => Promise<void>;
   onDeleteGroup: (group: string) => Promise<void>;
   onUploadNoteImage: (file: File) => Promise<string>;
@@ -40,8 +38,6 @@ export function NotesPanel({
   selectedGroup,
   onAddNote,
   onUpdateNote,
-  onSetTagColor,
-  onDeleteTag,
   onCreateGroup,
   onDeleteGroup,
   onUploadNoteImage,
@@ -54,10 +50,6 @@ export function NotesPanel({
   const [editingNoteTagId, setEditingNoteTagId] = useState<string | null>(null);
   const [tagDraftsByNoteId, setTagDraftsByNoteId] = useState<Record<string, string[]>>({});
   const [savingTagNoteId, setSavingTagNoteId] = useState<string | null>(null);
-  const [isTagColorEditorOpen, setIsTagColorEditorOpen] = useState(false);
-  const [updatingTagColor, setUpdatingTagColor] = useState<string | null>(null);
-  const [tagPendingDelete, setTagPendingDelete] = useState<string | null>(null);
-  const [isDeletingTag, setIsDeletingTag] = useState(false);
   const [selectedNoteGroup, setSelectedNoteGroup] = useState(selectedGroup || 'General');
   const [showCreateGroupInput, setShowCreateGroupInput] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -313,10 +305,6 @@ export function NotesPanel({
     }));
   };
 
-  const randomHexColor = () => {
-    return `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`;
-  };
-
   const handleSaveNoteTags = async (noteId: string) => {
     const tags = tagDraftsByNoteId[noteId] || [];
     setSavingTagNoteId(noteId);
@@ -325,30 +313,6 @@ export function NotesPanel({
       setEditingNoteTagId(null);
     } finally {
       setSavingTagNoteId(null);
-    }
-  };
-
-  const handleSetTagColor = async (tag: string, color: string) => {
-    setUpdatingTagColor(tag);
-    try {
-      await onSetTagColor(tag, color);
-    } finally {
-      setUpdatingTagColor(null);
-    }
-  };
-
-  const handleConfirmDeleteTag = async () => {
-    if (!tagPendingDelete) {
-      return;
-    }
-
-    setIsDeletingTag(true);
-    try {
-      await onDeleteTag(tagPendingDelete);
-      setTagPendingDelete(null);
-      setActiveTagFilters(prev => prev.filter(tag => tag.toLowerCase() !== tagPendingDelete.toLowerCase()));
-    } finally {
-      setIsDeletingTag(false);
     }
   };
 
@@ -428,60 +392,6 @@ export function NotesPanel({
                 Clear
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setIsTagColorEditorOpen(prev => !prev)}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Palette className="w-2.5 h-2.5" />
-              Colors
-            </button>
-          </div>
-        )}
-
-        {allTags.length > 0 && isTagColorEditorOpen && (
-          <div className="mt-2 p-2 rounded-lg border border-border bg-secondary/40 space-y-1.5">
-            {allTags.map(tag => (
-              <div key={tag} className="flex items-center gap-2">
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-                  style={{
-                    backgroundColor: asRgba(getTagColor(tag, tagColors), 0.15),
-                    color: getTagColor(tag, tagColors),
-                  }}
-                >
-                  <Tag className="w-2.5 h-2.5" />
-                  {tag}
-                </span>
-
-                <input
-                  type="color"
-                  value={getTagColor(tag, tagColors)}
-                  onChange={(event) => void handleSetTagColor(tag, event.target.value)}
-                  className="h-6 w-8 rounded border border-border bg-transparent"
-                  aria-label={`Color for tag ${tag}`}
-                  disabled={updatingTagColor === tag}
-                />
-
-                <button
-                  type="button"
-                  onClick={() => void handleSetTagColor(tag, randomHexColor())}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  disabled={updatingTagColor === tag}
-                >
-                  Random
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setTagPendingDelete(tag)}
-                  className="text-xs text-destructive hover:opacity-80 transition-opacity"
-                  disabled={updatingTagColor === tag}
-                >
-                  Delete
-                </button>
-              </div>
-            ))}
           </div>
         )}
       </div>
@@ -546,77 +456,59 @@ export function NotesPanel({
               </p>
 
               {/* Tags */}
-              {(Array.isArray(note.tags) && note.tags.length > 0) || editingNoteTagId === note.id ? (
-                <div className="mb-2">
-                  {editingNoteTagId === note.id ? (
-                    <div className="space-y-2">
-                      <TagInput
-                        selectedTags={tagDraftsByNoteId[note.id] || []}
-                        allTags={allTags}
-                        tagColors={tagColors}
-                        onChange={(tags) => setTagDraftsByNoteId(prev => ({ ...prev, [note.id]: tags }))}
-                        disabled={savingTagNoteId === note.id}
-                      />
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => void handleSaveNoteTags(note.id)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                          disabled={savingTagNoteId === note.id}
-                        >
-                          <Check className="w-3 h-3" />
-                          Save tags
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingNoteTagId(null)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-muted-foreground hover:text-foreground transition-colors"
-                          disabled={savingTagNoteId === note.id}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-1">
-                      {note.tags?.map(tag => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() =>
-                            setActiveTagFilters(prev =>
-                              prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-                            )
-                          }
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors"
-                          style={{
-                            backgroundColor: asRgba(getTagColor(tag, tagColors), 0.15),
-                            color: getTagColor(tag, tagColors),
-                          }}
-                        >
-                          <Tag className="w-2.5 h-2.5" />
-                          {tag}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => handleStartEditNoteTags(note)}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
-                      >
-                        Edit tags
-                      </button>
-                    </div>
-                  )}
+              {Array.isArray(note.tags) && note.tags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1 mb-2">
+                  {note.tags.map(tag => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() =>
+                        setActiveTagFilters(prev =>
+                          prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                        )
+                      }
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors"
+                      style={{
+                        backgroundColor: asRgba(getTagColor(tag, tagColors), 0.15),
+                        color: getTagColor(tag, tagColors),
+                      }}
+                    >
+                      <Tag className="w-2.5 h-2.5" />
+                      {tag}
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                <div className="mb-2">
-                  <button
-                    type="button"
-                    onClick={() => handleStartEditNoteTags(note)}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Add tags
-                  </button>
+              )}
+
+              {editingNoteTagId === note.id && (
+                <div className="space-y-2 mb-2">
+                  <TagInput
+                    selectedTags={tagDraftsByNoteId[note.id] || []}
+                    allTags={allTags}
+                    tagColors={tagColors}
+                    onChange={(tags) => setTagDraftsByNoteId(prev => ({ ...prev, [note.id]: tags }))}
+                    disabled={savingTagNoteId === note.id}
+                    autoOpenOnMount
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveNoteTags(note.id)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                      disabled={savingTagNoteId === note.id}
+                    >
+                      <Check className="w-3 h-3" />
+                      Save tags
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingNoteTagId(null)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      disabled={savingTagNoteId === note.id}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -632,8 +524,18 @@ export function NotesPanel({
               )}
 
               {/* Note Footer */}
-              <div className="text-xs text-muted-foreground mt-2">
-                {formatDistanceToNow(note.createdAt, { addSuffix: true })}
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <div className="text-xs text-muted-foreground">
+                  {formatDistanceToNow(note.createdAt, { addSuffix: true })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleStartEditNoteTags(note)}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Tag className="w-3 h-3" />
+                  {Array.isArray(note.tags) && note.tags.length > 0 ? 'Edit tags' : 'Add tags'}
+                </button>
               </div>
             </div>
           ))
@@ -862,25 +764,6 @@ export function NotesPanel({
         loading={isDeletingGroup}
       />
 
-      <ConfirmationModal
-        isOpen={tagPendingDelete !== null}
-        onClose={() => {
-          if (!isDeletingTag) {
-            setTagPendingDelete(null);
-          }
-        }}
-        onConfirm={handleConfirmDeleteTag}
-        title="Delete Tag"
-        message={
-          tagPendingDelete
-            ? `Delete tag "${tagPendingDelete}" from all notes? This cannot be undone.`
-            : 'Delete this tag from all notes?'
-        }
-        confirmText="Delete"
-        cancelText="Cancel"
-        variant="danger"
-        loading={isDeletingTag}
-      />
     </div>
   );
 }

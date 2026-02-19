@@ -9,6 +9,7 @@ import { UpdateAgentPanel } from './UpdateAgentPanel';
 import { CreateCronPanel } from './CreateCronPanel';
 import { UpdateCronPanel } from './UpdateCronPanel';
 import { ExtensionOnboardingPanel } from './ExtensionOnboardingPanel';
+import { TagsSettingsPanel } from './TagsSettingsPanel';
 import { CronPanel } from '../cron';
 import { NotesPanel } from '../notes';
 import type { CronJob } from '@/types';
@@ -271,7 +272,7 @@ export function PanelContainer({
               })()
             )}
 
-            {panel.type === 'notes' && onAddNote && onUpdateNote && onSetTagColor && onDeleteTag && onCreateNoteGroup && onDeleteNoteGroup && onUploadNoteImage && onDeleteNote && (
+            {panel.type === 'notes' && onAddNote && onUpdateNote && onCreateNoteGroup && onDeleteNoteGroup && onUploadNoteImage && onDeleteNote && (
               <NotesPanel
                 notes={notes}
                 groups={noteGroups}
@@ -280,12 +281,19 @@ export function PanelContainer({
                 selectedGroup={panel.data?.selectedGroup}
                 onAddNote={onAddNote}
                 onUpdateNote={onUpdateNote}
-                onSetTagColor={onSetTagColor}
-                onDeleteTag={onDeleteTag}
                 onCreateGroup={onCreateNoteGroup}
                 onDeleteGroup={onDeleteNoteGroup}
                 onUploadNoteImage={onUploadNoteImage}
                 onDeleteNote={onDeleteNote}
+              />
+            )}
+
+            {panel.type === 'tags-settings' && onSetTagColor && onDeleteTag && (
+              <TagsSettingsPanel
+                allTags={allTags}
+                tagColors={tagColors}
+                onSetTagColor={onSetTagColor}
+                onDeleteTag={onDeleteTag}
               />
             )}
           </div>
