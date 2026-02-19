@@ -257,6 +257,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
             if (msg.type === 'notes.groups.delete.ack') {
               setGroups(msg.groups || []);
               setNotes(msg.notes || []);
+              requestNotesBootstrap();
               resolve(msg.groups || []);
             } else if (msg.type === 'notes.groups.delete.error') {
               reject(new Error(msg.error));
@@ -277,7 +278,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
         ws.send(JSON.stringify({ type: 'notes.groups.delete', requestId, group }));
       });
     },
-    [wsRef]
+    [requestNotesBootstrap, wsRef]
   );
 
   const uploadNoteImage = useCallback(
