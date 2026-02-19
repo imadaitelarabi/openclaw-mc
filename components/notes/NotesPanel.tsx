@@ -58,6 +58,7 @@ export function NotesPanel({
   const [isGroupMenuOpen, setIsGroupMenuOpen] = useState(false);
   const [isHeaderGroupMenuOpen, setIsHeaderGroupMenuOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(new Set());
   const [notePendingDelete, setNotePendingDelete] = useState<Note | null>(null);
   const [isDeletingNote, setIsDeletingNote] = useState(false);
   const [groupPendingDelete, setGroupPendingDelete] = useState<string | null>(null);
@@ -354,6 +355,18 @@ export function NotesPanel({
     }
   };
 
+  const toggleExpandedNote = (noteId: string) => {
+    setExpandedNoteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(noteId)) {
+        next.delete(noteId);
+      } else {
+        next.add(noteId);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
@@ -449,11 +462,15 @@ export function NotesPanel({
             <p className="text-xs mt-1">Add your first note below</p>
           </div>
         ) : (
-          sortedNotes.map(note => (
-            <div
-              key={note.id}
-              className="bg-secondary rounded-lg p-3 border border-border hover:border-primary/50 transition-colors group"
-            >
+          sortedNotes.map(note => {
+            const isExpanded = expandedNoteIds.has(note.id);
+            const shouldShowExpandToggle = note.content.length > 220 || note.content.split('\n').length > 4;
+
+            return (
+              <div
+                key={note.id}
+                className="bg-secondary rounded-lg p-3 border border-border hover:border-primary/50 transition-colors group"
+              >
               {/* Note Header */}
               <div className="flex items-start justify-between gap-2 mb-2">
                 <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
@@ -496,9 +513,18 @@ export function NotesPanel({
               </div>
 
               {/* Note Content */}
-              <p className="text-sm whitespace-pre-wrap break-words mb-2 line-clamp-4">
+              <p className={`text-sm whitespace-pre-wrap break-words mb-2 ${isExpanded ? '' : 'line-clamp-4'}`}>
                 {note.content}
               </p>
+              {shouldShowExpandToggle && (
+                <button
+                  type="button"
+                  onClick={() => toggleExpandedNote(note.id)}
+                  className="text-xs text-primary hover:underline mb-2"
+                >
+                  {isExpanded ? 'Show less' : 'Show more'}
+                </button>
+              )}
 
               {/* Tags */}
               {Array.isArray(note.tags) && note.tags.length > 0 && (
@@ -582,8 +608,9 @@ export function NotesPanel({
                   {Array.isArray(note.tags) && note.tags.length > 0 ? 'Edit tags' : 'Add tags'}
                 </button>
               </div>
-            </div>
-          ))
+              </div>
+            );
+          })
         )}
       </div>
 
