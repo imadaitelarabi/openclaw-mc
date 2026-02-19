@@ -11,28 +11,35 @@ import type { Note } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/useToast';
 import { ConfirmationModal } from '@/components/modals';
+import { DEFAULT_ATTACHMENT_CONFIG } from '@/types/attachment';
+import { validateFile } from '@/lib/file-utils';
 
 interface NotesPanelProps {
   notes: Note[];
+  groups: string[];
   selectedGroup?: string | null;
   onAddNote: (content: string, group: string, imageUrl?: string) => Promise<void>;
+  onCreateGroup: (group: string) => Promise<void>;
+  onUploadNoteImage: (file: File) => Promise<string>;
   onDeleteNote: (id: string) => Promise<void>;
 }
 
 export function NotesPanel({
   notes,
+  groups,
   selectedGroup,
   onAddNote,
+  onCreateGroup,
+  onUploadNoteImage,
   onDeleteNote,
 }: NotesPanelProps) {
   const [newNoteContent, setNewNoteContent] = useState('');
   const [selectedNoteGroup, setSelectedNoteGroup] = useState(selectedGroup || 'General');
-  const [createdGroups, setCreatedGroups] = useState<string[]>([]);
   const [showCreateGroupInput, setShowCreateGroupInput] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [attachedImage, setAttachedImage] = useState<File | null>(null);
+  const [attachedImageName, setAttachedImageName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showImageInput, setShowImageInput] = useState(false);
   const [notePendingDelete, setNotePendingDelete] = useState<Note | null>(null);
   const [isDeletingNote, setIsDeletingNote] = useState(false);
   const { toast } = useToast();
@@ -43,18 +50,12 @@ export function NotesPanel({
     }
   }, [selectedGroup]);
 
-  // Extract unique groups from notes
-  const groups = useMemo(() => {
-    const groupSet = new Set<string>(notes.map(n => n.group));
-    return Array.from(groupSet).sort();
-  }, [notes]);
-
-  // Add default groups if none exist
   const allGroups = useMemo(() => {
     const defaultGroups = ['General', 'Commands', 'Ideas', 'Snippets'];
-    const uniqueGroups = new Set([...defaultGroups, ...groups, ...createdGroups]);
+    const noteGroups = notes.map(note => note.group);
+    const uniqueGroups = new Set([...defaultGroups, ...groups, ...noteGroups]);
     return Array.from(uniqueGroups).sort();
-  }, [groups, createdGroups]);
+  }, [groups, notes]);
 
   // Filter notes by selected group
   const filteredNotes = useMemo(() => {
@@ -91,10 +92,15 @@ export function NotesPanel({
 
     setIsSubmitting(true);
     try {
-      await onAddNote(newNoteContent, selectedNoteGroup, imageUrl || undefined);
+      let imageUrl: string | undefined;
+      if (attachedImage) {
+        imageUrl = await onUploadNoteImage(attachedImage);
+      }
+
+      await onAddNote(newNoteContent, selectedNoteGroup, imageUrl);
       setNewNoteContent('');
-      setImageUrl('');
-      setShowImageInput(false);
+      setAttachedImage(null);
+      setAttachedImageName('');
     } catch (err) {
       console.error('Failed to add note:', err);
     } finally {
@@ -102,20 +108,50 @@ export function NotesPanel({
     }
   };
 
-  const handleCreateGroup = () => {
+  const handleCreateGroup = async () => {
     const normalizedGroup = newGroupName.trim();
     if (!normalizedGroup) {
       return;
     }
 
-    const exists = allGroups.some(group => group.toLowerCase() === normalizedGroup.toLowerCase());
-    if (!exists) {
-      setCreatedGroups(prev => [...prev, normalizedGroup]);
+    try {
+      await onCreateGroup(normalizedGroup);
+      setSelectedNoteGroup(normalizedGroup);
+      setNewGroupName('');
+      setShowCreateGroupInput(false);
+      toast({
+        title: 'Group created',
+        description: `${normalizedGroup} is ready to use.`,
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to create group',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleImageFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
     }
 
-    setSelectedNoteGroup(normalizedGroup);
-    setNewGroupName('');
-    setShowCreateGroupInput(false);
+    const validation = validateFile(file, DEFAULT_ATTACHMENT_CONFIG);
+    if (!validation.valid) {
+      toast({
+        title: 'Invalid image',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      event.target.value = '';
+      return;
+    }
+
+    setAttachedImage(file);
+    setAttachedImageName(file.name);
+    event.target.value = '';
   };
 
   const handleConfirmDelete = async () => {
@@ -247,13 +283,13 @@ export function NotesPanel({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    handleCreateGroup();
+                    void handleCreateGroup();
                   }
                 }}
               />
               <button
                 type="button"
-                onClick={handleCreateGroup}
+                onClick={() => void handleCreateGroup()}
                 className="px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 Create
@@ -271,35 +307,37 @@ export function NotesPanel({
             </div>
           )}
 
-          {showImageInput && (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="Image URL (optional)"
-                className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
-                disabled={isSubmitting}
-              />
+          {attachedImageName && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/50 border border-border rounded-lg px-3 py-2">
+              <span className="truncate">{attachedImageName}</span>
               <button
                 type="button"
                 onClick={() => {
-                  setShowImageInput(false);
-                  setImageUrl('');
+                  setAttachedImage(null);
+                  setAttachedImageName('');
                 }}
-                className="p-2 rounded-lg hover:bg-secondary transition-colors"
+                className="p-1 rounded hover:bg-secondary transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </button>
             </div>
           )}
 
           <div className="relative flex gap-2 md:gap-3 items-end">
+            <input
+              id="notes-image-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageFileSelect}
+              disabled={isSubmitting}
+            />
+
             <button
               type="button"
-              onClick={() => setShowImageInput(prev => !prev)}
+              onClick={() => document.getElementById('notes-image-upload')?.click()}
               className="bg-secondary/50 border border-border p-2.5 rounded-lg hover:bg-secondary transition-colors shrink-0"
-              title="Attach image URL"
+              title="Attach image"
             >
               <ImageIcon className="w-4 h-4" />
             </button>

@@ -9,14 +9,26 @@ import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import type { Note } from '../types/internal';
 
+interface NotesStorage {
+  notes: Note[];
+  groups: string[];
+}
+
+const DEFAULT_NOTE_GROUPS = ['General', 'Commands', 'Ideas', 'Snippets'];
+
 export class NotesManager {
+  private configDir: string;
   private notesPath: string;
+  private imagesDir: string;
   private notes: Note[] = [];
+  private groups: string[] = [...DEFAULT_NOTE_GROUPS];
 
   constructor() {
-    const configDir = path.join(os.homedir(), '.oc-mission-control');
-    this.notesPath = path.join(configDir, 'notes.json');
-    this.ensureConfigDir(configDir);
+    this.configDir = path.join(os.homedir(), '.oc-mission-control');
+    this.notesPath = path.join(this.configDir, 'notes.json');
+    this.imagesDir = path.join(this.configDir, 'notes-images');
+    this.ensureConfigDir(this.configDir);
+    this.ensureConfigDir(this.imagesDir);
     this.loadNotes();
   }
 
@@ -30,21 +42,109 @@ export class NotesManager {
     try {
       if (fs.existsSync(this.notesPath)) {
         const data = fs.readFileSync(this.notesPath, 'utf-8');
-        this.notes = JSON.parse(data);
+        const parsed = JSON.parse(data) as Note[] | NotesStorage;
+
+        if (Array.isArray(parsed)) {
+          this.notes = parsed;
+          this.groups = this.mergeGroups(DEFAULT_NOTE_GROUPS, this.notes.map(note => note.group));
+        } else {
+          this.notes = Array.isArray(parsed.notes) ? parsed.notes : [];
+          const persistedGroups = Array.isArray(parsed.groups) ? parsed.groups : [];
+          this.groups = this.mergeGroups(DEFAULT_NOTE_GROUPS, persistedGroups, this.notes.map(note => note.group));
+        }
+      } else {
+        this.groups = [...DEFAULT_NOTE_GROUPS];
+        this.saveNotes();
       }
     } catch (err) {
       console.error('[NotesManager] Failed to load notes:', err);
       this.notes = [];
+      this.groups = [...DEFAULT_NOTE_GROUPS];
     }
   }
 
   private saveNotes(): void {
     try {
-      fs.writeFileSync(this.notesPath, JSON.stringify(this.notes, null, 2), 'utf-8');
+      const payload: NotesStorage = {
+        notes: this.notes,
+        groups: this.groups,
+      };
+
+      fs.writeFileSync(this.notesPath, JSON.stringify(payload, null, 2), 'utf-8');
     } catch (err) {
       console.error('[NotesManager] Failed to save notes:', err);
       throw new Error('Failed to save notes');
     }
+  }
+
+  private mergeGroups(...groupSets: string[][]): string[] {
+    const normalized = new Map<string, string>();
+
+    for (const set of groupSets) {
+      for (const group of set) {
+        const trimmed = typeof group === 'string' ? group.trim() : '';
+        if (!trimmed) {
+          continue;
+        }
+
+        const key = trimmed.toLowerCase();
+        if (!normalized.has(key)) {
+          normalized.set(key, trimmed);
+        }
+      }
+    }
+
+    return Array.from(normalized.values()).sort((a, b) => a.localeCompare(b));
+  }
+
+  private normalizeGroupName(group: string): string {
+    const normalized = group.trim();
+    if (!normalized) {
+      throw new Error('Group name cannot be empty');
+    }
+    return normalized;
+  }
+
+  private isManagedImageUrl(imageUrl: string): boolean {
+    return imageUrl.startsWith('/api/notes/images/');
+  }
+
+  private resolveImagePathFromUrl(imageUrl: string): string {
+    const fileName = path.basename(decodeURIComponent(imageUrl.replace('/api/notes/images/', '')));
+    return path.join(this.imagesDir, fileName);
+  }
+
+  private deleteImageIfUnused(imageUrl?: string): void {
+    if (!imageUrl || !this.isManagedImageUrl(imageUrl)) {
+      return;
+    }
+
+    const isStillReferenced = this.notes.some(note => note.imageUrl === imageUrl);
+    if (isStillReferenced) {
+      return;
+    }
+
+    const imagePath = this.resolveImagePathFromUrl(imageUrl);
+    if (fs.existsSync(imagePath)) {
+      fs.unlinkSync(imagePath);
+    }
+  }
+
+  private extensionFromMimeType(mimeType: string): string {
+    const lookup: Record<string, string> = {
+      'image/png': '.png',
+      'image/jpeg': '.jpg',
+      'image/jpg': '.jpg',
+      'image/webp': '.webp',
+      'image/gif': '.gif',
+      'image/svg+xml': '.svg',
+    };
+
+    return lookup[mimeType.toLowerCase()] ?? '.bin';
+  }
+
+  public getImagesDir(): string {
+    return this.imagesDir;
   }
 
   /**
@@ -54,15 +154,50 @@ export class NotesManager {
     return this.notes;
   }
 
+  public listGroups(): string[] {
+    return this.groups;
+  }
+
+  public addGroup(group: string): string[] {
+    const normalized = this.normalizeGroupName(group);
+    this.groups = this.mergeGroups(this.groups, [normalized]);
+    this.saveNotes();
+    return this.groups;
+  }
+
+  public saveImage(media: string, mimeType?: string, fileName?: string): string {
+    const dataUriMatch = /^data:(?<mime>[^;]+);base64,(?<content>[\s\S]+)$/i.exec(media);
+    const base64Content = dataUriMatch?.groups?.content;
+    const detectedMimeType = mimeType || dataUriMatch?.groups?.mime;
+
+    if (!base64Content || !detectedMimeType || !detectedMimeType.startsWith('image/')) {
+      throw new Error('Invalid image payload');
+    }
+
+    const safeBaseName = fileName
+      ? path.parse(path.basename(fileName)).name.replace(/[^a-zA-Z0-9-_]/g, '_')
+      : 'note-image';
+    const extension = this.extensionFromMimeType(detectedMimeType);
+    const storedFileName = `${safeBaseName || 'note-image'}-${uuidv4()}${extension}`;
+    const imagePath = path.join(this.imagesDir, storedFileName);
+
+    fs.writeFileSync(imagePath, Buffer.from(base64Content, 'base64'));
+
+    return `/api/notes/images/${encodeURIComponent(storedFileName)}`;
+  }
+
   /**
    * Add a new note
    */
   public addNote(content: string, group: string, imageUrl?: string): Note {
+    const normalizedGroup = this.normalizeGroupName(group);
+    this.groups = this.mergeGroups(this.groups, [normalizedGroup]);
+
     const now = Date.now();
     const note: Note = {
       id: uuidv4(),
       content,
-      group,
+      group: normalizedGroup,
       createdAt: now,
       updatedAt: now,
       imageUrl,
@@ -82,14 +217,26 @@ export class NotesManager {
       throw new Error(`Note not found: ${id}`);
     }
 
+    const previousNote = this.notes[index];
+    const nextGroup = updates.group !== undefined ? this.normalizeGroupName(updates.group) : undefined;
+    if (nextGroup) {
+      this.groups = this.mergeGroups(this.groups, [nextGroup]);
+    }
+
     const note = this.notes[index];
     this.notes[index] = {
       ...note,
       ...updates,
+      ...(nextGroup ? { group: nextGroup } : {}),
       updatedAt: Date.now(),
     };
 
     this.saveNotes();
+
+    if (updates.imageUrl !== undefined && previousNote.imageUrl !== updates.imageUrl) {
+      this.deleteImageIfUnused(previousNote.imageUrl);
+    }
+
     return this.notes[index];
   }
 
@@ -102,8 +249,11 @@ export class NotesManager {
       return false;
     }
 
-    this.notes.splice(index, 1);
+    const [deletedNote] = this.notes.splice(index, 1);
     this.saveNotes();
+
+    this.deleteImageIfUnused(deletedNote?.imageUrl);
+
     return true;
   }
 }

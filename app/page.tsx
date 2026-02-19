@@ -93,9 +93,12 @@ function MissionControlInner() {
   // Notes hook
   const {
     notes,
+    groups: noteGroups,
     loading: notesLoading,
     error: notesError,
     addNote,
+    addGroup,
+    uploadNoteImage,
     updateNote,
     deleteNote,
     refreshNotes,
@@ -513,6 +516,32 @@ function MissionControlInner() {
     }
   }, [addNote, toast]);
 
+  const handleCreateNoteGroup = useCallback(async (group: string) => {
+    try {
+      await addGroup(group);
+    } catch (err) {
+      toast({
+        title: 'Failed to create group',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [addGroup, toast]);
+
+  const handleUploadNoteImage = useCallback(async (file: File) => {
+    try {
+      return await uploadNoteImage(file);
+    } catch (err) {
+      toast({
+        title: 'Failed to upload image',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [toast, uploadNoteImage]);
+
   const handleDeleteNote = useCallback(async (id: string) => {
     try {
       await deleteNote(id);
@@ -767,7 +796,10 @@ function MissionControlInner() {
             onCreateCronJob={handleCreateCronJobRequest}
             onUpdateCronJob={handleUpdateCronJobRequest}
             notes={notes}
+            noteGroups={noteGroups}
             onAddNote={handleAddNote}
+            onCreateNoteGroup={handleCreateNoteGroup}
+            onUploadNoteImage={handleUploadNoteImage}
             onDeleteNote={handleDeleteNote}
           />
         )}
@@ -805,6 +837,7 @@ function MissionControlInner() {
           onSelectCronJob={handleSelectCronJob}
           onCreateCronJob={handleOpenCreateCronPanel}
           notes={notes}
+          noteGroups={noteGroups}
           isNotesMenuOpen={isNotesMenuOpen}
           onToggleNotesMenu={() => setIsNotesMenuOpen(!isNotesMenuOpen)}
           onSelectNoteGroup={handleSelectNoteGroup}

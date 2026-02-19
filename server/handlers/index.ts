@@ -28,6 +28,9 @@ import {
 } from './cron.handler';
 import {
   handleNotesList,
+  handleNotesGroupsList,
+  handleNotesGroupsAdd,
+  handleNotesImageUpload,
   handleNotesAdd,
   handleNotesUpdate,
   handleNotesDelete,
@@ -136,6 +139,18 @@ export async function handleMessage(
 
       case 'notes.list':
         await handleNotesList(msg, ws);
+        break;
+
+      case 'notes.groups.list':
+        await handleNotesGroupsList(msg, ws);
+        break;
+
+      case 'notes.groups.add':
+        await handleNotesGroupsAdd(msg, ws);
+        break;
+
+      case 'notes.image.upload':
+        await handleNotesImageUpload(msg, ws);
         break;
 
       case 'notes.add':

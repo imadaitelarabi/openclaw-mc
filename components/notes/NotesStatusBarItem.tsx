@@ -8,6 +8,7 @@ import type { Note, NoteGroup } from '@/types';
 
 interface NotesStatusBarItemProps {
   notes: Note[];
+  groups?: string[];
   isOpen: boolean;
   onToggle: () => void;
   onSelectGroup: (group: string | null) => void;
@@ -16,24 +17,30 @@ interface NotesStatusBarItemProps {
 
 export function NotesStatusBarItem({
   notes,
+  groups = [],
   isOpen,
   onToggle,
   onSelectGroup,
   onOpenNotes,
 }: NotesStatusBarItemProps) {
-  // Calculate groups with counts
-  const groups: NoteGroup[] = notes.reduce((acc, note) => {
-    const existing = acc.find(g => g.name === note.group);
-    if (existing) {
-      existing.count++;
-    } else {
-      acc.push({ name: note.group, count: 1 });
-    }
+  const noteGroupCounts = notes.reduce((acc, note) => {
+    const current = acc.get(note.group) ?? 0;
+    acc.set(note.group, current + 1);
     return acc;
-  }, [] as NoteGroup[]);
+  }, new Map<string, number>());
+
+  const uniqueGroupNames = new Set<string>([
+    ...groups,
+    ...Array.from(noteGroupCounts.keys()),
+  ]);
+
+  const groupedNotes: NoteGroup[] = Array.from(uniqueGroupNames).map((name) => ({
+    name,
+    count: noteGroupCounts.get(name) ?? 0,
+  }));
 
   // Sort groups by count (descending) then by name
-  const sortedGroups = groups.sort((a, b) => {
+  const sortedGroups = groupedNotes.sort((a, b) => {
     if (b.count !== a.count) return b.count - a.count;
     return a.name.localeCompare(b.name);
   });

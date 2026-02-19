@@ -13,9 +13,12 @@ interface UseNotesProps {
 
 interface UseNotesReturn {
   notes: Note[];
+  groups: string[];
   loading: boolean;
   error: string | null;
   addNote: (content: string, group: string, imageUrl?: string) => Promise<Note>;
+  addGroup: (group: string) => Promise<string[]>;
+  uploadNoteImage: (file: File) => Promise<string>;
   updateNote: (id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>) => Promise<Note>;
   deleteNote: (id: string) => Promise<boolean>;
   refreshNotes: () => Promise<void>;
@@ -23,6 +26,7 @@ interface UseNotesReturn {
 
 export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [groups, setGroups] = useState<string[]>(['General', 'Commands', 'Ideas', 'Snippets']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,12 +51,27 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
         switch (msg.type) {
           case 'notes.list.response':
             setNotes(msg.notes || []);
+            setGroups(msg.groups || []);
             setLoading(false);
             setError(null);
             break;
 
+          case 'notes.groups.list.response':
+            setGroups(msg.groups || []);
+            break;
+
+          case 'notes.groups.add.ack':
+            setGroups(msg.groups || []);
+            break;
+
           case 'notes.add.ack':
             setNotes(prev => [...prev, msg.note]);
+            setGroups(prev => {
+              if (!msg.note?.group) return prev;
+              const exists = prev.some(group => group.toLowerCase() === msg.note.group.toLowerCase());
+              if (exists) return prev;
+              return [...prev, msg.note.group].sort((a, b) => a.localeCompare(b));
+            });
             break;
 
           case 'notes.update.ack':
@@ -66,6 +85,9 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
             break;
 
           case 'notes.list.error':
+          case 'notes.groups.list.error':
+          case 'notes.groups.add.error':
+          case 'notes.image.upload.error':
           case 'notes.add.error':
           case 'notes.update.error':
           case 'notes.delete.error':
@@ -124,6 +146,119 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
       });
     },
     [wsRef]
+  );
+
+  const addGroup = useCallback(
+    async (group: string): Promise<string[]> => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket not connected');
+      }
+
+      return new Promise((resolve, reject) => {
+        const requestId = uuidv4();
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        const handleResponse = (event: MessageEvent) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.requestId !== requestId) return;
+
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+
+            if (msg.type === 'notes.groups.add.ack') {
+              setGroups(msg.groups || []);
+              resolve(msg.groups || []);
+            } else if (msg.type === 'notes.groups.add.error') {
+              reject(new Error(msg.error));
+            }
+          } catch (err) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+            reject(err);
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          ws.removeEventListener('message', handleResponse);
+          reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
+
+        ws.addEventListener('message', handleResponse);
+        ws.send(JSON.stringify({ type: 'notes.groups.add', requestId, group }));
+      });
+    },
+    [wsRef]
+  );
+
+  const readFileAsDataUri = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const data = event.target?.result;
+        if (typeof data !== 'string') {
+          reject(new Error('Failed to read image file'));
+          return;
+        }
+        resolve(data);
+      };
+      reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const uploadNoteImage = useCallback(
+    async (file: File): Promise<string> => {
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket not connected');
+      }
+
+      const media = await readFileAsDataUri(file);
+
+      return new Promise((resolve, reject) => {
+        const requestId = uuidv4();
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        const handleResponse = (event: MessageEvent) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.requestId !== requestId) return;
+
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+
+            if (msg.type === 'notes.image.upload.ack') {
+              resolve(msg.imageUrl);
+            } else if (msg.type === 'notes.image.upload.error') {
+              reject(new Error(msg.error));
+            }
+          } catch (err) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
+            reject(err);
+          }
+        };
+
+        timeoutId = setTimeout(() => {
+          ws.removeEventListener('message', handleResponse);
+          reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
+
+        ws.addEventListener('message', handleResponse);
+        ws.send(
+          JSON.stringify({
+            type: 'notes.image.upload',
+            requestId,
+            media,
+            mimeType: file.type,
+            fileName: file.name,
+          })
+        );
+      });
+    },
+    [readFileAsDataUri, wsRef]
   );
 
   const updateNote = useCallback(
@@ -230,9 +365,12 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
 
   return {
     notes,
+    groups,
     loading,
     error,
     addNote,
+    addGroup,
+    uploadNoteImage,
     updateNote,
     deleteNote,
     refreshNotes,

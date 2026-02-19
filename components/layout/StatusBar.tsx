@@ -41,6 +41,7 @@ interface StatusBarProps {
 
   // Notes
   notes?: Note[];
+  noteGroups?: string[];
   isNotesMenuOpen?: boolean;
   onToggleNotesMenu?: () => void;
   onSelectNoteGroup?: (group: string | null) => void;
@@ -71,6 +72,7 @@ export function StatusBar({
   onSelectCronJob = () => {},
   onCreateCronJob,
   notes = [],
+  noteGroups = [],
   isNotesMenuOpen = false,
   onToggleNotesMenu = () => {},
   onSelectNoteGroup = () => {},
@@ -165,6 +167,7 @@ export function StatusBar({
       {/* Notes Status */}
       <NotesStatusBarItem
         notes={notes}
+        groups={noteGroups}
         isOpen={isNotesMenuOpen}
         onToggle={onToggleNotesMenu}
         onSelectGroup={onSelectNoteGroup}

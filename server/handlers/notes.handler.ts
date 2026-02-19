@@ -20,11 +20,13 @@ export async function handleNotesList(
 
   try {
     const notes = notesManager.listNotes();
+    const groups = notesManager.listGroups();
     ws.send(
       JSON.stringify({
         type: 'notes.list.response',
         requestId,
         notes,
+        groups,
       })
     );
   } catch (err) {
@@ -33,6 +35,116 @@ export async function handleNotesList(
         type: 'notes.list.error',
         requestId,
         error: (err as Error).message || 'Failed to list notes',
+      })
+    );
+  }
+}
+
+/**
+ * List note groups
+ */
+export async function handleNotesGroupsList(
+  msg: Extract<ClientMessage, { type: 'notes.groups.list' }>,
+  ws: ExtendedWebSocket
+): Promise<void> {
+  const { requestId } = msg;
+
+  try {
+    const groups = notesManager.listGroups();
+    ws.send(
+      JSON.stringify({
+        type: 'notes.groups.list.response',
+        requestId,
+        groups,
+      })
+    );
+  } catch (err) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.groups.list.error',
+        requestId,
+        error: (err as Error).message || 'Failed to list groups',
+      })
+    );
+  }
+}
+
+/**
+ * Add note group
+ */
+export async function handleNotesGroupsAdd(
+  msg: Extract<ClientMessage, { type: 'notes.groups.add' }>,
+  ws: ExtendedWebSocket
+): Promise<void> {
+  const { requestId, group } = msg;
+
+  if (!group?.trim()) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.groups.add.error',
+        requestId,
+        error: 'Group name is required',
+      })
+    );
+    return;
+  }
+
+  try {
+    const groups = notesManager.addGroup(group);
+    ws.send(
+      JSON.stringify({
+        type: 'notes.groups.add.ack',
+        requestId,
+        groups,
+        group: group.trim(),
+      })
+    );
+  } catch (err) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.groups.add.error',
+        requestId,
+        error: (err as Error).message || 'Failed to add group',
+      })
+    );
+  }
+}
+
+/**
+ * Upload note image
+ */
+export async function handleNotesImageUpload(
+  msg: Extract<ClientMessage, { type: 'notes.image.upload' }>,
+  ws: ExtendedWebSocket
+): Promise<void> {
+  const { requestId, media, mimeType, fileName } = msg;
+
+  if (!media) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.image.upload.error',
+        requestId,
+        error: 'Image payload is required',
+      })
+    );
+    return;
+  }
+
+  try {
+    const imageUrl = notesManager.saveImage(media, mimeType, fileName);
+    ws.send(
+      JSON.stringify({
+        type: 'notes.image.upload.ack',
+        requestId,
+        imageUrl,
+      })
+    );
+  } catch (err) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.image.upload.error',
+        requestId,
+        error: (err as Error).message || 'Failed to upload image',
       })
     );
   }
