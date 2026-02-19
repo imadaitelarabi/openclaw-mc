@@ -87,7 +87,7 @@ hooks/
 #### State Management
 - **Local State**: React useState/useReducer
 - **Persistent State**: IndexedDB (via `idb` library)
-- **Real-time State**: WebSocket events
+- **Real-time State (Stream-to-Commit)**: WebSocket events are managed through an ephemeral `activeRunData` state. Live streaming content (reasoning, tool calls, assistant text) is tracked here and only "committed" to the persistent `chatHistory` at specific lifecycle points (stream end, tool result, or phase transition). This decoupling ensures smoother UI performance and simplifies state logic.
 
 #### Data Persistence
 

@@ -20,6 +20,7 @@ Mission Control is a Next.js-based web application that provides a sleek, respon
 ### 🤖 Agent Management
 - **Real-time Agent Status**: Monitor active and idle agents across all sessions
 - **Interactive Chat Interface**: Direct message agents with streaming responses
+- **Stream-to-Commit Architecture**: Decoupled live streaming from persistent history for smoother performance and cleaner state management
 - **Per-Session Settings**: Configure model, thinking level, verbosity, and reasoning for each agent
 - **Agent Selection**: Quick-switch between agents via status bar or mobile command panel
 
@@ -28,6 +29,7 @@ Mission Control is a Next.js-based web application that provides a sleek, respon
 - **Thinking Levels**: off → minimal → low → medium → high → xhigh
 - **Verbose Mode**: Control tool call visibility (off/on/full)
 - **Reasoning Display**: Toggle reasoning blocks (off/on/stream)
+- **Cron Job Safety**: Confirmation modals for destructive actions like deleting cron jobs
 
 ### 📱 Responsive Design
 - **Desktop-Optimized**: Full-featured status bar with all controls
@@ -389,6 +391,7 @@ MIT License - see LICENSE file for details.
 Additional documentation is available in the [`docs/`](./docs) folder:
 
 - [**GATEWAY-EVENT-FORWARDING.md**](./docs/GATEWAY-EVENT-FORWARDING.md) - Global event forwarding and comprehensive logging
+- [**STREAM_TO_COMMIT_ARCHITECTURE.md**](./docs/STREAM_TO_COMMIT_ARCHITECTURE.md) - Deep dive into the new decoupled streaming architecture
 - [**SERVER-ARCHITECTURE.md**](./docs/SERVER-ARCHITECTURE.md) - Server architecture and design patterns
 - [**PATTERN-BASED-EVENT-HANDLING.md**](./docs/PATTERN-BASED-EVENT-HANDLING.md) - Event processing pipeline
 - [**DOCKER-MAKEFILE-GUIDE.md**](./docs/DOCKER-MAKEFILE-GUIDE.md) - Complete Docker and Makefile usage guide

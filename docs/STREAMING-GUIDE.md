@@ -1,6 +1,6 @@
 # Mission Control - Streaming & Thinking Implementation Guide
 
-Based on OpenClaw Gateway documentation analysis.
+**NEW**: See [**STREAM_TO_COMMIT_ARCHITECTURE.md**](./STREAM_TO_COMMIT_ARCHITECTURE.md) for the detailed design of the mission control "Stream-to-Commit" refactor that decouples live streaming from persistent history.
 
 ---
 
