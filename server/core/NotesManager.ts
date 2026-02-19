@@ -7,15 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
-
-interface Note {
-  id: string;
-  content: string;
-  group: string;
-  createdAt: number;
-  updatedAt: number;
-  imageUrl?: string;
-}
+import type { Note } from '../types/internal';
 
 export class NotesManager {
   private notesPath: string;

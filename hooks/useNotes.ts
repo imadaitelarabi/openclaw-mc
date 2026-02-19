@@ -91,12 +91,14 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
 
       return new Promise((resolve, reject) => {
         const requestId = uuidv4();
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
         
         const handleResponse = (event: MessageEvent) => {
           try {
             const msg = JSON.parse(event.data);
             if (msg.requestId !== requestId) return;
 
+            if (timeoutId) clearTimeout(timeoutId);
             ws.removeEventListener('message', handleResponse);
 
             if (msg.type === 'notes.add.ack') {
@@ -105,9 +107,17 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
               reject(new Error(msg.error));
             }
           } catch (err) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
             reject(err);
           }
         };
+
+        // Set timeout to prevent hanging promises
+        timeoutId = setTimeout(() => {
+          ws.removeEventListener('message', handleResponse);
+          reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
 
         ws.addEventListener('message', handleResponse);
         ws.send(JSON.stringify({ type: 'notes.add', requestId, content, group, imageUrl }));
@@ -128,12 +138,14 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
 
       return new Promise((resolve, reject) => {
         const requestId = uuidv4();
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
         const handleResponse = (event: MessageEvent) => {
           try {
             const msg = JSON.parse(event.data);
             if (msg.requestId !== requestId) return;
 
+            if (timeoutId) clearTimeout(timeoutId);
             ws.removeEventListener('message', handleResponse);
 
             if (msg.type === 'notes.update.ack') {
@@ -142,9 +154,17 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
               reject(new Error(msg.error));
             }
           } catch (err) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
             reject(err);
           }
         };
+
+        // Set timeout to prevent hanging promises
+        timeoutId = setTimeout(() => {
+          ws.removeEventListener('message', handleResponse);
+          reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
 
         ws.addEventListener('message', handleResponse);
         ws.send(JSON.stringify({ type: 'notes.update', requestId, id, ...updates }));
@@ -162,12 +182,14 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
 
       return new Promise((resolve, reject) => {
         const requestId = uuidv4();
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
         const handleResponse = (event: MessageEvent) => {
           try {
             const msg = JSON.parse(event.data);
             if (msg.requestId !== requestId) return;
 
+            if (timeoutId) clearTimeout(timeoutId);
             ws.removeEventListener('message', handleResponse);
 
             if (msg.type === 'notes.delete.ack') {
@@ -176,9 +198,17 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
               reject(new Error(msg.error));
             }
           } catch (err) {
+            if (timeoutId) clearTimeout(timeoutId);
+            ws.removeEventListener('message', handleResponse);
             reject(err);
           }
         };
+
+        // Set timeout to prevent hanging promises
+        timeoutId = setTimeout(() => {
+          ws.removeEventListener('message', handleResponse);
+          reject(new Error('Request timed out after 30 seconds'));
+        }, 30000);
 
         ws.addEventListener('message', handleResponse);
         ws.send(JSON.stringify({ type: 'notes.delete', requestId, id }));

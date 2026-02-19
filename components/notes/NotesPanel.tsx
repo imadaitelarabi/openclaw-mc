@@ -9,6 +9,7 @@ import { useState, useMemo } from 'react';
 import { Copy, Trash2, Image as ImageIcon, X } from 'lucide-react';
 import type { Note } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
+import { useToast } from '@/hooks/useToast';
 
 interface NotesPanelProps {
   notes: Note[];
@@ -28,6 +29,7 @@ export function NotesPanel({
   const [imageUrl, setImageUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showImageInput, setShowImageInput] = useState(false);
+  const { toast } = useToast();
 
   // Extract unique groups from notes
   const groups = useMemo(() => {
@@ -55,8 +57,20 @@ export function NotesPanel({
     return [...filteredNotes].sort((a, b) => b.createdAt - a.createdAt);
   }, [filteredNotes]);
 
-  const handleCopyNote = (content: string) => {
-    navigator.clipboard.writeText(content);
+  const handleCopyNote = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast({
+        title: 'Copied to clipboard',
+        description: content.length > 50 ? content.substring(0, 50) + '...' : content,
+      });
+    } catch (err) {
+      toast({
+        title: 'Failed to copy',
+        description: 'Could not copy to clipboard',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
