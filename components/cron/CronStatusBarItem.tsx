@@ -28,6 +28,7 @@ export function CronStatusBarItem({
 }: CronStatusBarItemProps) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const safeJobs = jobs.filter((job): job is CronJob => Boolean(job && job.id));
 
   useEffect(() => {
@@ -37,6 +38,16 @@ export function CronStatusBarItem({
       dropdownRef.current?.focus();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const activeEl = container.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  }, [activeIndex, isOpen]);
 
   // Find next scheduled job and running jobs
   const nextJob = safeJobs
@@ -142,7 +153,7 @@ export function CronStatusBarItem({
               </button>
             )}
           </div>
-          <div className="max-h-64 overflow-y-auto py-1">
+          <div ref={scrollContainerRef} className="max-h-64 overflow-y-auto py-1">
             {sortedJobs.length === 0 ? (
               <div className="px-3 py-2 text-muted-foreground text-center">
                 No cron jobs configured
@@ -160,6 +171,7 @@ export function CronStatusBarItem({
                 return (
                   <button
                     key={job.id}
+                    data-active={activeIndex === index}
                     onClick={() => {
                       onSelectJob(job.id);
                       onToggle();
