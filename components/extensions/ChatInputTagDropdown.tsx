@@ -38,6 +38,7 @@ export function ChatInputTagDropdown({
   const [activeIndex, setActiveIndex] = useState(0);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; positionAbove: boolean } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Calculate dropdown position based on input ref
   // Note: Tracks options.length for performance - position only updates when number of options changes
@@ -207,6 +208,16 @@ export function ChatInputTagDropdown({
     setActiveIndex(0);
   }, [options]);
 
+  // Scroll active item into view when navigating with keyboard
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const activeEl = container.querySelector('[data-active="true"]') as HTMLElement | null;
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest' });
+    }
+  }, [activeIndex, currentPath]);
+
   // Clamp active index when current level items change
   useEffect(() => {
     const currentItems = getCurrentItems(options, currentPath);
@@ -274,7 +285,7 @@ export function ChatInputTagDropdown({
             <div className="text-xs text-muted-foreground truncate">{currentLabel}</div>
           </div>
 
-          <div className="py-1 max-h-[260px] overflow-y-auto">
+          <div ref={scrollContainerRef} className="py-1 max-h-[260px] overflow-y-auto">
             {currentItems.map((option, index) => {
               const hasChildren = Boolean(option.children && option.children.length > 0);
               const isActive = index === activeIndex;
@@ -282,6 +293,7 @@ export function ChatInputTagDropdown({
               return (
                 <button
                   key={option.id}
+                  data-active={isActive}
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => {
                     if (hasChildren) {
