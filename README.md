@@ -46,6 +46,25 @@ Mission Control is a Next.js-based web application that provides a sleek, respon
 
 ## 🚀 Quick Start
 
+### One-Liner Install + Run (Production)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc/master/scripts/install-and-run.sh | bash
+```
+
+This command will:
+- check/install required tools (`git`, `curl`, `node`, `npm`)
+- clone/update `openclaw-mc`
+- build the production bundle
+- run Mission Control in production mode
+
+Optional overrides:
+
+```bash
+BRANCH=master INSTALL_DIR=$HOME/.local/share/openclaw-mc \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc/master/scripts/install-and-run.sh)"
+```
+
 ### Prerequisites
 
 - **Node.js**: v18 or higher
