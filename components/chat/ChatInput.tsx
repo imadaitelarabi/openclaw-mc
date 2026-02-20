@@ -332,28 +332,48 @@ export function ChatInput({
         />
 
         {/* Token Usage Indicator */}
-        {tokenUsage && !tokenUsage.isLoading && (() => {
-          const { totalTokens, modelContextWindow, error } = tokenUsage;
+        {tokenUsage && (() => {
+          const { totalTokens, modelContextWindow, isUnlimited, isLoading, error } = tokenUsage;
+
+          if (isLoading) {
+            return (
+              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                Loading usage…
+              </div>
+            );
+          }
+
           if (error) {
             return (
-              <div className="text-xs text-muted-foreground mb-1.5">
+              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
                 Usage unavailable
               </div>
             );
           }
+
+          if (isUnlimited) {
+            return (
+              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                Unlimited context
+              </div>
+            );
+          }
+
           if (totalTokens === null || modelContextWindow === null || modelContextWindow === 0) {
             return null;
           }
+
           const percentage = (totalTokens / modelContextWindow) * 100;
           const totalK = Math.floor(totalTokens / 1000);
           const contextK = Math.floor(modelContextWindow / 1000);
           const colorClass = percentage >= 90
-            ? 'text-red-500'
+            ? 'text-destructive'
             : percentage >= 70
               ? 'text-yellow-500'
               : 'text-green-500';
+
           return (
-            <div className={`text-xs mb-1.5 ${colorClass}`}>
+            <div className={`text-xs mb-1.5 transition-colors duration-300 ${colorClass}`}>
               {totalK}k / {contextK}k tokens
             </div>
           );
