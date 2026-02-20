@@ -20,6 +20,8 @@ Mission Control is a Next.js-based web application that provides a sleek, respon
 ### 🤖 Agent Management
 - **Real-time Agent Status**: Monitor active and idle agents across all sessions
 - **Interactive Chat Interface**: Direct message agents with streaming responses
+- **Stream-to-Commit Architecture**: Decoupled live streaming from persistent history for smoother performance and cleaner state management
+- **Notes System**: Built-in persistent notes with group categorization, tag filtering, custom tag colors, and image support (upload/paste)
 - **Per-Session Settings**: Configure model, thinking level, verbosity, and reasoning for each agent
 - **Agent Selection**: Quick-switch between agents via status bar or mobile command panel
 
