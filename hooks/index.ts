@@ -7,6 +7,7 @@ export * from './useChatPolling';
 export * from './useSessionControl';
 export * from './useExtensionStatusBar';
 export * from './useExtensionChatInput';
+export * from './useNativeChatInput';
 export * from './useCronJobs';
 export * from './useCronRuns';
 export * from './useNotes';
