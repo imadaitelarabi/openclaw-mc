@@ -114,6 +114,15 @@ export function ChatInput({
     };
   }, [isTagging, tagQuery, searchExtensionTags, searchNativeTags]);
 
+  const autoResizeTextarea = () => {
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+      }
+    });
+  };
+
   const handleSend = () => {
     onSend(attachments.length > 0 ? attachments : undefined);
     // Clear attachments after sending
@@ -272,6 +281,7 @@ export function ChatInput({
       const valueForLevel2 = `${insertedValue.slice(0, cursorBeforeInsertedSpace)}${insertedValue.slice(newPosition)}`;
 
       onChange(valueForLevel2);
+      autoResizeTextarea();
 
       requestAnimationFrame(() => {
         if (textareaRef.current) {
@@ -285,6 +295,7 @@ export function ChatInput({
     }
 
     onChange(insertedValue);
+    autoResizeTextarea();
     setTagOptions([]);
 
     if (option.meta?.kind === 'native-note' && typeof option.meta.imageUrl === 'string' && option.meta.imageUrl) {
@@ -349,13 +360,7 @@ export function ChatInput({
               onChange(newValue);
               handleInput(newValue, e.target.selectionStart ?? newValue.length);
 
-              // Defer style update to next frame to avoid blocking main thread
-              requestAnimationFrame(() => {
-                if (textareaRef.current) {
-                  textareaRef.current.style.height = 'auto';
-                  textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
-                }
-              });
+              autoResizeTextarea();
             }}
             onKeyDown={(e) => {
               if (isTagDropdownOpen && ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Tab'].includes(e.key)) {
