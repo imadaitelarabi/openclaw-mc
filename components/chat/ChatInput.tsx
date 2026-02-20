@@ -266,10 +266,14 @@ export function ChatInput({
     const isNativeProviderOption = option.id.startsWith(NATIVE_PROVIDER_OPTION_ID_PREFIX);
     const isProviderSelection = isExtensionProviderOption || isNativeProviderOption;
 
+    const isNativeNoteOption = option.meta?.kind === 'native-note';
+
     let newPosition = 0;
     const insertValue = isProviderSelection
       ? option.tag
-      : (option.value?.trim() ? option.value : option.tag);
+      : isNativeNoteOption
+        ? `<note>\n${option.value?.trim() ? option.value : ''}\n</note>`
+        : (option.value?.trim() ? option.value : option.tag);
 
     const insertedValue = insertTag(value, insertValue, (cursorPosition: number) => {
       newPosition = cursorPosition;
