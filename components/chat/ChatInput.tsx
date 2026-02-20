@@ -360,7 +360,11 @@ export function ChatInput({
           }
 
           if (totalTokens === null || modelContextWindow === null || modelContextWindow === 0) {
-            return null;
+            return (
+              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                Usage unavailable
+              </div>
+            );
           }
 
           const percentage = (totalTokens / modelContextWindow) * 100;

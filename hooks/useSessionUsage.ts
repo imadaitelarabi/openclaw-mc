@@ -14,9 +14,10 @@ interface UseSessionUsageProps {
   wsRef: React.RefObject<WebSocket | null> | null | undefined;
   agentId: string;
   activeRunId: string | null;
+  connectionStatus?: string;
 }
 
-export function useSessionUsage({ wsRef, agentId, activeRunId }: UseSessionUsageProps): SessionUsage {
+export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus }: UseSessionUsageProps): SessionUsage {
   const [totalTokens, setTotalTokens] = useState<number | null>(null);
   const [modelContextWindow, setModelContextWindow] = useState<number | null>(null);
   const [isUnlimited, setIsUnlimited] = useState(false);
@@ -25,6 +26,24 @@ export function useSessionUsage({ wsRef, agentId, activeRunId }: UseSessionUsage
   const previousRunIdRef = useRef<string | null>(null);
   const pendingStatusRef = useRef<{ requestId: string; timeoutId: ReturnType<typeof setTimeout> } | null>(null);
   const sessionsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const parseContextWindow = useCallback((session: any, defaults?: any): number | null => {
+    const fromSession = session?.modelContextWindow ?? session?.contextTokens;
+    if (typeof fromSession === 'number') return fromSession;
+
+    const fromDefaults = defaults?.modelContextWindow ?? defaults?.contextTokens;
+    if (typeof fromDefaults === 'number') return fromDefaults;
+
+    return null;
+  }, []);
+
+  const parseTotalTokens = useCallback((session: any): number | null => {
+    if (typeof session?.totalTokens === 'number') return session.totalTokens;
+    if (typeof session?.inputTokens === 'number' && typeof session?.outputTokens === 'number') {
+      return session.inputTokens + session.outputTokens;
+    }
+    return null;
+  }, []);
 
   const fetchStatus = useCallback(() => {
     const ws = wsRef?.current;
@@ -50,6 +69,7 @@ export function useSessionUsage({ wsRef, agentId, activeRunId }: UseSessionUsage
   const fetchUsage = useCallback(() => {
     const ws = wsRef?.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
+      setIsLoading(false);
       setError('Not connected');
       return;
     }
@@ -68,10 +88,13 @@ export function useSessionUsage({ wsRef, agentId, activeRunId }: UseSessionUsage
     fetchStatus();
   }, [wsRef, fetchStatus]);
 
-  // Fetch on mount and when agentId changes
+  // Fetch on mount/agent change and when connection becomes active
   useEffect(() => {
+    if (connectionStatus && connectionStatus !== 'connected') {
+      return;
+    }
     fetchUsage();
-  }, [agentId, fetchUsage]);
+  }, [agentId, fetchUsage, connectionStatus]);
 
   // Fetch when a run completes (activeRunId transitions from non-null to null)
   useEffect(() => {
@@ -107,12 +130,12 @@ export function useSessionUsage({ wsRef, agentId, activeRunId }: UseSessionUsage
           });
 
           if (agentSession) {
-            setTotalTokens(typeof agentSession.totalTokens === 'number' ? agentSession.totalTokens : null);
-            if (typeof agentSession.modelContextWindow === 'number') {
-              const ctxWindow = agentSession.modelContextWindow;
-              setModelContextWindow(ctxWindow);
-              setIsUnlimited(ctxWindow === 0);
-            }
+            const tokens = parseTotalTokens(agentSession);
+            const ctxWindow = parseContextWindow(agentSession, msg.data.defaults);
+
+            setTotalTokens(tokens);
+            setModelContextWindow(ctxWindow);
+            setIsUnlimited(ctxWindow === 0);
             setError(null);
           }
           setIsLoading(false);
@@ -144,7 +167,7 @@ export function useSessionUsage({ wsRef, agentId, activeRunId }: UseSessionUsage
 
     ws.addEventListener('message', handleMessage);
     return () => ws.removeEventListener('message', handleMessage);
-  }, [wsRef, agentId]);
+  }, [wsRef, agentId, connectionStatus, parseContextWindow, parseTotalTokens]);
 
   // Cleanup pending timers on unmount
   useEffect(() => {

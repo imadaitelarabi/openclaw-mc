@@ -81,7 +81,7 @@ export const ChatPanel = memo(function ChatPanel({
   });
 
   // Token usage hook for context window indicator
-  const tokenUsage = useSessionUsage({ wsRef, agentId, activeRunId });
+  const tokenUsage = useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus });
 
   // Track activity when chat history length increases (new messages arrive)
   useEffect(() => {
