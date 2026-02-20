@@ -308,17 +308,17 @@ export function useChatTagging() {
   const [tagPosition, setTagPosition] = useState<number | null>(null);
 
   /**
-   * Detect @ character and start tagging mode
+   * Detect @ or # trigger near cursor and start tagging mode
    */
   const handleInput = useCallback((value: string, cursorPosition: number) => {
     const beforeCursor = value.slice(0, cursorPosition);
 
-    // Match the active @ token nearest to cursor.
+    // Match the active mention token nearest to cursor.
     // Rules:
-    // - @ must be at start of input or preceded by whitespace
-    // - query may include spaces (supports "@github " and "@github pr")
-    // - stop at newline or another @
-    const mentionMatch = beforeCursor.match(/(?:^|\s)(@[^\n@]*)$/);
+    // - trigger (@ or #) must be at start of input or preceded by whitespace
+    // - query may include spaces (supports "@github pr" and "#notes ideas")
+    // - stop at newline or another trigger character
+    const mentionMatch = beforeCursor.match(/(?:^|\s)([@#][^\n@#]*)$/);
 
     if (mentionMatch) {
       const activeToken = mentionMatch[1];

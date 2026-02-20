@@ -1,6 +1,6 @@
 import { Send, Square, Paperclip } from 'lucide-react';
 import { useRef, useEffect, useState } from 'react';
-import type { Agent, ChatAttachment } from '@/types';
+import type { Agent, ChatAttachment, Note } from '@/types';
 import { DEFAULT_ATTACHMENT_CONFIG } from '@/types/attachment';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ChatInputTagDropdown } from '@/components/extensions';
@@ -11,7 +11,13 @@ import {
   revokePreviewUrls,
 } from '@/lib/file-utils';
 import { useToast } from '@/hooks/useToast';
-import { useExtensionChatInput, useChatTagging, EXTENSION_OPTION_ID_PREFIX } from '@/hooks';
+import {
+  useExtensionChatInput,
+  useNativeChatInput,
+  useChatTagging,
+  EXTENSION_OPTION_ID_PREFIX,
+  NATIVE_PROVIDER_OPTION_ID_PREFIX,
+} from '@/hooks';
 import type { ChatInputTagOption } from '@/types/extension';
 
 interface ChatInputProps {
@@ -19,12 +25,24 @@ interface ChatInputProps {
   onChange: (value: string) => void;
   onSend: (attachments?: ChatAttachment[]) => void;
   activeAgent?: Agent;
+  notes?: Note[];
+  noteGroups?: string[];
   disabled?: boolean;
   isRunning?: boolean;
   onAbort?: () => void;
 }
 
-export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRunning, onAbort }: ChatInputProps) {
+export function ChatInput({
+  value,
+  onChange,
+  onSend,
+  activeAgent,
+  notes = [],
+  noteGroups = [],
+  disabled,
+  isRunning,
+  onAbort,
+}: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentsRef = useRef<ChatAttachment[]>([]);
@@ -32,9 +50,17 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
   const [isDragging, setIsDragging] = useState(false);
   const [tagOptions, setTagOptions] = useState<ChatInputTagOption[]>([]);
   const { toast } = useToast();
-  const { searchTags, isLoading: isTagLoading } = useExtensionChatInput();
+  const { searchTags: searchExtensionTags, isLoading: isExtensionTagLoading } = useExtensionChatInput();
+  const { searchTags: searchNativeTags, isLoading: isNativeTagLoading } = useNativeChatInput({
+    notes,
+    groups: noteGroups,
+  });
   const { isTagging, tagQuery, handleInput, insertTag, cancelTagging } = useChatTagging();
 
+  const activeTagTrigger = isTagging ? tagQuery.trim().charAt(0) : '';
+  const isTagLoading = activeTagTrigger === '#'
+    ? isNativeTagLoading
+    : isExtensionTagLoading;
   const isTagDropdownOpen = isTagging && (isTagLoading || tagOptions.length > 0);
 
   // Reset height when value is empty
@@ -56,7 +82,7 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
     };
   }, []);
 
-  // Fetch extension tag options when user types @...
+  // Fetch tag options when user types @... (extensions) or #... (native)
   useEffect(() => {
     let cancelled = false;
 
@@ -66,7 +92,16 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
         return;
       }
 
-      const options = await searchTags(tagQuery);
+      const trigger = tagQuery.trim().charAt(0);
+      if (trigger !== '@' && trigger !== '#') {
+        setTagOptions([]);
+        return;
+      }
+
+      const options = trigger === '#'
+        ? await searchNativeTags(tagQuery)
+        : await searchExtensionTags(tagQuery);
+
       if (!cancelled) {
         setTagOptions(options);
       }
@@ -77,7 +112,16 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
     return () => {
       cancelled = true;
     };
-  }, [isTagging, tagQuery, searchTags]);
+  }, [isTagging, tagQuery, searchExtensionTags, searchNativeTags]);
+
+  const autoResizeTextarea = () => {
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+      }
+    });
+  };
 
   const handleSend = () => {
     onSend(attachments.length > 0 ? attachments : undefined);
@@ -126,6 +170,42 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
           variant: 'destructive',
         });
       }
+    }
+  };
+
+  const attachNoteImage = async (imageUrl: string) => {
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch note image (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const parsedUrl = new URL(imageUrl, window.location.origin);
+      const fileName = decodeURIComponent(parsedUrl.pathname.split('/').pop() || `note-image-${Date.now()}.png`);
+      const file = new File([blob], fileName, {
+        type: blob.type || 'image/png',
+      });
+
+      const validation = validateFile(file, DEFAULT_ATTACHMENT_CONFIG);
+      if (!validation.valid) {
+        throw new Error(validation.error || 'Invalid note image');
+      }
+
+      const attachment = await fileToAttachment(file);
+      setAttachments((prev) => [...prev, attachment]);
+
+      toast({
+        title: 'Note image attached',
+        description: fileName,
+        variant: 'success',
+      });
+    } catch (error) {
+      toast({
+        title: 'Failed to attach note image',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -182,23 +262,30 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
   };
 
   const handleSelectTagOption = (option: ChatInputTagOption) => {
-    // Check if this is an extension selection (first level)
-    const isExtensionOption = option.id.startsWith(EXTENSION_OPTION_ID_PREFIX);
+    const isExtensionProviderOption = option.id.startsWith(EXTENSION_OPTION_ID_PREFIX);
+    const isNativeProviderOption = option.id.startsWith(NATIVE_PROVIDER_OPTION_ID_PREFIX);
+    const isProviderSelection = isExtensionProviderOption || isNativeProviderOption;
+
+    const isNativeNoteOption = option.meta?.kind === 'native-note';
 
     let newPosition = 0;
-    const insertValue = isExtensionOption
+    const insertValue = isProviderSelection
       ? option.tag
-      : (option.value?.trim() ? option.value : option.tag);
+      : isNativeNoteOption
+        ? `<note>\n${option.value?.trim() ? option.value : ''}\n</note>`
+        : (option.value?.trim() ? option.value : option.tag);
 
     const insertedValue = insertTag(value, insertValue, (cursorPosition: number) => {
       newPosition = cursorPosition;
     });
 
-    if (isExtensionOption) {
+    // Keep mention mode active after selecting a provider-level option
+    if (isProviderSelection) {
       const cursorBeforeInsertedSpace = Math.max(0, newPosition - 1);
       const valueForLevel2 = `${insertedValue.slice(0, cursorBeforeInsertedSpace)}${insertedValue.slice(newPosition)}`;
 
       onChange(valueForLevel2);
+      autoResizeTextarea();
 
       requestAnimationFrame(() => {
         if (textareaRef.current) {
@@ -212,7 +299,12 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
     }
 
     onChange(insertedValue);
+    autoResizeTextarea();
     setTagOptions([]);
+
+    if (option.meta?.kind === 'native-note' && typeof option.meta.imageUrl === 'string' && option.meta.imageUrl) {
+      void attachNoteImage(option.meta.imageUrl);
+    }
 
     requestAnimationFrame(() => {
       if (textareaRef.current) {
@@ -272,13 +364,7 @@ export function ChatInput({ value, onChange, onSend, activeAgent, disabled, isRu
               onChange(newValue);
               handleInput(newValue, e.target.selectionStart ?? newValue.length);
 
-              // Defer style update to next frame to avoid blocking main thread
-              requestAnimationFrame(() => {
-                if (textareaRef.current) {
-                  textareaRef.current.style.height = 'auto';
-                  textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
-                }
-              });
+              autoResizeTextarea();
             }}
             onKeyDown={(e) => {
               if (isTagDropdownOpen && ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Tab'].includes(e.key)) {

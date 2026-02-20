@@ -38,8 +38,8 @@ interface PanelContainerProps {
   onResetSession?: (agentId: string) => void;
   onModelChange?: (modelId: string, provider?: string) => void;
   onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
-  onShowToolsChange?: (panelId: string, show: boolean) => void;
-  onShowReasoningChange?: (panelId: string, show: boolean) => void;
+  onShowToolsChange?: (show: boolean) => void;
+  onShowReasoningChange?: (show: boolean) => void;
   onRefreshChat?: (agentId: string) => void;
   onCreateAgent: (payload: {
     id?: string;
@@ -137,7 +137,6 @@ export function PanelContainer({
         <div 
           key={panel.id} 
           className="flex flex-col border-r last:border-r-0 border-border min-h-0 overflow-hidden"
-          onMouseDownCapture={() => onPanelActivate(panel.id)}
         >
           <PanelHeader
             title={panel.title}
@@ -149,16 +148,8 @@ export function PanelContainer({
             onResetSession={panel.type === 'chat' && panel.agentId ? () => onResetSession?.(panel.agentId!) : undefined}
             showTools={panel.type === 'chat' ? panel.settings?.showTools ?? false : undefined}
             showReasoning={panel.type === 'chat' ? panel.settings?.showReasoning ?? true : undefined}
-            onShowToolsChange={
-              panel.type === 'chat'
-                ? (show) => onShowToolsChange?.(panel.id, show)
-                : undefined
-            }
-            onShowReasoningChange={
-              panel.type === 'chat'
-                ? (show) => onShowReasoningChange?.(panel.id, show)
-                : undefined
-            }
+            onShowToolsChange={panel.type === 'chat' ? onShowToolsChange : undefined}
+            onShowReasoningChange={panel.type === 'chat' ? onShowReasoningChange : undefined}
             models={panel.type === 'chat' ? models : undefined}
             currentModel={panel.type === 'chat' ? panel.model : undefined}
             onModelChange={panel.type === 'chat' ? onModelChange : undefined}
@@ -196,6 +187,8 @@ export function PanelContainer({
                 sessionSettings={sessionSettings}
                 updateSetting={updateSetting}
                 onAbortRun={onAbortRun}
+                notes={notes}
+                noteGroups={noteGroups}
                 showTools={panel.settings?.showTools ?? false}
                 showReasoning={panel.settings?.showReasoning ?? true}
                 isActive={panel.isActive}

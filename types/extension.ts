@@ -148,6 +148,12 @@ export interface ChatInputTagOption {
   /** Optional description */
   description?: string;
   
+  /** Optional metadata for custom selection behavior */
+  meta?: {
+    kind?: string;
+    [key: string]: unknown;
+  };
+  
   /** Nested options */
   children?: ChatInputTagOption[];
 }
