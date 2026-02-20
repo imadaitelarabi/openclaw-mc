@@ -2,7 +2,7 @@
 
 import { memo, useState, useRef, useEffect, useMemo } from 'react';
 import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
-import { useChatHistory, useChatPolling } from '@/hooks';
+import { useChatHistory, useChatPolling, useSessionUsage } from '@/hooks';
 import { uiStateStore } from '@/lib/ui-state-db';
 import { debounce } from '@/lib/utils';
 import type { Agent, Note } from '@/types';
@@ -37,6 +37,9 @@ interface ChatPanelProps {
   
   // Panel state
   isActive?: boolean;
+
+  // WebSocket ref for token usage
+  wsRef?: React.RefObject<WebSocket | null>;
 }
 
 export const ChatPanel = memo(function ChatPanel({
@@ -55,7 +58,8 @@ export const ChatPanel = memo(function ChatPanel({
   noteGroups = [],
   showTools = false,
   showReasoning = true,
-  isActive = true
+  isActive = true,
+  wsRef,
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -75,6 +79,9 @@ export const ChatPanel = memo(function ChatPanel({
     sendMessage,
     isActivePanel: isActive,
   });
+
+  // Token usage hook for context window indicator
+  const tokenUsage = useSessionUsage({ wsRef, agentId, activeRunId });
 
   // Track activity when chat history length increases (new messages arrive)
   useEffect(() => {
@@ -283,6 +290,7 @@ export const ChatPanel = memo(function ChatPanel({
         disabled={connectionStatus !== 'connected'}
         isRunning={Boolean(activeRunId)}
         onAbort={() => onAbortRun?.(agentId)}
+        tokenUsage={tokenUsage}
       />
     </div>
   );

@@ -192,6 +192,7 @@ export function PanelContainer({
                 showTools={panel.settings?.showTools ?? false}
                 showReasoning={panel.settings?.showReasoning ?? true}
                 isActive={panel.isActive}
+                wsRef={wsRef}
               />
             )}
             
