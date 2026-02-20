@@ -19,6 +19,7 @@ import {
   NATIVE_PROVIDER_OPTION_ID_PREFIX,
 } from '@/hooks';
 import type { ChatInputTagOption } from '@/types/extension';
+import type { SessionUsage } from '@/hooks/useSessionUsage';
 
 interface ChatInputProps {
   value: string;
@@ -30,6 +31,7 @@ interface ChatInputProps {
   disabled?: boolean;
   isRunning?: boolean;
   onAbort?: () => void;
+  tokenUsage?: SessionUsage;
 }
 
 export function ChatInput({
@@ -42,6 +44,7 @@ export function ChatInput({
   disabled,
   isRunning,
   onAbort,
+  tokenUsage,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -327,6 +330,58 @@ export function ChatInput({
           attachments={attachments}
           onRemove={handleRemoveAttachment}
         />
+
+        {/* Token Usage Indicator */}
+        {tokenUsage && (() => {
+          const { totalTokens, modelContextWindow, isUnlimited, isLoading, error } = tokenUsage;
+
+          if (isLoading) {
+            return (
+              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                Loading usage…
+              </div>
+            );
+          }
+
+          if (error) {
+            return (
+              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                Usage unavailable
+              </div>
+            );
+          }
+
+          if (isUnlimited) {
+            return (
+              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                Unlimited context
+              </div>
+            );
+          }
+
+          if (totalTokens === null || modelContextWindow === null || modelContextWindow === 0) {
+            return (
+              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                Usage unavailable
+              </div>
+            );
+          }
+
+          const percentage = (totalTokens / modelContextWindow) * 100;
+          const totalK = Math.floor(totalTokens / 1000);
+          const contextK = Math.floor(modelContextWindow / 1000);
+          const colorClass = percentage >= 90
+            ? 'text-destructive'
+            : percentage >= 70
+              ? 'text-yellow-500'
+              : 'text-green-500';
+
+          return (
+            <div className={`text-xs mb-1.5 transition-colors duration-300 ${colorClass}`}>
+              {totalK}k / {contextK}k tokens
+            </div>
+          );
+        })()}
 
         {/* Input Container */}
         <div 
