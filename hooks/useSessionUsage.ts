@@ -45,6 +45,27 @@ export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus 
     return null;
   }, []);
 
+  const findAgentSession = useCallback((sessions: any[], currentAgentId: string) => {
+    const exactKey = `agent:${currentAgentId}:main`;
+
+    const exact = sessions.find((session: any) => session?.key === exactKey);
+    if (exact) return exact;
+
+    const prefix = sessions.find((session: any) => {
+      const key: string = session?.key ?? '';
+      return key.startsWith(`agent:${currentAgentId}:`);
+    });
+    if (prefix) return prefix;
+
+    const guardedContains = sessions.find((session: any) => {
+      const key: string = session?.key ?? '';
+      return key.includes(`agent:${currentAgentId}:`) || key.endsWith(`:${currentAgentId}`);
+    });
+    if (guardedContains) return guardedContains;
+
+    return null;
+  }, []);
+
   const fetchStatus = useCallback(() => {
     const ws = wsRef?.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
@@ -121,13 +142,7 @@ export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus 
           }
 
           const sessions: any[] = msg.data.sessions || [];
-          // Single-pass matching: prefer exact key, then prefix, then substring
-          const agentSession = sessions.find((s: any) => {
-            const key: string = s.key ?? '';
-            return key === `agent:${agentId}:main` ||
-              key.startsWith(`agent:${agentId}:`) ||
-              key.includes(`agent:${agentId}`);
-          });
+          const agentSession = findAgentSession(sessions, agentId);
 
           if (agentSession) {
             const tokens = parseTotalTokens(agentSession);
@@ -167,7 +182,7 @@ export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus 
 
     ws.addEventListener('message', handleMessage);
     return () => ws.removeEventListener('message', handleMessage);
-  }, [wsRef, agentId, connectionStatus, parseContextWindow, parseTotalTokens]);
+  }, [wsRef, agentId, connectionStatus, parseContextWindow, parseTotalTokens, findAgentSession]);
 
   // Cleanup pending timers on unmount
   useEffect(() => {
