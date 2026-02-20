@@ -411,17 +411,28 @@ function MissionControlInner() {
   const activePanelAgent = activePanel?.agentId ? agents.find(a => a.id === activePanel.agentId) : undefined;
 
   // Handlers for updating per-panel settings
+  const handlePanelShowToolsChange = useCallback((panelId: string, show: boolean) => {
+    setActivePanel(panelId);
+    updatePanelSettings(panelId, { showTools: show });
+  }, [setActivePanel, updatePanelSettings]);
+
+  const handlePanelShowReasoningChange = useCallback((panelId: string, show: boolean) => {
+    setActivePanel(panelId);
+    updatePanelSettings(panelId, { showReasoning: show });
+  }, [setActivePanel, updatePanelSettings]);
+
+  // Active-panel wrappers used by mobile controls
   const handleShowToolsChange = useCallback((show: boolean) => {
     if (activePanel?.id) {
-      updatePanelSettings(activePanel.id, { showTools: show });
+      handlePanelShowToolsChange(activePanel.id, show);
     }
-  }, [activePanel?.id, updatePanelSettings]);
+  }, [activePanel?.id, handlePanelShowToolsChange]);
 
   const handleShowReasoningChange = useCallback((show: boolean) => {
     if (activePanel?.id) {
-      updatePanelSettings(activePanel.id, { showReasoning: show });
+      handlePanelShowReasoningChange(activePanel.id, show);
     }
-  }, [activePanel?.id, updatePanelSettings]);
+  }, [activePanel?.id, handlePanelShowReasoningChange]);
 
   // Handler to open chat panel for an agent
   const handleSelectAgent = useCallback((agentId: string) => {
@@ -886,8 +897,8 @@ function MissionControlInner() {
             onResetSession={handleResetSession}
             onModelChange={handleModelChange}
             onThinkingChange={handleThinkingChange}
-            onShowToolsChange={handleShowToolsChange}
-            onShowReasoningChange={handleShowReasoningChange}
+            onShowToolsChange={handlePanelShowToolsChange}
+            onShowReasoningChange={handlePanelShowReasoningChange}
             onRefreshChat={handleRefreshChat}
             onCreateAgent={handleCreateAgentRequest}
             onUpdateAgent={handleUpdateAgentRequest}
