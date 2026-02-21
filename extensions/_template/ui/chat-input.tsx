@@ -1,12 +1,12 @@
 /**
  * Chat Input Component
- * 
+ *
  * Provides tagging options for chat input.
  * Called when user types @ in the chat input.
  */
 
-import type { ChatInputTagOption } from '@/types/extension';
-import { ExtensionAPI } from '../api';
+import type { ChatInputTagOption } from "@/types/extension";
+import { ExtensionAPI } from "../api";
 
 /**
  * Get tag options based on query
@@ -19,13 +19,13 @@ export async function getChatInputOptions(
   try {
     // Search for items based on query
     const items = await api.searchItems(query);
-    
+
     if (!items || items.length === 0) {
       return [];
     }
 
     // Map items to tag options
-    return items.map(item => ({
+    return items.map((item) => ({
       id: item.id,
       label: item.title || item.name,
       tag: `@TAG-${item.number || item.id}`,
@@ -40,7 +40,7 @@ export async function getChatInputOptions(
       })),
     }));
   } catch (error) {
-    console.error('[ChatInput] Failed to get tag options:', error);
+    console.error("[ChatInput] Failed to get tag options:", error);
     return [];
   }
 }

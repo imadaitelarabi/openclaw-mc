@@ -1,6 +1,6 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import type { ConnectionStatus, Agent } from '@/types';
-import type { WebSocketMessage } from '@/types/gateway';
+import { useEffect, useRef, useCallback, useState } from "react";
+import type { ConnectionStatus, Agent } from "@/types";
+import type { WebSocketMessage } from "@/types/gateway";
 
 interface UseGatewayWebSocketProps {
   onEvent: (message: any) => void;
@@ -9,7 +9,7 @@ interface UseGatewayWebSocketProps {
 export function useGatewayWebSocket({ onEvent }: UseGatewayWebSocketProps) {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
   const [agents, setAgents] = useState<Agent[]>([]);
-  
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -20,13 +20,13 @@ export function useGatewayWebSocket({ onEvent }: UseGatewayWebSocketProps) {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     setConnectionStatus("connecting");
-    
+
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsPath = window.location.pathname.startsWith('/mission-controle') 
-      ? '/mission-controle/api/ws' 
-      : '/api/ws';
+    const wsPath = window.location.pathname.startsWith("/mission-controle")
+      ? "/mission-controle/api/ws"
+      : "/api/ws";
     const ws = new WebSocket(`${protocol}//${window.location.host}${wsPath}`);
-    
+
     ws.onopen = () => {
       setConnectionStatus("connected");
       reconnectAttemptsRef.current = 0;
@@ -41,14 +41,14 @@ export function useGatewayWebSocket({ onEvent }: UseGatewayWebSocketProps) {
     ws.onmessage = (event) => {
       try {
         const message: WebSocketMessage = JSON.parse(event.data);
-        
+
         // Handle core infrastructure messages
         if (message.type === "status") {
           setConnectionStatus(message.status as ConnectionStatus);
         } else if (message.type === "agents") {
           setAgents(message.data || []);
         }
-        
+
         // Forward everything to onEvent for application logic
         onEvent(message);
       } catch (error) {
@@ -87,6 +87,6 @@ export function useGatewayWebSocket({ onEvent }: UseGatewayWebSocketProps) {
     connectionStatus,
     agents,
     sendMessage,
-    wsRef
+    wsRef,
   };
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 
 interface CreateAgentPanelProps {
   onCreateAgent: (payload: {
@@ -17,25 +17,27 @@ interface CreateAgentPanelProps {
 
 export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelProps) {
   const [formData, setFormData] = useState({
-    id: '',
-    name: '',
-    workspace: '',
-    model: '',
-    toolsProfile: 'coding',
-    sandboxMode: 'on'
+    id: "",
+    name: "",
+    workspace: "",
+    model: "",
+    toolsProfile: "coding",
+    sandboxMode: "on",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [createdAgent, setCreatedAgent] = useState<{ agentId: string; agentName: string } | null>(null);
+  const [createdAgent, setCreatedAgent] = useState<{ agentId: string; agentName: string } | null>(
+    null
+  );
 
   const resetForm = () => {
     setFormData({
-      id: '',
-      name: '',
-      workspace: '',
-      model: '',
-      toolsProfile: 'coding',
-      sandboxMode: 'on'
+      id: "",
+      name: "",
+      workspace: "",
+      model: "",
+      toolsProfile: "coding",
+      sandboxMode: "on",
     });
     setError(null);
     setCreatedAgent(null);
@@ -48,11 +50,11 @@ export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelPro
 
     try {
       // Generate ID if not provided
-      const agentId = formData.id.trim() || `agent-${uuidv4().split('-')[0]}`;
+      const agentId = formData.id.trim() || `agent-${uuidv4().split("-")[0]}`;
       const agentName = formData.name.trim();
-      
+
       if (!agentName) {
-        setError('Agent name is required');
+        setError("Agent name is required");
         setIsSubmitting(false);
         return;
       }
@@ -63,13 +65,13 @@ export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelPro
         workspace: formData.workspace.trim() || undefined,
         model: formData.model || undefined,
         tools: { profile: formData.toolsProfile },
-        sandbox: { mode: formData.sandboxMode }
+        sandbox: { mode: formData.sandboxMode },
       });
 
       setCreatedAgent(created);
       setIsSubmitting(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create agent');
+      setError(err instanceof Error ? err.message : "Failed to create agent");
       setIsSubmitting(false);
     }
   };
@@ -81,7 +83,8 @@ export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelPro
           <div className="max-w-2xl mx-auto">
             <h2 className="text-2xl font-bold mb-6">Agent Created</h2>
             <div className="p-4 bg-primary/10 border border-primary rounded-lg text-primary text-sm mb-6">
-              Agent "{createdAgent.agentName}" is ready and available immediately without restarting the Gateway.
+              Agent "{createdAgent.agentName}" is ready and available immediately without restarting
+              the Gateway.
             </div>
             <div className="space-y-3">
               <button
@@ -112,7 +115,7 @@ export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelPro
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-2xl font-bold mb-6">Create New Agent</h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Agent Name */}
             <div>
@@ -132,7 +135,10 @@ export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelPro
             {/* Agent ID */}
             <div>
               <label className="block text-sm font-medium mb-2">
-                Agent ID <span className="text-muted-foreground text-xs">(optional - auto-generated if empty)</span>
+                Agent ID{" "}
+                <span className="text-muted-foreground text-xs">
+                  (optional - auto-generated if empty)
+                </span>
               </label>
               <input
                 type="text"
@@ -160,7 +166,10 @@ export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelPro
             {/* Model */}
             <div>
               <label className="block text-sm font-medium mb-2">
-                Model <span className="text-muted-foreground text-xs">(optional - uses default if empty)</span>
+                Model{" "}
+                <span className="text-muted-foreground text-xs">
+                  (optional - uses default if empty)
+                </span>
               </label>
               <input
                 type="text"
@@ -173,9 +182,7 @@ export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelPro
 
             {/* Tools Profile */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Tools Profile
-              </label>
+              <label className="block text-sm font-medium mb-2">Tools Profile</label>
               <select
                 value={formData.toolsProfile}
                 onChange={(e) => setFormData({ ...formData, toolsProfile: e.target.value })}
@@ -189,9 +196,7 @@ export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelPro
 
             {/* Sandbox Mode */}
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Sandbox Mode
-              </label>
+              <label className="block text-sm font-medium mb-2">Sandbox Mode</label>
               <select
                 value={formData.sandboxMode}
                 onChange={(e) => setFormData({ ...formData, sandboxMode: e.target.value })}
@@ -215,7 +220,7 @@ export function CreateAgentPanel({ onCreateAgent, onClose }: CreateAgentPanelPro
                 disabled={isSubmitting}
                 className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
-                {isSubmitting ? 'Creating...' : 'Create Agent'}
+                {isSubmitting ? "Creating..." : "Create Agent"}
               </button>
               {onClose && (
                 <button

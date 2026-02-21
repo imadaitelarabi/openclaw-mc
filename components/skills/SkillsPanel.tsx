@@ -1,6 +1,6 @@
 "use client";
 
-import type { SkillStatusReport, SkillStatusEntry } from '@/types';
+import type { SkillStatusReport, SkillStatusEntry } from "@/types";
 
 interface SkillsPanelProps {
   report: SkillStatusReport | null;
@@ -16,26 +16,26 @@ interface SkillsPanelProps {
 }
 
 const statusStyles: Record<string, string> = {
-  ready: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
-  disabled: 'bg-zinc-500/10 text-zinc-300 border-zinc-500/30',
-  missing: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+  ready: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+  disabled: "bg-zinc-500/10 text-zinc-300 border-zinc-500/30",
+  missing: "bg-amber-500/10 text-amber-300 border-amber-500/30",
 };
 
 function resolveStatus(skill: SkillStatusEntry): { label: string; tone: string } {
   if (skill.disabled) {
-    return { label: 'Disabled', tone: 'disabled' };
+    return { label: "Disabled", tone: "disabled" };
   }
   if (skill.eligible) {
-    return { label: 'Ready', tone: 'ready' };
+    return { label: "Ready", tone: "ready" };
   }
-  return { label: 'Needs setup', tone: 'missing' };
+  return { label: "Needs setup", tone: "missing" };
 }
 
 const workspaceSourceMap: Record<string, string> = {
-  workspace: 'openclaw-workspace',
-  managed: 'openclaw-managed',
-  bundled: 'openclaw-bundled',
-  extra: 'openclaw-extra',
+  workspace: "openclaw-workspace",
+  managed: "openclaw-managed",
+  bundled: "openclaw-bundled",
+  extra: "openclaw-extra",
 };
 
 export function SkillsPanel({
@@ -56,21 +56,21 @@ export function SkillsPanel({
     if (normalizedFilter) {
       const haystack = [skill.name, skill.description, skill.source]
         .filter(Boolean)
-        .join(' ')
+        .join(" ")
         .toLowerCase();
       if (!haystack.includes(normalizedFilter)) {
         return false;
       }
     }
 
-    if (workspaceFilter && workspaceFilter !== 'all') {
+    if (workspaceFilter && workspaceFilter !== "all") {
       const requiredSource = workspaceSourceMap[workspaceFilter];
       if (!requiredSource || skill.source !== requiredSource) {
         return false;
       }
     }
 
-    if (statusFilter && statusFilter !== 'all') {
+    if (statusFilter && statusFilter !== "all") {
       const resolved = resolveStatus(skill).tone;
       if (resolved !== statusFilter) {
         return false;
@@ -92,7 +92,7 @@ export function SkillsPanel({
           disabled={loading}
           className="px-3 py-1.5 text-xs rounded bg-secondary hover:bg-accent disabled:opacity-60"
         >
-          {loading ? 'Refreshing…' : 'Refresh'}
+          {loading ? "Refreshing…" : "Refresh"}
         </button>
       </div>
 
@@ -140,7 +140,9 @@ export function SkillsPanel({
           <div className="space-y-3">
             {filtered.map((skill) => {
               const status = resolveStatus(skill);
-              const source = skill.source ? `${skill.source}${skill.bundled ? ' · bundled' : ''}` : undefined;
+              const source = skill.source
+                ? `${skill.source}${skill.bundled ? " · bundled" : ""}`
+                : undefined;
               return (
                 <div
                   key={skill.skillKey}
@@ -156,13 +158,9 @@ export function SkillsPanel({
                     </span>
                   </div>
                   {skill.description && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {skill.description}
-                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">{skill.description}</div>
                   )}
-                  {source && (
-                    <div className="text-[10px] text-muted-foreground mt-2">{source}</div>
-                  )}
+                  {source && <div className="text-[10px] text-muted-foreground mt-2">{source}</div>}
                 </div>
               );
             })}

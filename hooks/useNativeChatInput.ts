@@ -5,11 +5,11 @@
  * Initial provider: Notes
  */
 
-import { useCallback, useMemo, useState } from 'react';
-import type { Note, SkillStatusEntry } from '@/types';
-import type { ChatInputTagOption } from '@/types/extension';
+import { useCallback, useMemo, useState } from "react";
+import type { Note, SkillStatusEntry } from "@/types";
+import type { ChatInputTagOption } from "@/types/extension";
 
-export const NATIVE_PROVIDER_OPTION_ID_PREFIX = 'native-provider-';
+export const NATIVE_PROVIDER_OPTION_ID_PREFIX = "native-provider-";
 
 interface UseNativeChatInputProps {
   notes: Note[];
@@ -44,8 +44,8 @@ function normalizeQuery(raw: string): string {
 function toSlug(value: string): string {
   return value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function buildNoteLabel(note: Note): string {
@@ -64,18 +64,23 @@ function buildNoteLabel(note: Note): string {
 function buildNoteDescription(note: Note): string {
   const parts: string[] = [];
   if (Array.isArray(note.tags) && note.tags.length > 0) {
-    parts.push(note.tags.slice(0, 3).map((tag) => `#${tag}`).join(' '));
+    parts.push(
+      note.tags
+        .slice(0, 3)
+        .map((tag) => `#${tag}`)
+        .join(" ")
+    );
   }
   if (note.imageUrl) {
-    parts.push('Includes image');
+    parts.push("Includes image");
   }
-  return parts.join(' • ');
+  return parts.join(" • ");
 }
 
 function hashId(value: string): string {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
-    hash = ((hash << 5) - hash) + value.charCodeAt(index);
+    hash = (hash << 5) - hash + value.charCodeAt(index);
     hash |= 0;
   }
   return Math.abs(hash).toString(36);
@@ -91,7 +96,7 @@ function buildNoteOptions(notes: Note[]): ChatInputTagOption[] {
       value: note.content,
       description: buildNoteDescription(note) || undefined,
       meta: {
-        kind: 'native-note',
+        kind: "native-note",
         noteId: note.id,
         imageUrl: note.imageUrl,
       },
@@ -112,19 +117,13 @@ function buildNotesProvider(
         .filter((note) => {
           if (!normalizedFilter) return true;
 
-          const haystack = [
-            note.content,
-            note.group,
-            note.id,
-            ...(note.tags || []),
-          ]
+          const haystack = [note.content, note.group, note.id, ...(note.tags || [])]
             .filter(Boolean)
-            .join(' ')
+            .join(" ")
             .toLowerCase();
 
           return (
-            group.toLowerCase().includes(normalizedFilter)
-            || haystack.includes(normalizedFilter)
+            group.toLowerCase().includes(normalizedFilter) || haystack.includes(normalizedFilter)
           );
         });
 
@@ -159,7 +158,7 @@ function buildNotesProvider(
       });
 
       const tagEntries = Array.from(tagBuckets.values()).sort((a, b) =>
-        a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+        a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
       );
 
       const tagOptions: ChatInputTagOption[] = tagEntries.map((entry) => ({
@@ -167,7 +166,7 @@ function buildNotesProvider(
         label: `#${entry.label}`,
         tag: `#notes ${group} #${entry.label}`,
         value: entry.label,
-        description: `${entry.notes.length} note${entry.notes.length === 1 ? '' : 's'}`,
+        description: `${entry.notes.length} note${entry.notes.length === 1 ? "" : "s"}`,
         children: buildNoteOptions(entry.notes),
       }));
 
@@ -175,10 +174,10 @@ function buildNotesProvider(
       if (hasTags && untaggedNotes.length > 0) {
         tagOptions.push({
           id: `native-notes-tag-${groupSlug}-untagged`,
-          label: 'Untagged',
+          label: "Untagged",
           tag: `#notes ${group} untagged`,
-          value: 'untagged',
-          description: `${untaggedNotes.length} note${untaggedNotes.length === 1 ? '' : 's'}`,
+          value: "untagged",
+          description: `${untaggedNotes.length} note${untaggedNotes.length === 1 ? "" : "s"}`,
           children: buildNoteOptions(untaggedNotes),
         });
       }
@@ -187,10 +186,10 @@ function buildNotesProvider(
         ? [
             {
               id: `native-notes-group-${groupSlug}-all`,
-              label: 'All notes',
+              label: "All notes",
               tag: `#notes ${group}`,
               value: group,
-              description: `${groupNotes.length} note${groupNotes.length === 1 ? '' : 's'}`,
+              description: `${groupNotes.length} note${groupNotes.length === 1 ? "" : "s"}`,
               children: noteOptions,
             },
             ...tagOptions,
@@ -202,7 +201,7 @@ function buildNotesProvider(
         label: group,
         tag: `#notes ${group}`,
         value: group,
-        description: `${groupNotes.length} note${groupNotes.length === 1 ? '' : 's'}`,
+        description: `${groupNotes.length} note${groupNotes.length === 1 ? "" : "s"}`,
         children,
       };
     })
@@ -210,10 +209,10 @@ function buildNotesProvider(
 
   return {
     id: `${NATIVE_PROVIDER_OPTION_ID_PREFIX}notes`,
-    label: 'Notes',
-    tag: '#notes',
-    value: 'notes',
-    description: `${notes.length} note${notes.length === 1 ? '' : 's'}`,
+    label: "Notes",
+    tag: "#notes",
+    value: "notes",
+    description: `${notes.length} note${notes.length === 1 ? "" : "s"}`,
     children: groupOptions,
   };
 }
@@ -233,7 +232,7 @@ function buildSkillOptions(skills: SkillStatusEntry[], filterText: string): Chat
 
       const haystack = [skill.name, skill.description, skill.source, skill.skillKey]
         .filter(Boolean)
-        .join(' ')
+        .join(" ")
         .toLowerCase();
 
       return haystack.includes(normalizedFilter);
@@ -245,7 +244,7 @@ function buildSkillOptions(skills: SkillStatusEntry[], filterText: string): Chat
       value: `use the following skill to process user request: ${skill.name}`,
       description: skill.description || undefined,
       meta: {
-        kind: 'native-skill',
+        kind: "native-skill",
         skillKey: skill.skillKey,
         skillName: skill.name,
       },
@@ -257,10 +256,10 @@ function buildSkillsProvider(skills: SkillStatusEntry[], filterText: string): Ch
 
   return {
     id: `${NATIVE_PROVIDER_OPTION_ID_PREFIX}skills`,
-    label: 'Skills',
-    tag: '#skills',
-    value: 'skills',
-    description: `${filteredOptions.length} ready skill${filteredOptions.length === 1 ? '' : 's'}`,
+    label: "Skills",
+    tag: "#skills",
+    value: "skills",
+    description: `${filteredOptions.length} ready skill${filteredOptions.length === 1 ? "" : "s"}`,
     children: filteredOptions,
   };
 }
@@ -268,81 +267,82 @@ function buildSkillsProvider(skills: SkillStatusEntry[], filterText: string): Ch
 export function useNativeChatInput({ notes, groups, skills = [] }: UseNativeChatInputProps) {
   const [isLoading, setIsLoading] = useState(false);
 
-  const effectiveGroups = useMemo(
-    () => uniqueOrderedGroups(notes, groups),
-    [notes, groups]
-  );
+  const effectiveGroups = useMemo(() => uniqueOrderedGroups(notes, groups), [notes, groups]);
 
   const readySkills = useMemo(
-    () => [...skills]
-      .filter(isReadySkill)
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
+    () =>
+      [...skills]
+        .filter(isReadySkill)
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })),
     [skills]
   );
 
-  const searchTags = useCallback(async (query: string): Promise<ChatInputTagOption[]> => {
-    if (!query || !query.startsWith('#')) {
-      return [];
-    }
-
-    setIsLoading(true);
-    try {
-      const searchTerm = query.slice(1).trim();
-
-      // "#" => show native providers
-      if (!searchTerm) {
-        return [
-          buildNotesProvider(notes, effectiveGroups, ''),
-          buildSkillsProvider(readySkills, ''),
-        ];
+  const searchTags = useCallback(
+    async (query: string): Promise<ChatInputTagOption[]> => {
+      if (!query || !query.startsWith("#")) {
+        return [];
       }
 
-      const normalized = normalizeQuery(searchTerm);
+      setIsLoading(true);
+      try {
+        const searchTerm = query.slice(1).trim();
 
-      // Match Notes provider and optional filter after "notes"
-      if ('notes'.startsWith(normalized)) {
-        return [buildNotesProvider(notes, effectiveGroups, '')];
+        // "#" => show native providers
+        if (!searchTerm) {
+          return [
+            buildNotesProvider(notes, effectiveGroups, ""),
+            buildSkillsProvider(readySkills, ""),
+          ];
+        }
+
+        const normalized = normalizeQuery(searchTerm);
+
+        // Match Notes provider and optional filter after "notes"
+        if ("notes".startsWith(normalized)) {
+          return [buildNotesProvider(notes, effectiveGroups, "")];
+        }
+
+        if (normalized.startsWith("notes")) {
+          const noteFilter = searchTerm.slice("notes".length).trim();
+          return [buildNotesProvider(notes, effectiveGroups, noteFilter)];
+        }
+
+        if ("skills".startsWith(normalized) || "skill".startsWith(normalized)) {
+          return [buildSkillsProvider(readySkills, "")];
+        }
+
+        if (normalized.startsWith("skills") || normalized.startsWith("skill")) {
+          const token = normalized.startsWith("skills") ? "skills" : "skill";
+          const skillFilter = searchTerm.slice(token.length).trim();
+          return [buildSkillsProvider(readySkills, skillFilter)];
+        }
+
+        // Generic query – run parallel search across all native providers
+        const noteMatches = notes.filter((note) => {
+          const haystack = [note.content, note.group, note.id, ...(note.tags || [])]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return haystack.includes(normalized);
+        });
+
+        const noteResults = buildNoteOptions(noteMatches).map((opt) => ({
+          ...opt,
+          source: { name: "Notes" },
+        }));
+
+        const skillResults = buildSkillOptions(readySkills, searchTerm).map((opt) => ({
+          ...opt,
+          source: { name: "Skills" },
+        }));
+
+        return [...noteResults, ...skillResults];
+      } finally {
+        setIsLoading(false);
       }
-
-      if (normalized.startsWith('notes')) {
-        const noteFilter = searchTerm.slice('notes'.length).trim();
-        return [buildNotesProvider(notes, effectiveGroups, noteFilter)];
-      }
-
-      if ('skills'.startsWith(normalized) || 'skill'.startsWith(normalized)) {
-        return [buildSkillsProvider(readySkills, '')];
-      }
-
-      if (normalized.startsWith('skills') || normalized.startsWith('skill')) {
-        const token = normalized.startsWith('skills') ? 'skills' : 'skill';
-        const skillFilter = searchTerm.slice(token.length).trim();
-        return [buildSkillsProvider(readySkills, skillFilter)];
-      }
-
-      // Generic query – run parallel search across all native providers
-      const noteMatches = notes.filter((note) => {
-        const haystack = [note.content, note.group, note.id, ...(note.tags || [])]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        return haystack.includes(normalized);
-      });
-
-      const noteResults = buildNoteOptions(noteMatches).map((opt) => ({
-        ...opt,
-        source: { name: 'Notes' },
-      }));
-
-      const skillResults = buildSkillOptions(readySkills, searchTerm).map((opt) => ({
-        ...opt,
-        source: { name: 'Skills' },
-      }));
-
-      return [...noteResults, ...skillResults];
-    } finally {
-      setIsLoading(false);
-    }
-  }, [effectiveGroups, notes, readySkills]);
+    },
+    [effectiveGroups, notes, readySkills]
+  );
 
   return {
     searchTags,

@@ -3,9 +3,9 @@
  * Handles gateway management operations (list, add, switch, remove)
  */
 
-import type { ExtendedWebSocket } from '../types/internal';
-import type { GatewayClient } from '../core/GatewayClient';
-import { ConfigManager } from '../core/ConfigManager';
+import type { ExtendedWebSocket } from "../types/internal";
+import type { GatewayClient } from "../core/GatewayClient";
+import { ConfigManager } from "../core/ConfigManager";
 
 export async function handleGatewaysList(
   msg: any,
@@ -14,7 +14,7 @@ export async function handleGatewaysList(
 ): Promise<void> {
   ws.send(
     JSON.stringify({
-      type: 'gateways.list',
+      type: "gateways.list",
       data: configManager.getGateways(),
       activeId: configManager.getActiveGatewayId(),
     })
@@ -33,13 +33,13 @@ export async function handleGatewaysAdd(
   gateway.connect();
   try {
     await gateway.waitForAuthenticated(15000);
-    ws.send(JSON.stringify({ type: 'gateways.add.ack', requestId }));
+    ws.send(JSON.stringify({ type: "gateways.add.ack", requestId }));
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'error',
+        type: "error",
         requestId,
-        message: (err as Error).message || 'Failed to connect to gateway',
+        message: (err as Error).message || "Failed to connect to gateway",
       })
     );
   }
@@ -51,7 +51,7 @@ export async function handleGatewaysSwitch(
   gateway: GatewayClient
 ): Promise<void> {
   gateway.switch(msg.id);
-  ws.send(JSON.stringify({ type: 'gateways.switch.ack' }));
+  ws.send(JSON.stringify({ type: "gateways.switch.ack" }));
 }
 
 export async function handleGatewaysRemove(
@@ -63,7 +63,7 @@ export async function handleGatewaysRemove(
   configManager.removeGateway(msg.id);
   gateway.updateFromConfig();
   gateway.connect();
-  ws.send(JSON.stringify({ type: 'gateways.remove.ack' }));
+  ws.send(JSON.stringify({ type: "gateways.remove.ack" }));
 }
 
 /**
@@ -76,13 +76,13 @@ export async function handleGatewayCall(
   gateway: GatewayClient
 ): Promise<void> {
   const { method, params, requestId } = msg;
-  
+
   if (!method) {
     ws.send(
       JSON.stringify({
-        type: 'gateway.call.error',
+        type: "gateway.call.error",
         requestId,
-        error: 'Missing method parameter',
+        error: "Missing method parameter",
       })
     );
     return;
@@ -92,7 +92,7 @@ export async function handleGatewayCall(
     const result = await gateway.call(method, params || {});
     ws.send(
       JSON.stringify({
-        type: 'gateway.call.response',
+        type: "gateway.call.response",
         requestId,
         result,
       })
@@ -100,9 +100,9 @@ export async function handleGatewayCall(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'gateway.call.error',
+        type: "gateway.call.error",
         requestId,
-        error: (err as Error).message || 'Gateway call failed',
+        error: (err as Error).message || "Gateway call failed",
       })
     );
   }

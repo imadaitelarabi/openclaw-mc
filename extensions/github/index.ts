@@ -2,13 +2,13 @@
  * GitHub Extension Entry Point
  */
 
-import type { Extension, ExtensionHooks } from '@/types/extension';
-import manifest from './manifest.json';
-import { initialize, cleanup, isSetupComplete, checkConnectionStatus } from './setup';
-import { getStatusBarData } from './ui/status-bar';
-import { getChatInputOptions } from './ui/chat-input';
-import { OnboardingPanel } from './ui/onboarding';
-import { GitHubAPI } from './api';
+import type { Extension, ExtensionHooks } from "@/types/extension";
+import manifest from "./manifest.json";
+import { initialize, cleanup, isSetupComplete, checkConnectionStatus } from "./setup";
+import { getStatusBarData } from "./ui/status-bar";
+import { getChatInputOptions } from "./ui/chat-input";
+import { OnboardingPanel } from "./ui/onboarding";
+import { GitHubAPI } from "./api";
 
 // API instance (initialized on setup)
 let apiInstance: GitHubAPI | null = null;
@@ -17,12 +17,12 @@ let apiInstance: GitHubAPI | null = null;
  * Extension setup function
  */
 async function setup(): Promise<void> {
-  console.log('[GitHub] Setting up extension...');
-  
+  console.log("[GitHub] Setting up extension...");
+
   apiInstance = await initialize();
-  
+
   if (!apiInstance) {
-    throw new Error('Failed to initialize GitHub extension');
+    throw new Error("Failed to initialize GitHub extension");
   }
 }
 
@@ -30,8 +30,8 @@ async function setup(): Promise<void> {
  * Extension cleanup function
  */
 async function cleanupExtension(): Promise<void> {
-  console.log('[GitHub] Cleaning up extension...');
-  
+  console.log("[GitHub] Cleaning up extension...");
+
   await cleanup();
   apiInstance = null;
 }

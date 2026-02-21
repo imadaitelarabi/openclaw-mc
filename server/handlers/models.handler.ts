@@ -3,8 +3,8 @@
  * Handles model listing operations
  */
 
-import type { ExtendedWebSocket } from '../types/internal';
-import type { GatewayClient } from '../core/GatewayClient';
+import type { ExtendedWebSocket } from "../types/internal";
+import type { GatewayClient } from "../core/GatewayClient";
 
 export async function handleModelsList(
   msg: any,
@@ -12,13 +12,13 @@ export async function handleModelsList(
   gateway: GatewayClient
 ): Promise<void> {
   try {
-    const models = await gateway.request('models.list', {});
+    const models = await gateway.request("models.list", {});
     console.log(`[Gateway] Sending models list: ${(models.models || []).length} models`);
-    ws.send(JSON.stringify({ type: 'models', data: models }));
+    ws.send(JSON.stringify({ type: "models", data: models }));
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'error',
+        type: "error",
         message: (err as Error).message,
       })
     );

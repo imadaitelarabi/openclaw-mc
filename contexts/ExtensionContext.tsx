@@ -1,9 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
-import type { Extension, ExtensionState } from '@/types/extension';
-import { extensionRegistry } from '@/lib/extension-registry';
-import { githubExtension } from '@/extensions/github';
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
+import type { Extension, ExtensionState } from "@/types/extension";
+import { extensionRegistry } from "@/lib/extension-registry";
+import { githubExtension } from "@/extensions/github";
 
 interface ExtensionContextValue {
   extensions: Extension[];
@@ -23,7 +23,7 @@ const ExtensionContext = createContext<ExtensionContextValue | undefined>(undefi
 export function useExtensions() {
   const context = useContext(ExtensionContext);
   if (!context) {
-    throw new Error('useExtensions must be used within an ExtensionProvider');
+    throw new Error("useExtensions must be used within an ExtensionProvider");
   }
   return context;
 }
@@ -45,18 +45,18 @@ export function ExtensionProvider({ children }: ExtensionProviderProps) {
   useEffect(() => {
     const initialize = async () => {
       try {
-        console.log('[ExtensionContext] Initializing extension registry...');
+        console.log("[ExtensionContext] Initializing extension registry...");
         await extensionRegistry.initialize();
 
         // Register built-in extensions
         await extensionRegistry.register(githubExtension);
-        
+
         // Load all registered extensions
         refreshExtensions();
-        
-        console.log('[ExtensionContext] Extension registry initialized');
+
+        console.log("[ExtensionContext] Extension registry initialized");
       } catch (error) {
-        console.error('[ExtensionContext] Failed to initialize:', error);
+        console.error("[ExtensionContext] Failed to initialize:", error);
       } finally {
         setIsLoading(false);
       }
@@ -68,34 +68,42 @@ export function ExtensionProvider({ children }: ExtensionProviderProps) {
   const refreshExtensions = useCallback(() => {
     const allExtensions = extensionRegistry.getAll();
     const enabled = extensionRegistry.getEnabled();
-    
+
     setExtensions(allExtensions);
     setEnabledExtensions(enabled);
-    
-    console.log(`[ExtensionContext] Loaded ${allExtensions.length} extensions, ${enabled.length} enabled`);
+
+    console.log(
+      `[ExtensionContext] Loaded ${allExtensions.length} extensions, ${enabled.length} enabled`
+    );
   }, []);
 
-  const enableExtension = useCallback(async (extensionName: string) => {
-    try {
-      console.log(`[ExtensionContext] Enabling extension: ${extensionName}`);
-      await extensionRegistry.enable(extensionName);
-      refreshExtensions();
-    } catch (error) {
-      console.error(`[ExtensionContext] Failed to enable extension "${extensionName}":`, error);
-      throw error;
-    }
-  }, [refreshExtensions]);
+  const enableExtension = useCallback(
+    async (extensionName: string) => {
+      try {
+        console.log(`[ExtensionContext] Enabling extension: ${extensionName}`);
+        await extensionRegistry.enable(extensionName);
+        refreshExtensions();
+      } catch (error) {
+        console.error(`[ExtensionContext] Failed to enable extension "${extensionName}":`, error);
+        throw error;
+      }
+    },
+    [refreshExtensions]
+  );
 
-  const disableExtension = useCallback(async (extensionName: string) => {
-    try {
-      console.log(`[ExtensionContext] Disabling extension: ${extensionName}`);
-      await extensionRegistry.disable(extensionName);
-      refreshExtensions();
-    } catch (error) {
-      console.error(`[ExtensionContext] Failed to disable extension "${extensionName}":`, error);
-      throw error;
-    }
-  }, [refreshExtensions]);
+  const disableExtension = useCallback(
+    async (extensionName: string) => {
+      try {
+        console.log(`[ExtensionContext] Disabling extension: ${extensionName}`);
+        await extensionRegistry.disable(extensionName);
+        refreshExtensions();
+      } catch (error) {
+        console.error(`[ExtensionContext] Failed to disable extension "${extensionName}":`, error);
+        throw error;
+      }
+    },
+    [refreshExtensions]
+  );
 
   const getExtension = useCallback((extensionName: string) => {
     return extensionRegistry.get(extensionName);
@@ -109,16 +117,22 @@ export function ExtensionProvider({ children }: ExtensionProviderProps) {
     return extensionRegistry.needsOnboarding(extensionName);
   }, []);
 
-  const completeOnboarding = useCallback(async (extensionName: string) => {
-    try {
-      console.log(`[ExtensionContext] Completing onboarding for: ${extensionName}`);
-      await extensionRegistry.completeOnboarding(extensionName);
-      refreshExtensions();
-    } catch (error) {
-      console.error(`[ExtensionContext] Failed to complete onboarding for "${extensionName}":`, error);
-      throw error;
-    }
-  }, [refreshExtensions]);
+  const completeOnboarding = useCallback(
+    async (extensionName: string) => {
+      try {
+        console.log(`[ExtensionContext] Completing onboarding for: ${extensionName}`);
+        await extensionRegistry.completeOnboarding(extensionName);
+        refreshExtensions();
+      } catch (error) {
+        console.error(
+          `[ExtensionContext] Failed to complete onboarding for "${extensionName}":`,
+          error
+        );
+        throw error;
+      }
+    },
+    [refreshExtensions]
+  );
 
   const value: ExtensionContextValue = {
     extensions,
@@ -130,12 +144,8 @@ export function ExtensionProvider({ children }: ExtensionProviderProps) {
     isExtensionEnabled,
     needsOnboarding,
     completeOnboarding,
-    refreshExtensions
+    refreshExtensions,
   };
 
-  return (
-    <ExtensionContext.Provider value={value}>
-      {children}
-    </ExtensionContext.Provider>
-  );
+  return <ExtensionContext.Provider value={value}>{children}</ExtensionContext.Provider>;
 }

@@ -9,10 +9,13 @@ Successfully implemented global gateway event forwarding and comprehensive loggi
 ### 1. Core Functionality (`server/core/GatewayClient.ts`)
 
 #### Added Properties
+
 - `debugGatewayEvents: boolean` - Reads from `DEBUG_GATEWAY_EVENTS` environment variable
 
 #### New Method: `logGatewayEvent()`
+
 Comprehensive event logging that captures:
+
 - **Timestamp**: ISO 8601 format for precise timing
 - **Event Name**: e.g., `chat`, `tick`, `presence`, `exec.approval.requested`
 - **Run ID**: Extracted from payload when available
@@ -20,6 +23,7 @@ Comprehensive event logging that captures:
 - **Payload Size**: Size in bytes for performance monitoring
 
 **Output Format:**
+
 ```json
 {
   "timestamp": "2026-02-16T01:40:01.512Z",
@@ -31,7 +35,9 @@ Comprehensive event logging that captures:
 ```
 
 #### Refactored Method: `handleGatewayEvent()`
+
 New event processing flow:
+
 1. **Log** all events with structured data
 2. **Broadcast** ALL events to connected clients (no filtering)
 3. **Process** chat/agent events for enhanced formatting
@@ -42,13 +48,16 @@ New event processing flow:
 ### 2. Configuration
 
 #### Environment Variable
+
 Added `DEBUG_GATEWAY_EVENTS` to `.env.local.example`:
+
 ```bash
 # Debug Gateway Events (optional, set to 'true' to enable detailed event logging)
 # DEBUG_GATEWAY_EVENTS=false
 ```
 
 **When enabled (`DEBUG_GATEWAY_EVENTS=true`):**
+
 - Full event payloads are logged with pretty-printing
 - Useful for debugging event structure and content
 - Should be disabled in production to prevent log clutter
@@ -56,7 +65,9 @@ Added `DEBUG_GATEWAY_EVENTS` to `.env.local.example`:
 ### 3. Documentation
 
 #### New Documentation File
+
 Created `docs/GATEWAY-EVENT-FORWARDING.md` with:
+
 - Overview of the inclusive event forwarding approach
 - Implementation details and event flow diagrams
 - Usage examples for frontend event handling
@@ -64,26 +75,31 @@ Created `docs/GATEWAY-EVENT-FORWARDING.md` with:
 - Configuration instructions
 
 #### Updated README.md
+
 - Added `DEBUG_GATEWAY_EVENTS` to environment variables table
 - Linked new documentation in the documentation section
 
 ## Success Criteria Verification
 
 ✅ **Frontend receives all event types automatically**
+
 - Events like `tick`, `presence`, and `exec.approval.requested` are now forwarded
 - No server changes needed for new event types
 
 ✅ **Clear server console logging**
+
 - Every event is logged with structured JSON format
 - Timestamp, event name, runId, sessionKey, and payload size captured
 - Optional verbose mode for detailed debugging
 
 ✅ **No events dropped**
+
 - ALL gateway events are broadcast to clients immediately after logging
 - Internal processing continues for specific event types
 - Backward compatible with existing event handlers
 
 ✅ **Production-ready**
+
 - Debug mode prevents log clutter in production
 - Performance optimized (single stringify for size calculation)
 - Zero security vulnerabilities (CodeQL scan passed)
@@ -91,7 +107,9 @@ Created `docs/GATEWAY-EVENT-FORWARDING.md` with:
 ## Testing
 
 ### Unit Test Results
+
 Created and ran test script (`/tmp/test-gateway-logging.ts`) validating:
+
 - Chat event logging with runId and sessionKey
 - Tick event logging without identifiers
 - Presence event logging
@@ -99,17 +117,20 @@ Created and ran test script (`/tmp/test-gateway-logging.ts`) validating:
 - Debug mode payload printing
 
 ### Build Verification
+
 ```bash
 npm run build:server
 # ✅ Build successful with no TypeScript errors
 ```
 
 ### Code Review
+
 - ✅ Addressed performance optimization feedback
 - ✅ Added clarifying comments
 - ✅ Maintained code readability
 
 ### Security Scan
+
 ```bash
 codeql_checker
 # ✅ 0 vulnerabilities found
@@ -144,25 +165,27 @@ codeql_checker
 ## Usage Example
 
 ### Enabling Debug Mode
+
 ```bash
 # In .env.local
 DEBUG_GATEWAY_EVENTS=true
 ```
 
 ### Frontend Event Handling
+
 ```typescript
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  
-  if (data.type === 'event') {
+
+  if (data.type === "event") {
     switch (data.event) {
-      case 'tick':
+      case "tick":
         handleTickEvent(data.payload);
         break;
-      case 'presence':
+      case "presence":
         updatePresenceIndicator(data.payload);
         break;
-      case 'exec.approval.requested':
+      case "exec.approval.requested":
         showApprovalDialog(data.payload);
         break;
       // ... handle other events
@@ -174,12 +197,14 @@ ws.onmessage = (event) => {
 ### Server Console Output
 
 **Normal Mode:**
+
 ```
 [Gateway Event] {"timestamp":"2026-02-16T01:40:01.512Z","event":"chat","runId":"run-abc123","sessionKey":"agent:test-agent-123:main","payloadSize":"103 bytes"}
 [Gateway Event] {"timestamp":"2026-02-16T01:40:01.513Z","event":"tick","runId":null,"sessionKey":null,"payloadSize":"27 bytes"}
 ```
 
 **Debug Mode:**
+
 ```
 [Gateway Event] {"timestamp":"2026-02-16T01:40:01.512Z","event":"chat","runId":"run-abc123","sessionKey":"agent:test-agent-123:main","payloadSize":"103 bytes"}
 [Gateway Event Payload] chat: {
@@ -199,12 +224,14 @@ ws.onmessage = (event) => {
 ## Memories Stored
 
 Stored two important memories for future development:
+
 1. Universal gateway event forwarding architecture
 2. DEBUG_GATEWAY_EVENTS debugging toggle
 
 ## Conclusion
 
 The implementation successfully achieves all requirements specified in the issue:
+
 - ✅ Global event forwarding with inclusive-by-default approach
 - ✅ Comprehensive server-side logging with structured data
 - ✅ Debug visibility with environment variable toggle

@@ -1,20 +1,34 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Zap, Globe, Wifi, Shield, ArrowRight, Loader2, Copy, Check, AlertTriangle, Info } from 'lucide-react';
+import { useState, useEffect } from "react";
+import {
+  Zap,
+  Globe,
+  Wifi,
+  Shield,
+  ArrowRight,
+  Loader2,
+  Copy,
+  Check,
+  AlertTriangle,
+  Info,
+} from "lucide-react";
 
 interface GatewayConnectionStepProps {
   onConnectGateway: (name: string, url: string, token: string) => Promise<void>;
   onComplete: () => void;
 }
 
-type SetupMode = 'local' | 'remote' | null;
+type SetupMode = "local" | "remote" | null;
 
-export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayConnectionStepProps) {
+export function GatewayConnectionStep({
+  onConnectGateway,
+  onComplete,
+}: GatewayConnectionStepProps) {
   const [mode, setMode] = useState<SetupMode>(null);
-  const [name, setName] = useState('My Gateway');
-  const [url, setUrl] = useState('');
-  const [token, setToken] = useState('');
+  const [name, setName] = useState("My Gateway");
+  const [url, setUrl] = useState("");
+  const [token, setToken] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -23,13 +37,13 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
 
   // Check if running in a secure context
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       setIsSecureContext(window.isSecureContext);
     }
   }, []);
 
   const handleCopyCommand = () => {
-    navigator.clipboard.writeText('npm install -g openclaw && openclaw gateway start');
+    navigator.clipboard.writeText("npm install -g openclaw && openclaw gateway start");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -38,10 +52,10 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
     setIsConnecting(true);
     setConnectionError(null);
     try {
-      await onConnectGateway('Local Gateway', 'ws://localhost:18789', '');
+      await onConnectGateway("Local Gateway", "ws://localhost:18789", "");
       onComplete();
     } catch (err) {
-      setConnectionError(err instanceof Error ? err.message : 'Failed to connect to local gateway');
+      setConnectionError(err instanceof Error ? err.message : "Failed to connect to local gateway");
     } finally {
       setIsConnecting(false);
     }
@@ -57,7 +71,7 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
       await onConnectGateway(name, url, token);
       onComplete();
     } catch (err) {
-      setConnectionError(err instanceof Error ? err.message : 'Failed to connect to gateway');
+      setConnectionError(err instanceof Error ? err.message : "Failed to connect to gateway");
     } finally {
       setIsConnecting(false);
     }
@@ -78,7 +92,7 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
           <div className="grid md:grid-cols-2 gap-6 mt-12">
             {/* Local Instance Option */}
             <button
-              onClick={() => setMode('local')}
+              onClick={() => setMode("local")}
               className="group relative p-8 bg-secondary border-2 border-border rounded-2xl hover:border-primary transition-all text-left"
             >
               <div className="absolute top-6 right-6 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -98,7 +112,7 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
 
             {/* Remote Gateway Option */}
             <button
-              onClick={() => setMode('remote')}
+              onClick={() => setMode("remote")}
               className="group relative p-8 bg-secondary border-2 border-border rounded-2xl hover:border-primary transition-all text-left"
             >
               <div className="absolute top-6 right-6 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -121,7 +135,7 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
     );
   }
 
-  if (mode === 'local') {
+  if (mode === "local") {
     return (
       <div className="flex items-center justify-center min-h-[500px] px-6 py-12">
         <div className="w-full max-w-2xl space-y-8">
@@ -199,7 +213,8 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
                 )}
               </button>
               <p className="text-xs text-muted-foreground text-center">
-                This will connect to <code className="bg-background px-1 rounded">ws://localhost:18789</code>
+                This will connect to{" "}
+                <code className="bg-background px-1 rounded">ws://localhost:18789</code>
               </p>
               {connectionError && (
                 <p className="text-xs text-destructive text-center">{connectionError}</p>
@@ -226,9 +241,7 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
             <Globe className="w-8 h-8 text-primary" />
           </div>
           <h2 className="text-3xl font-bold">Remote Gateway</h2>
-          <p className="text-muted-foreground">
-            Connect to your remote OpenClaw Gateway
-          </p>
+          <p className="text-muted-foreground">Connect to your remote OpenClaw Gateway</p>
         </div>
 
         <form onSubmit={handleRemoteConnect} className="space-y-4">
@@ -240,8 +253,8 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
                 <div className="flex-1 space-y-2">
                   <p className="text-sm font-medium text-amber-500">Insecure Context Detected</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    OpenClaw MC is running over HTTP (not HTTPS). Device identity generation may be blocked by your browser, 
-                    preventing remote gateway authentication.
+                    OpenClaw MC is running over HTTP (not HTTPS). Device identity generation may be
+                    blocked by your browser, preventing remote gateway authentication.
                   </p>
                   <button
                     type="button"
@@ -249,38 +262,47 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
                     className="text-xs text-amber-500 hover:text-amber-400 font-medium flex items-center gap-1 transition-colors"
                   >
                     <Info className="w-3 h-3" />
-                    {showTroubleshooting ? 'Hide' : 'Show'} troubleshooting tips
+                    {showTroubleshooting ? "Hide" : "Show"} troubleshooting tips
                   </button>
                 </div>
               </div>
-              
+
               {showTroubleshooting && (
                 <div className="mt-3 pt-3 border-t border-amber-500/20 space-y-3 text-xs text-muted-foreground">
                   <div>
-                    <p className="font-medium text-foreground mb-1">Option 1: Use HTTPS (Recommended)</p>
+                    <p className="font-medium text-foreground mb-1">
+                      Option 1: Use HTTPS (Recommended)
+                    </p>
                     <ul className="space-y-1 list-disc list-inside ml-2">
                       <li>Deploy OpenClaw MC behind a reverse proxy (nginx, Caddy) with SSL</li>
                       <li>Use Tailscale for secure remote access with automatic HTTPS</li>
                       <li>This ensures browser security features work correctly</li>
                     </ul>
                   </div>
-                  
+
                   <div>
-                    <p className="font-medium text-foreground mb-1">Option 2: Enable Insecure Auth (Development Only)</p>
+                    <p className="font-medium text-foreground mb-1">
+                      Option 2: Enable Insecure Auth (Development Only)
+                    </p>
                     <p className="mb-1">Add to your Gateway configuration:</p>
                     <pre className="bg-background/50 rounded p-2 font-mono text-xs whitespace-pre overflow-x-auto">
-{`gateway:
+                      {`gateway:
   controlUi:
     allowInsecureAuth: true`}
                     </pre>
-                    <p className="mt-1 text-amber-500">⚠️ This disables device verification. Only use for local development.</p>
+                    <p className="mt-1 text-amber-500">
+                      ⚠️ This disables device verification. Only use for local development.
+                    </p>
                   </div>
-                  
+
                   <div>
                     <p className="font-medium text-foreground mb-1">Allowed Origins</p>
-                    <p>Ensure OpenClaw MC's URL is in your Gateway's <code className="bg-background/50 px-1 rounded">allowedOrigins</code> list:</p>
+                    <p>
+                      Ensure OpenClaw MC's URL is in your Gateway's{" "}
+                      <code className="bg-background/50 px-1 rounded">allowedOrigins</code> list:
+                    </p>
                     <pre className="bg-background/50 rounded p-2 font-mono text-xs mt-1 whitespace-pre overflow-x-auto">
-{`gateway:
+                      {`gateway:
   controlUi:
     allowedOrigins:
       - "http://localhost:3000"

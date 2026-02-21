@@ -1,13 +1,13 @@
 /**
  * Extension Status Bar Item Component
- * 
+ *
  * Renders status bar items from extensions with dropdown support.
  */
 
-import { useState } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import * as LucideIcons from 'lucide-react';
-import type { StatusBarItem, StatusBarDropdownItem } from '@/types/extension';
+import { useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import * as LucideIcons from "lucide-react";
+import type { StatusBarItem, StatusBarDropdownItem } from "@/types/extension";
 
 interface ExtensionStatusBarItemProps {
   extensionName: string;
@@ -16,16 +16,16 @@ interface ExtensionStatusBarItemProps {
   onOpen?: (url: string) => void;
 }
 
-export function ExtensionStatusBarItem({ 
-  extensionName, 
-  item, 
-  onCopy, 
-  onOpen 
+export function ExtensionStatusBarItem({
+  extensionName,
+  item,
+  onCopy,
+  onOpen,
 }: ExtensionStatusBarItemProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Get icon component
-  const IconComponent = item.icon 
+  const IconComponent = item.icon
     ? (LucideIcons as any)[item.icon] || LucideIcons.Box
     : LucideIcons.Box;
 
@@ -34,7 +34,7 @@ export function ExtensionStatusBarItem({
     if (dropdownItem.copyValue && onCopy) {
       onCopy(dropdownItem.copyValue);
     }
-    
+
     // Secondary action: open if available
     if (dropdownItem.openUrl && onOpen) {
       onOpen(dropdownItem.openUrl);
@@ -55,7 +55,9 @@ export function ExtensionStatusBarItem({
                   <div className="flex-1 min-w-0">
                     <div className="text-foreground truncate">{dropdownItem.text}</div>
                     {dropdownItem.subtext && (
-                      <div className="text-muted-foreground text-[10px] truncate">{dropdownItem.subtext}</div>
+                      <div className="text-muted-foreground text-[10px] truncate">
+                        {dropdownItem.subtext}
+                      </div>
                     )}
                   </div>
                   <LucideIcons.ChevronLeft className="w-3 h-3 text-muted-foreground" />
@@ -84,7 +86,9 @@ export function ExtensionStatusBarItem({
               <div className="flex-1 min-w-0">
                 <div className="text-foreground truncate">{dropdownItem.text}</div>
                 {dropdownItem.subtext && (
-                  <div className="text-muted-foreground text-[10px] truncate">{dropdownItem.subtext}</div>
+                  <div className="text-muted-foreground text-[10px] truncate">
+                    {dropdownItem.subtext}
+                  </div>
                 )}
               </div>
 
@@ -113,9 +117,7 @@ export function ExtensionStatusBarItem({
           title={item.label}
         >
           <IconComponent className="w-3.5 h-3.5" />
-          {item.value !== undefined && (
-            <span className="text-foreground">{item.value}</span>
-          )}
+          {item.value !== undefined && <span className="text-foreground">{item.value}</span>}
         </button>
       </DropdownMenu.Trigger>
 

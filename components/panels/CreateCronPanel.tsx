@@ -1,25 +1,27 @@
 "use client";
 
-import { useState } from 'react';
-import type { CronJob } from '@/types';
-import { CRON_SCHEDULE_PRESETS } from '@/lib/cron-schedule';
+import { useState } from "react";
+import type { CronJob } from "@/types";
+import { CRON_SCHEDULE_PRESETS } from "@/lib/cron-schedule";
 
-type SupportedSessionTarget = 'isolated' | 'shared';
+type SupportedSessionTarget = "isolated" | "shared";
 
 interface CreateCronPanelProps {
-  onCreateCronJob: (payload: Omit<CronJob, 'id' | 'createdAtMs' | 'updatedAtMs'>) => Promise<CronJob>;
+  onCreateCronJob: (
+    payload: Omit<CronJob, "id" | "createdAtMs" | "updatedAtMs">
+  ) => Promise<CronJob>;
   onClose?: () => void;
 }
 
 export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelProps) {
   const [formData, setFormData] = useState({
-    name: 'Daily Brief',
+    name: "Daily Brief",
     expr: CRON_SCHEDULE_PRESETS[2].expr,
-    tz: 'UTC',
-    message: 'Summarize today\'s key updates.',
+    tz: "UTC",
+    message: "Summarize today's key updates.",
     enabled: true,
-    sessionTarget: 'shared' as SupportedSessionTarget,
-    deliveryMode: 'announce' as 'announce' | 'silent',
+    sessionTarget: "shared" as SupportedSessionTarget,
+    deliveryMode: "announce" as "announce" | "silent",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
     const message = formData.message.trim();
 
     if (!name || !expr || !message) {
-      setError('Name, schedule, and message are required.');
+      setError("Name, schedule, and message are required.");
       return;
     }
 
@@ -44,25 +46,25 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
         name,
         enabled: formData.enabled,
         schedule: {
-          kind: 'cron',
+          kind: "cron",
           expr,
-          tz: formData.tz.trim() || 'UTC',
+          tz: formData.tz.trim() || "UTC",
         },
         sessionTarget: formData.sessionTarget,
-        wakeMode: 'schedule',
+        wakeMode: "schedule",
         payload: {
-          kind: 'agentTurn',
+          kind: "agentTurn",
           message,
         },
         delivery: {
           mode: formData.deliveryMode,
-          channel: 'last',
+          channel: "last",
         },
       });
 
       setCreatedJob(job);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create cron job');
+      setError(err instanceof Error ? err.message : "Failed to create cron job");
     } finally {
       setIsSubmitting(false);
     }
@@ -156,7 +158,12 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
                 <label className="block text-sm font-medium mb-2">Session Target</label>
                 <select
                   value={formData.sessionTarget}
-                  onChange={(e) => setFormData({ ...formData, sessionTarget: e.target.value as SupportedSessionTarget })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      sessionTarget: e.target.value as SupportedSessionTarget,
+                    })
+                  }
                   className="w-full px-4 py-2 bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="isolated">Isolated</option>
@@ -167,7 +174,12 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
                 <label className="block text-sm font-medium mb-2">Delivery</label>
                 <select
                   value={formData.deliveryMode}
-                  onChange={(e) => setFormData({ ...formData, deliveryMode: e.target.value as 'announce' | 'silent' })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      deliveryMode: e.target.value as "announce" | "silent",
+                    })
+                  }
                   className="w-full px-4 py-2 bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="announce">Announce</option>
@@ -197,7 +209,7 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
                 disabled={isSubmitting}
                 className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
-                {isSubmitting ? 'Creating...' : 'Create Cron Job'}
+                {isSubmitting ? "Creating..." : "Create Cron Job"}
               </button>
               {onClose && (
                 <button

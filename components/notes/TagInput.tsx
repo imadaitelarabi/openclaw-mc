@@ -5,9 +5,9 @@
 
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Tag } from 'lucide-react';
-import { asRgba, getTagColor } from '@/lib/tag-colors';
+import { useState, useRef, useEffect, useCallback } from "react";
+import { X, Tag } from "lucide-react";
+import { asRgba, getTagColor } from "@/lib/tag-colors";
 
 interface TagInputProps {
   selectedTags: string[];
@@ -18,36 +18,41 @@ interface TagInputProps {
   autoOpenOnMount?: boolean;
 }
 
-export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled, autoOpenOnMount = false }: TagInputProps) {
-  const [inputValue, setInputValue] = useState('');
+export function TagInput({
+  selectedTags,
+  allTags,
+  tagColors,
+  onChange,
+  disabled,
+  autoOpenOnMount = false,
+}: TagInputProps) {
+  const [inputValue, setInputValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const filteredSuggestions = allTags.filter(
-    tag =>
-      !selectedTags.includes(tag) &&
-      tag.toLowerCase().includes(inputValue.toLowerCase())
+    (tag) => !selectedTags.includes(tag) && tag.toLowerCase().includes(inputValue.toLowerCase())
   );
 
   const showCreateOption =
     inputValue.trim().length > 0 &&
-    !allTags.some(t => t.toLowerCase() === inputValue.trim().toLowerCase()) &&
-    !selectedTags.some(t => t.toLowerCase() === inputValue.trim().toLowerCase());
+    !allTags.some((t) => t.toLowerCase() === inputValue.trim().toLowerCase()) &&
+    !selectedTags.some((t) => t.toLowerCase() === inputValue.trim().toLowerCase());
 
   const addTag = useCallback(
     (tag: string) => {
       const trimmed = tag.trim();
       if (!trimmed || selectedTags.includes(trimmed)) return;
       onChange([...selectedTags, trimmed]);
-      setInputValue('');
+      setInputValue("");
     },
     [selectedTags, onChange]
   );
 
   const removeTag = useCallback(
     (tag: string) => {
-      onChange(selectedTags.filter(t => t !== tag));
+      onChange(selectedTags.filter((t) => t !== tag));
     },
     [selectedTags, onChange]
   );
@@ -60,8 +65,8 @@ export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled,
       }
     };
 
-    document.addEventListener('mousedown', handleDocumentClick);
-    return () => document.removeEventListener('mousedown', handleDocumentClick);
+    document.addEventListener("mousedown", handleDocumentClick);
+    return () => document.removeEventListener("mousedown", handleDocumentClick);
   }, []);
 
   useEffect(() => {
@@ -78,14 +83,14 @@ export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled,
   }, [autoOpenOnMount, disabled]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       if (inputValue.trim()) {
         addTag(inputValue);
       }
-    } else if (e.key === 'Backspace' && !inputValue && selectedTags.length > 0) {
+    } else if (e.key === "Backspace" && !inputValue && selectedTags.length > 0) {
       removeTag(selectedTags[selectedTags.length - 1]);
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       setIsOpen(false);
       inputRef.current?.blur();
     }
@@ -96,7 +101,7 @@ export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled,
   return (
     <div className="relative" ref={containerRef}>
       <div
-        className={`flex flex-wrap gap-1 items-center bg-secondary/50 border border-border rounded-lg px-2 py-1.5 cursor-text ${disabled ? 'opacity-50' : 'hover:border-primary/30'}`}
+        className={`flex flex-wrap gap-1 items-center bg-secondary/50 border border-border rounded-lg px-2 py-1.5 cursor-text ${disabled ? "opacity-50" : "hover:border-primary/30"}`}
         onClick={() => {
           if (!disabled) {
             inputRef.current?.focus();
@@ -105,7 +110,7 @@ export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled,
         }}
       >
         <Tag className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-        {selectedTags.map(tag => (
+        {selectedTags.map((tag) => (
           <span
             key={tag}
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
@@ -118,7 +123,7 @@ export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled,
             {!disabled && (
               <button
                 type="button"
-                onClick={e => {
+                onClick={(e) => {
                   e.stopPropagation();
                   removeTag(tag);
                 }}
@@ -137,13 +142,13 @@ export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled,
           aria-expanded={hasDropdown}
           aria-autocomplete="list"
           value={inputValue}
-          onChange={e => {
+          onChange={(e) => {
             setInputValue(e.target.value);
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder={selectedTags.length === 0 ? 'Add tags...' : ''}
+          placeholder={selectedTags.length === 0 ? "Add tags..." : ""}
           className="flex-1 min-w-[80px] bg-transparent outline-none text-xs placeholder:text-muted-foreground"
           disabled={disabled}
         />
@@ -151,14 +156,18 @@ export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled,
 
       {hasDropdown && (
         <div className="absolute bottom-full mb-1 left-0 right-0 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
-          <div role="listbox" aria-label="Tag suggestions" className="max-h-40 overflow-y-auto py-1">
-            {filteredSuggestions.map(tag => (
+          <div
+            role="listbox"
+            aria-label="Tag suggestions"
+            className="max-h-40 overflow-y-auto py-1"
+          >
+            {filteredSuggestions.map((tag) => (
               <button
                 key={tag}
                 type="button"
                 role="option"
                 aria-selected={false}
-                onMouseDown={e => {
+                onMouseDown={(e) => {
                   e.preventDefault();
                   addTag(tag);
                 }}
@@ -173,7 +182,7 @@ export function TagInput({ selectedTags, allTags, tagColors, onChange, disabled,
                 type="button"
                 role="option"
                 aria-selected={false}
-                onMouseDown={e => {
+                onMouseDown={(e) => {
                   e.preventDefault();
                   addTag(inputValue.trim());
                 }}

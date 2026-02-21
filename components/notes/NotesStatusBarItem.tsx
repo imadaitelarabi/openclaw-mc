@@ -3,9 +3,9 @@
  * Shows notes count with dropdown menu for group selection
  */
 
-import { useRef, useEffect, useState } from 'react';
-import { StickyNote, ChevronDown, Plus } from 'lucide-react';
-import type { Note, NoteGroup } from '@/types';
+import { useRef, useEffect, useState } from "react";
+import { StickyNote, ChevronDown, Plus } from "lucide-react";
+import type { Note, NoteGroup } from "@/types";
 
 interface NotesStatusBarItemProps {
   notes: Note[];
@@ -30,10 +30,7 @@ export function NotesStatusBarItem({
     return acc;
   }, new Map<string, number>());
 
-  const uniqueGroupNames = new Set<string>([
-    ...groups,
-    ...Array.from(noteGroupCounts.keys()),
-  ]);
+  const uniqueGroupNames = new Set<string>([...groups, ...Array.from(noteGroupCounts.keys())]);
 
   const groupedNotes: NoteGroup[] = Array.from(uniqueGroupNames).map((name) => ({
     name,
@@ -59,20 +56,20 @@ export function NotesStatusBarItem({
 
   // Scroll active item into view
   useEffect(() => {
-    activeItemRef.current?.scrollIntoView({ block: 'nearest' });
+    activeItemRef.current?.scrollIntoView({ block: "nearest" });
   }, [activeIndex]);
 
   // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown') {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
-        setActiveIndex(prev => (prev + 1) % totalItems);
-      } else if (e.key === 'ArrowUp') {
+        setActiveIndex((prev) => (prev + 1) % totalItems);
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setActiveIndex(prev => (prev - 1 + totalItems) % totalItems);
-      } else if (e.key === 'Enter') {
+        setActiveIndex((prev) => (prev - 1 + totalItems) % totalItems);
+      } else if (e.key === "Enter") {
         e.preventDefault();
         if (activeIndex === 0) {
           onSelectGroup(null);
@@ -81,13 +78,13 @@ export function NotesStatusBarItem({
           onSelectGroup(sortedGroups[activeIndex - 1].name);
           onToggle();
         }
-      } else if (e.key === 'Escape') {
+      } else if (e.key === "Escape") {
         e.preventDefault();
         onToggle();
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, activeIndex, totalItems, sortedGroups, onSelectGroup, onToggle]);
 
   return (
@@ -97,9 +94,7 @@ export function NotesStatusBarItem({
         className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors"
       >
         <StickyNote className="w-3 h-3 text-muted-foreground" />
-        <span className="font-medium">
-          Notes ({notes.length})
-        </span>
+        <span className="font-medium">Notes ({notes.length})</span>
         <ChevronDown className="w-3 h-3 opacity-50" />
       </button>
 
@@ -127,7 +122,7 @@ export function NotesStatusBarItem({
                 onSelectGroup(null);
                 onToggle();
               }}
-              className={`w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors ${activeIndex === 0 ? 'bg-accent text-accent-foreground' : ''}`}
+              className={`w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors ${activeIndex === 0 ? "bg-accent text-accent-foreground" : ""}`}
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium">All Notes</span>
@@ -150,7 +145,7 @@ export function NotesStatusBarItem({
                     onSelectGroup(group.name);
                     onToggle();
                   }}
-                  className={`w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors ${activeIndex === index + 1 ? 'bg-accent text-accent-foreground' : ''}`}
+                  className={`w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors ${activeIndex === index + 1 ? "bg-accent text-accent-foreground" : ""}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{group.name}</span>

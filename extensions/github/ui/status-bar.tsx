@@ -2,8 +2,8 @@
  * GitHub Status Bar Component
  */
 
-import type { StatusBarItem, StatusBarDropdownItem } from '@/types/extension';
-import { GitHubAPI } from '../api';
+import type { StatusBarItem, StatusBarDropdownItem } from "@/types/extension";
+import { GitHubAPI } from "../api";
 
 /**
  * Get status bar data for GitHub extension
@@ -15,9 +15,9 @@ export async function getStatusBarData(api: GitHubAPI): Promise<StatusBarItem | 
 
     if (organizations.length === 0) {
       return {
-        label: 'GitHub',
+        label: "GitHub",
         value: 0,
-        icon: 'Github',
+        icon: "Github",
         items: [],
       };
     }
@@ -48,10 +48,10 @@ export async function getStatusBarData(api: GitHubAPI): Promise<StatusBarItem | 
               item: {
                 id: `repo-${organization.login}-${repo.name}`,
                 text: repo.name,
-                subtext: `${prs.length} open PR${prs.length === 1 ? '' : 's'}`,
+                subtext: `${prs.length} open PR${prs.length === 1 ? "" : "s"}`,
                 copyValue: repo.html_url,
                 openUrl: repo.html_url,
-                children: sortedPrs.map(pr => ({
+                children: sortedPrs.map((pr) => ({
                   id: `pr-${organization.login}-${repo.name}-${pr.number}`,
                   text: `#${pr.number}: ${pr.title}`,
                   subtext: `by ${pr.user.login}`,
@@ -64,16 +64,17 @@ export async function getStatusBarData(api: GitHubAPI): Promise<StatusBarItem | 
         );
 
         const sortedRepoItems = repoEntries
-          .filter(entry => entry.latestPrUpdatedAt > 0)
+          .filter((entry) => entry.latestPrUpdatedAt > 0)
           .sort((a, b) => b.latestPrUpdatedAt - a.latestPrUpdatedAt)
-          .map(entry => entry.item);
+          .map((entry) => entry.item);
 
         if (sortedRepoItems.length === 0) {
           return null;
         }
 
         const latestOrgPrUpdatedAt = repoEntries.reduce(
-          (latest, repoEntry) => (repoEntry.latestPrUpdatedAt > latest ? repoEntry.latestPrUpdatedAt : latest),
+          (latest, repoEntry) =>
+            repoEntry.latestPrUpdatedAt > latest ? repoEntry.latestPrUpdatedAt : latest,
           0
         );
 
@@ -82,7 +83,7 @@ export async function getStatusBarData(api: GitHubAPI): Promise<StatusBarItem | 
           item: {
             id: `org-${organization.login}`,
             text: organization.login,
-            subtext: organization.type === 'User' ? 'personal account' : 'organization',
+            subtext: organization.type === "User" ? "personal account" : "organization",
             children: sortedRepoItems,
           },
         };
@@ -91,18 +92,20 @@ export async function getStatusBarData(api: GitHubAPI): Promise<StatusBarItem | 
 
     const items: StatusBarDropdownItem[] = orgEntries
       .filter(Boolean)
-      .filter((entry): entry is { latestOrgPrUpdatedAt: number; item: StatusBarDropdownItem } => Boolean(entry))
+      .filter((entry): entry is { latestOrgPrUpdatedAt: number; item: StatusBarDropdownItem } =>
+        Boolean(entry)
+      )
       .sort((a, b) => b.latestOrgPrUpdatedAt - a.latestOrgPrUpdatedAt)
-      .map(entry => entry.item);
+      .map((entry) => entry.item);
 
     return {
-      label: 'GitHub PRs',
+      label: "GitHub PRs",
       value: totalPrs,
-      icon: 'Github',
+      icon: "Github",
       items,
     };
   } catch (error) {
-    console.error('[GitHub StatusBar] Failed to get status data:', error);
+    console.error("[GitHub StatusBar] Failed to get status data:", error);
     return null;
   }
 }

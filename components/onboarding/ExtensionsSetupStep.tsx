@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from 'react';
-import { Puzzle, Github, Check } from 'lucide-react';
-import { useExtensions } from '@/contexts/ExtensionContext';
-import { ExtensionOnboardingPanel } from '@/components/panels/ExtensionOnboardingPanel';
+import { useState } from "react";
+import { Puzzle, Github, Check } from "lucide-react";
+import { useExtensions } from "@/contexts/ExtensionContext";
+import { ExtensionOnboardingPanel } from "@/components/panels/ExtensionOnboardingPanel";
 
 interface ExtensionsSetupStepProps {
   onComplete: () => void;
@@ -14,8 +14,8 @@ export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
   const [selectedExtension, setSelectedExtension] = useState<string | null>(null);
 
   // Filter to only show extensions that support onboarding
-  const onboardableExtensions = extensions.filter(ext => {
-    return ext.manifest.hooks?.includes('onboarding');
+  const onboardableExtensions = extensions.filter((ext) => {
+    return ext.manifest.hooks?.includes("onboarding");
   });
 
   const handleExtensionClick = (extensionName: string) => {
@@ -28,7 +28,7 @@ export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
 
   const getExtensionIcon = (name: string) => {
     switch (name.toLowerCase()) {
-      case 'github':
+      case "github":
         return Github;
       default:
         return Puzzle;
@@ -52,7 +52,8 @@ export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
         <div className="text-center space-y-3">
           <h2 className="text-3xl font-bold">Enhance Your Workflow</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Connect extensions to supercharge OpenClaw MC. You can always set these up later from the status bar.
+            Connect extensions to supercharge OpenClaw MC. You can always set these up later from
+            the status bar.
           </p>
         </div>
 
@@ -97,9 +98,7 @@ export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
                         </p>
                         <div className="pt-2">
                           {isConfigured ? (
-                            <span className="text-xs text-green-500 font-medium">
-                              ✓ Configured
-                            </span>
+                            <span className="text-xs text-green-500 font-medium">✓ Configured</span>
                           ) : requiresSetup ? (
                             <span className="text-xs text-primary font-medium">
                               → Setup Required

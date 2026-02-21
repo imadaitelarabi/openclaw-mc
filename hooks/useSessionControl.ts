@@ -16,7 +16,7 @@ interface UseSessionControlProps {
 export function useSessionControl({ sendMessage }: UseSessionControlProps) {
   const abortRun = (agentId: string) => {
     sendMessage({
-      type: 'chat.abort.run',
+      type: "chat.abort.run",
       agentId,
     });
   };
@@ -24,9 +24,9 @@ export function useSessionControl({ sendMessage }: UseSessionControlProps) {
   const resetSession = (agentId: string) => {
     // Sending /new as a message triggers a session reset on the gateway
     sendMessage({
-      type: 'chat.send',
+      type: "chat.send",
       agentId,
-      message: '/new',
+      message: "/new",
     });
   };
 

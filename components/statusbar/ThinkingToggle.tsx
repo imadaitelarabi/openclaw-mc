@@ -1,30 +1,32 @@
-import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, BrainCircuit } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { ChevronDown, BrainCircuit } from "lucide-react";
 
 interface ThinkingSelectorProps {
-  value: 'off' | 'low' | 'medium' | 'high';
-  onChange: (value: 'off' | 'low' | 'medium' | 'high') => void;
+  value: "off" | "low" | "medium" | "high";
+  onChange: (value: "off" | "low" | "medium" | "high") => void;
   disabled?: boolean;
 }
 
 const THINKING_MODES = [
-  { value: 'off' as const, label: 'Off', desc: 'No reasoning' },
-  { value: 'low' as const, label: 'Low', desc: 'Fast reasoning' },
-  { value: 'medium' as const, label: 'Med', desc: 'Balanced' },
-  { value: 'high' as const, label: 'High', desc: 'Deep reasoning' },
+  { value: "off" as const, label: "Off", desc: "No reasoning" },
+  { value: "low" as const, label: "Low", desc: "Fast reasoning" },
+  { value: "medium" as const, label: "Med", desc: "Balanced" },
+  { value: "high" as const, label: "High", desc: "Deep reasoning" },
 ];
 
 export function ThinkingToggle({ value, onChange, disabled }: ThinkingSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(() => THINKING_MODES.findIndex(m => m.value === value));
+  const [activeIndex, setActiveIndex] = useState(() =>
+    THINKING_MODES.findIndex((m) => m.value === value)
+  );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentMode = THINKING_MODES.find(m => m.value === value) || THINKING_MODES[0];
+  const currentMode = THINKING_MODES.find((m) => m.value === value) || THINKING_MODES[0];
 
   // Sync activeIndex when menu opens
   useEffect(() => {
     if (isOpen) {
-      setActiveIndex(THINKING_MODES.findIndex(m => m.value === value));
+      setActiveIndex(THINKING_MODES.findIndex((m) => m.value === value));
     }
   }, [isOpen, value]);
 
@@ -37,8 +39,8 @@ export function ThinkingToggle({ value, onChange, disabled }: ThinkingSelectorPr
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isOpen]);
 
@@ -46,25 +48,25 @@ export function ThinkingToggle({ value, onChange, disabled }: ThinkingSelectorPr
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown') {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
-        setActiveIndex(prev => (prev + 1) % THINKING_MODES.length);
-      } else if (e.key === 'ArrowUp') {
+        setActiveIndex((prev) => (prev + 1) % THINKING_MODES.length);
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setActiveIndex(prev => (prev - 1 + THINKING_MODES.length) % THINKING_MODES.length);
-      } else if (e.key === 'Enter') {
+        setActiveIndex((prev) => (prev - 1 + THINKING_MODES.length) % THINKING_MODES.length);
+      } else if (e.key === "Enter") {
         e.preventDefault();
         if (activeIndex >= 0 && activeIndex < THINKING_MODES.length) {
           onChange(THINKING_MODES[activeIndex].value);
           setIsOpen(false);
         }
-      } else if (e.key === 'Escape') {
+      } else if (e.key === "Escape") {
         e.preventDefault();
         setIsOpen(false);
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, activeIndex, onChange]);
 
   return (
@@ -93,7 +95,11 @@ export function ThinkingToggle({ value, onChange, disabled }: ThinkingSelectorPr
                   setIsOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between ${
-                  index === activeIndex ? 'bg-accent text-accent-foreground' : value === mode.value ? 'bg-accent/50 text-primary' : ''
+                  index === activeIndex
+                    ? "bg-accent text-accent-foreground"
+                    : value === mode.value
+                      ? "bg-accent/50 text-primary"
+                      : ""
                 }`}
               >
                 <div>

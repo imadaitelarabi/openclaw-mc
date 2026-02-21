@@ -32,34 +32,39 @@ OpenClaw MC is a Next.js-based web application that provides a real-time monitor
 ### Initial Setup
 
 1. **Fork and Clone**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/openclaw-mc.git
    cd openclaw-mc
    ```
 
 2. **Install Dependencies**
+
    ```bash
    npm install --legacy-peer-deps
    ```
 
 3. **Configure Environment** (Optional)
-   
+
    Copy the example environment file:
+
    ```bash
    cp .env.local.example .env.local
    ```
-   
+
    Edit `.env.local` with your gateway details:
+
    ```env
    OPENCLAW_GATEWAY_URL=http://127.0.0.1:18789
    OPENCLAW_GATEWAY_TOKEN=your_gateway_token_here
    ```
 
 4. **Start Development Server**
+
    ```bash
    npm run dev
    ```
-   
+
    The application will be available at http://localhost:3000
 
 ## Development Workflow
@@ -71,6 +76,7 @@ git checkout -b feature/your-feature-name
 ```
 
 Use descriptive branch names:
+
 - `feature/` - New features
 - `fix/` - Bug fixes
 - `docs/` - Documentation changes
@@ -101,6 +107,7 @@ Write clear, concise commit messages following this format:
 ```
 
 **Types:**
+
 - `feat:` - New feature
 - `fix:` - Bug fix
 - `docs:` - Documentation changes
@@ -110,6 +117,7 @@ Write clear, concise commit messages following this format:
 - `chore:` - Maintenance tasks
 
 **Examples:**
+
 ```
 feat: add gateway connection wizard for first-time users
 
@@ -139,7 +147,7 @@ interface MyComponentProps {
 
 export function MyComponent({ title, onAction }: MyComponentProps) {
   const [state, setState] = useState<string>('');
-  
+
   return (
     <div>
       <h1>{title}</h1>
@@ -175,6 +183,7 @@ export function MyComponent({ title, onAction }: MyComponentProps) {
 ### Before Submitting
 
 1. **Update your branch** with the latest main:
+
    ```bash
    git fetch origin
    git rebase origin/main
@@ -193,6 +202,7 @@ export function MyComponent({ title, onAction }: MyComponentProps) {
 ### Submitting the PR
 
 1. **Push your branch:**
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -207,25 +217,31 @@ export function MyComponent({ title, onAction }: MyComponentProps) {
      - Related issue number (if applicable)
 
 3. **Template:**
+
    ```markdown
    ## Description
+
    Brief description of changes
-   
+
    ## Related Issue
+
    Fixes #123
-   
+
    ## Changes Made
+
    - Added feature X
    - Fixed bug Y
    - Updated documentation
-   
+
    ## Testing
+
    - [ ] Tested locally in dev mode
    - [ ] Tested build
    - [ ] Tested on mobile viewport
    - [ ] Ran linter
-   
+
    ## Screenshots
+
    (if applicable)
    ```
 
@@ -240,6 +256,7 @@ export function MyComponent({ title, onAction }: MyComponentProps) {
 ### Manual Testing
 
 1. Start the development server:
+
    ```bash
    npm run dev
    ```
@@ -299,6 +316,7 @@ openclaw-mc/
 ## Extensions System
 
 If you're contributing an extension, please review:
+
 - [Extension Template](./extensions/_template/)
 - [Extension Types](./types/extension.ts)
 - [Extension Registry](./lib/extension-registry.ts)

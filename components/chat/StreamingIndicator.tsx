@@ -1,4 +1,4 @@
-import { ReasoningCard } from './ReasoningCard';
+import { ReasoningCard } from "./ReasoningCard";
 
 interface StreamingIndicatorProps {
   assistantStream?: string;
@@ -6,20 +6,29 @@ interface StreamingIndicatorProps {
   isTyping?: boolean;
 }
 
-export function StreamingIndicator({ assistantStream, reasoningStream, isTyping }: StreamingIndicatorProps) {
+export function StreamingIndicator({
+  assistantStream,
+  reasoningStream,
+  isTyping,
+}: StreamingIndicatorProps) {
   if (!assistantStream && !reasoningStream && !isTyping) return null;
 
   return (
     <>
       {reasoningStream && (
         <div className="flex flex-col items-start">
-          <ReasoningCard 
-            message={{ id: 'streaming', role: 'reasoning', content: reasoningStream, timestamp: Date.now() }} 
-            isStreaming 
+          <ReasoningCard
+            message={{
+              id: "streaming",
+              role: "reasoning",
+              content: reasoningStream,
+              timestamp: Date.now(),
+            }}
+            isStreaming
           />
         </div>
       )}
-      
+
       {assistantStream && (
         <div className="flex flex-col items-start">
           <div className="max-w-[85%] rounded-lg p-4 bg-secondary/60 backdrop-blur border border-secondary text-foreground">

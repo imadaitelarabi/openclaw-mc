@@ -5,26 +5,31 @@
 This PR implements native cron job integration for OpenClaw MC, adding the ability to manage, monitor, and view execution history of scheduled jobs directly in the UI.
 
 ## Statistics
+
 - **Files Added**: 8 new files
-- **Files Modified**: 8 existing files  
+- **Files Modified**: 8 existing files
 - **Total Lines Added**: ~1,508 lines
 - **Commits**: 4 commits
 
 ## Key Components
 
 ### 1. Status Bar Integration
+
 **File**: `components/cron/CronStatusBarItem.tsx` (130 lines)
 
 Displays cron job status in the status bar:
+
 - **Next Scheduled Job**: Shows countdown to next execution (e.g., "⏰ Daily Brief in 5m")
 - **Running Jobs**: Pulsing indicator for active jobs (e.g., "● Running: Weekly Summary")
 - **Job Menu**: Dropdown listing all jobs, sorted by nextWake (running jobs at top)
 - **Visual States**: Disabled jobs shown with muted styling
 
 ### 2. Cron Panel
+
 **File**: `components/cron/CronPanel.tsx` (242 lines)
 
 Dedicated panel for viewing and controlling cron jobs:
+
 - **Job Header**: Name, schedule (cron expr), next run time, enabled status
 - **Run Picker**: Dropdown to switch between current and historical runs
 - **Transcript Viewer**: Read-only chat history from selected run
@@ -39,28 +44,39 @@ Dedicated panel for viewing and controlling cron jobs:
 ### 3. State Management Hooks
 
 #### useCronJobs (`hooks/useCronJobs.ts` - 195 lines)
+
 Manages cron jobs list and CRUD operations:
+
 ```typescript
-const { jobs, status, loading, addJob, updateJob, deleteJob, refreshJobs } = useCronJobs({ wsRef, onEvent });
+const { jobs, status, loading, addJob, updateJob, deleteJob, refreshJobs } = useCronJobs({
+  wsRef,
+  onEvent,
+});
 ```
+
 - Loads jobs and status on mount
 - Listens for WebSocket responses and events
 - Provides CRUD operations with promise-based API
 - Handles real-time updates via `event:cron`
 
 #### useCronRuns (`hooks/useCronRuns.ts` - 138 lines)
+
 Manages run history for a specific job:
+
 ```typescript
 const { runs, loading, triggerRun, refreshRuns } = useCronRuns({ jobId, wsRef, limit: 20 });
 ```
+
 - Loads run history for given job
 - Provides manual trigger function
 - Updates list when new runs start/finish
 
 ### 4. Server RPC Handlers
+
 **File**: `server/handlers/cron.handler.ts` (272 lines)
 
 Implements 7 RPC operations:
+
 - `handleCronList` - Fetch all jobs
 - `handleCronStatus` - Get scheduler status
 - `handleCronAdd` - Create new job
@@ -72,16 +88,18 @@ Implements 7 RPC operations:
 All handlers use thin proxy pattern: forward to `gateway.call(method, params)` and return response/error.
 
 ### 5. Type System
+
 **File**: `types/cron.ts` (72 lines)
 
 Complete TypeScript definitions:
+
 ```typescript
 interface CronJob {
   id: string;
   name: string;
   enabled: boolean;
   schedule: Schedule;
-  sessionTarget: 'isolated' | 'shared' | 'last';
+  sessionTarget: "isolated" | "shared" | "last";
   payload: CronPayload;
   delivery: CronDelivery;
   state?: CronJobState;
@@ -99,7 +117,7 @@ interface CronStatus {
 interface CronRun {
   id: string;
   jobId: string;
-  status: 'ok' | 'error' | 'running';
+  status: "ok" | "error" | "running";
   startedAtMs: number;
   finishedAtMs?: number;
   sessionKey: string;
@@ -111,7 +129,9 @@ interface CronRun {
 ## Integration Points
 
 ### Main App (`app/page.tsx`)
+
 Added cron state and handlers:
+
 ```typescript
 // Initialize hook
 const { jobs: cronJobs, status: cronStatus, deleteJob: deleteCronJob } = useCronJobs({ wsRef });
@@ -121,7 +141,7 @@ const [isCronMenuOpen, setIsCronMenuOpen] = useState(false);
 
 // Handlers
 const handleSelectCronJob = (jobId) => {
-  openPanel('cron', { jobId, jobName: job.name });
+  openPanel("cron", { jobId, jobName: job.name });
 };
 
 const handleDeleteCronJob = async (jobId) => {
@@ -131,7 +151,9 @@ const handleDeleteCronJob = async (jobId) => {
 ```
 
 ### Status Bar (`components/layout/StatusBar.tsx`)
+
 Added cron props and rendering:
+
 ```typescript
 <StatusBar
   // ... existing props
@@ -155,7 +177,9 @@ Added cron props and rendering:
 ```
 
 ### Panel System (`components/panels/PanelContainer.tsx`)
+
 Added cron panel rendering:
+
 ```typescript
 {panel.type === 'cron' && panel.data?.jobId && wsRef && (
   <CronPanel
@@ -173,6 +197,7 @@ Added cron panel rendering:
 ## WebSocket Protocol
 
 ### Request Examples
+
 ```typescript
 // List all jobs
 { type: 'cron.list', requestId: 'uuid' }
@@ -188,6 +213,7 @@ Added cron panel rendering:
 ```
 
 ### Response Examples
+
 ```typescript
 // Jobs list
 { type: 'cron.list.response', requestId: 'uuid', jobs: [...] }
@@ -200,6 +226,7 @@ Added cron panel rendering:
 ```
 
 ### Real-time Events
+
 ```typescript
 {
   type: 'event',
@@ -214,26 +241,31 @@ Added cron panel rendering:
 ## User Workflows
 
 ### Viewing Cron Jobs
+
 1. Look at status bar (shows next scheduled job)
 2. Click status bar item to open jobs menu
 3. See list of all jobs (running at top, then by next run time)
 
 ### Opening Job Panel
+
 1. Click job in status bar menu
 2. Panel opens showing job details
 3. See latest run transcript by default
 
 ### Viewing Run History
+
 1. Open job panel
 2. Use run picker dropdown at top
 3. Select older run to view its transcript
 
 ### Triggering Manual Run
+
 1. Open job panel
 2. Click "Force Run" button
 3. New run added to history automatically
 
 ### Deleting Job
+
 1. Open job panel
 2. Click "Delete" button
 3. Confirmation (handled by implementation)
@@ -242,16 +274,19 @@ Added cron panel rendering:
 ## Architecture Decisions
 
 ### Why Thin Proxy Pattern?
+
 - **Flexibility**: Gateway can evolve independently
 - **Simplicity**: No business logic in frontend server
 - **Consistency**: Same pattern as other gateway operations
 
 ### Why Native (Not Extension)?
+
 - **Core Feature**: Cron is fundamental to automation
 - **Deep Integration**: Status bar and panels are core UI
 - **Performance**: Direct access to WebSocket without indirection
 
 ### Why Read-Only Panels?
+
 - **Use Case**: View history and trigger runs (main needs)
 - **Simplicity**: No complex form state management
 - **Extensibility**: Edit/Reschedule can be added later
@@ -259,11 +294,13 @@ Added cron panel rendering:
 ## Testing Strategy
 
 ### Build Testing ✅
+
 - TypeScript compilation: SUCCESS
-- Next.js build: SUCCESS  
+- Next.js build: SUCCESS
 - No runtime errors during build
 
 ### Runtime Testing (Requires Gateway)
+
 - [ ] Jobs load correctly
 - [ ] Status updates in real-time
 - [ ] Panel opens and displays job info
@@ -277,6 +314,7 @@ Added cron panel rendering:
 ## Future Enhancements
 
 ### Short Term (Easy)
+
 1. Confirmation dialog for delete
 2. Loading states for actions
 3. Error toasts for failures
@@ -284,6 +322,7 @@ Added cron panel rendering:
 5. Job creation button
 
 ### Medium Term (Moderate)
+
 1. Reschedule dialog with date picker
 2. Edit form with validation
 3. Cron expression builder
@@ -291,6 +330,7 @@ Added cron panel rendering:
 5. Export run transcripts
 
 ### Long Term (Complex)
+
 1. Run comparison view
 2. Performance metrics
 3. Alerting system
@@ -300,6 +340,7 @@ Added cron panel rendering:
 ## Documentation
 
 All implementation details are documented in:
+
 - `docs/CRON_INTEGRATION.md` - Comprehensive technical documentation
 - Component inline comments - JSDoc for public APIs
 - Type definitions - Self-documenting interfaces
@@ -307,11 +348,13 @@ All implementation details are documented in:
 ## Dependencies
 
 ### Required
+
 - OpenClaw Gateway v0.x+ with cron RPC support
 - date-fns: For time formatting
 - lucide-react: For icons
 
 ### Used Existing
+
 - React hooks (useState, useEffect, useCallback, useRef)
 - WebSocket client (from useGatewayWebSocket)
 - Panel system (PanelContext)
@@ -321,6 +364,7 @@ All implementation details are documented in:
 ## Migration Notes
 
 No breaking changes. Feature is additive only:
+
 - New panel type `'cron'` added to union
 - New props on StatusBar (all optional)
 - New props on PanelContainer (all optional)

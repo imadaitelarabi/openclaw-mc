@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Settings, ChevronRight } from 'lucide-react';
+import { useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Settings, ChevronRight } from "lucide-react";
 
 interface ConfigDropdownProps {
   showTools: boolean;

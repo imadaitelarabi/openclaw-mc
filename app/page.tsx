@@ -2,7 +2,16 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { MessageSquare, LayoutGrid, Wifi, WifiOff } from "lucide-react";
-import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useSessionControl, useCronJobs, useNotes, useSkills } from "@/hooks";
+import {
+  useGatewayWebSocket,
+  useAgentEvents,
+  useSessionSettings,
+  useToast,
+  useSessionControl,
+  useCronJobs,
+  useNotes,
+  useSkills,
+} from "@/hooks";
 import { StatusBar } from "@/components/layout";
 import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
@@ -14,7 +23,7 @@ import { uiStateStore } from "@/lib/ui-state-db";
 import { getStreamKey } from "@/lib/gateway-utils";
 import type { AgentRunStatus } from "@/components/panels/PanelHeader";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function MissionControl() {
   return (
@@ -25,7 +34,15 @@ export default function MissionControl() {
 }
 
 function MissionControlInner() {
-  const { layout, openPanel, closePanel, setActivePanel, updatePanelSettings, updatePanelSessionSettings, getActivePanel } = usePanels();
+  const {
+    layout,
+    openPanel,
+    closePanel,
+    setActivePanel,
+    updatePanelSettings,
+    updatePanelSessionSettings,
+    getActivePanel,
+  } = usePanels();
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [isCronMenuOpen, setIsCronMenuOpen] = useState(false);
   const [isNotesMenuOpen, setIsNotesMenuOpen] = useState(false);
@@ -40,24 +57,29 @@ function MissionControlInner() {
   // Delete agent confirmation modal state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [agentToDelete, setAgentToDelete] = useState<{ id: string; name: string } | null>(null);
-  
+
   const { toast } = useToast();
-  const pendingRequestsRef = useRef(new Map<string, {
-    ackType: string;
-    resolve: (message: any) => void;
-    reject: (error: Error) => void;
-    timeoutId: ReturnType<typeof setTimeout>;
-  }>());
+  const pendingRequestsRef = useRef(
+    new Map<
+      string,
+      {
+        ackType: string;
+        resolve: (message: any) => void;
+        reject: (error: Error) => void;
+        timeoutId: ReturnType<typeof setTimeout>;
+      }
+    >()
+  );
   const hydratedHistoryAgentsRef = useRef(new Set<string>());
 
   // Custom hooks for WebSocket and event handling
-  const { 
-    chatHistory, 
-    chatStreams, 
+  const {
+    chatHistory,
+    chatStreams,
     reasoningStreams,
     activeRuns,
     completedRuns,
-    handleAgentEvent, 
+    handleAgentEvent,
     addUserMessage,
     clearChatHistory,
     clearCompletedRun,
@@ -68,13 +90,8 @@ function MissionControlInner() {
     onEventRef.current(message);
   }, []);
 
-  const { 
-    connectionStatus, 
-    agents, 
-    sendMessage,
-    wsRef
-  } = useGatewayWebSocket({ 
-    onEvent: stableOnEvent
+  const { connectionStatus, agents, sendMessage, wsRef } = useGatewayWebSocket({
+    onEvent: stableOnEvent,
   });
 
   // Cron jobs hook
@@ -85,13 +102,13 @@ function MissionControlInner() {
     updateJob: updateCronJob,
     deleteJob: deleteCronJob,
     refreshJobs: refreshCronJobs,
-  } = useCronJobs({ 
+  } = useCronJobs({
     wsRef,
     connectionStatus,
     onEvent: (event) => {
       // Handle cron events if needed
-      console.log('[App] Cron event:', event);
-    }
+      console.log("[App] Cron event:", event);
+    },
   });
 
   // Notes hook
@@ -114,9 +131,9 @@ function MissionControlInner() {
     refreshNotes,
   } = useNotes({ wsRef });
 
-  const [skillsFilter, setSkillsFilter] = useState('');
-  const [skillsWorkspaceFilter, setSkillsWorkspaceFilter] = useState('all');
-  const [skillsStatusFilter, setSkillsStatusFilter] = useState('all');
+  const [skillsFilter, setSkillsFilter] = useState("");
+  const [skillsWorkspaceFilter, setSkillsWorkspaceFilter] = useState("all");
+  const [skillsStatusFilter, setSkillsStatusFilter] = useState("all");
   const {
     report: skillsReport,
     loading: skillsLoading,
@@ -128,9 +145,9 @@ function MissionControlInner() {
     let mounted = true;
     uiStateStore.getSkillsFilters().then((saved) => {
       if (!mounted || !saved) return;
-      setSkillsFilter(saved.filter ?? '');
-      setSkillsWorkspaceFilter(saved.workspace ?? 'all');
-      setSkillsStatusFilter(saved.status ?? 'all');
+      setSkillsFilter(saved.filter ?? "");
+      setSkillsWorkspaceFilter(saved.workspace ?? "all");
+      setSkillsStatusFilter(saved.status ?? "all");
     });
     return () => {
       mounted = false;
@@ -156,7 +173,7 @@ function MissionControlInner() {
     updateSetting,
     setModels,
     setSessionSettings,
-    setLoading
+    setLoading,
   } = useSessionSettings(activePanelAgentId || null, sendMessage, connectionStatus);
 
   // Session control hook for abort and reset
@@ -170,91 +187,103 @@ function MissionControlInner() {
       if (runId) {
         const streamKey = getStreamKey(agent.id, runId);
         if (reasoningStreams[streamKey]) {
-          statuses[agent.id] = 'thinking';
+          statuses[agent.id] = "thinking";
         } else if (chatStreams[streamKey]) {
-          statuses[agent.id] = 'text';
+          statuses[agent.id] = "text";
         } else {
-          statuses[agent.id] = 'tool';
+          statuses[agent.id] = "tool";
         }
       } else if (completedRuns[agent.id]) {
-        statuses[agent.id] = 'completed';
+        statuses[agent.id] = "completed";
       } else {
-        statuses[agent.id] = 'idle';
+        statuses[agent.id] = "idle";
       }
     }
     return statuses;
   }, [agents, activeRuns, chatStreams, reasoningStreams, completedRuns]);
 
-  const handleAbortRun = useCallback((agentId: string) => {
-    if (connectionStatus !== 'connected') {
-      toast({
-        title: 'Not connected',
-        description: 'Cannot stop run while disconnected.',
-        variant: 'destructive'
-      });
-      return;
-    }
+  const handleAbortRun = useCallback(
+    (agentId: string) => {
+      if (connectionStatus !== "connected") {
+        toast({
+          title: "Not connected",
+          description: "Cannot stop run while disconnected.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    abortRun(agentId);
-  }, [abortRun, connectionStatus, toast]);
+      abortRun(agentId);
+    },
+    [abortRun, connectionStatus, toast]
+  );
 
   // Enhanced reset handler that also clears UI history
-  const handleResetSession = useCallback((agentId: string) => {
-    resetSession(agentId);
-    clearChatHistory(agentId);
-  }, [resetSession, clearChatHistory]);
+  const handleResetSession = useCallback(
+    (agentId: string) => {
+      resetSession(agentId);
+      clearChatHistory(agentId);
+    },
+    [resetSession, clearChatHistory]
+  );
 
-  const sendRequestWithAck = useCallback((payload: any, ackType: string, timeoutMs = 20000) => {
-    return new Promise<any>((resolve, reject) => {
-      const requestId = typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const sendRequestWithAck = useCallback(
+    (payload: any, ackType: string, timeoutMs = 20000) => {
+      return new Promise<any>((resolve, reject) => {
+        const requestId =
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-      const timeoutId = setTimeout(() => {
-        pendingRequestsRef.current.delete(requestId);
-        reject(new Error('Request timed out. Please try again.'));
-      }, timeoutMs);
+        const timeoutId = setTimeout(() => {
+          pendingRequestsRef.current.delete(requestId);
+          reject(new Error("Request timed out. Please try again."));
+        }, timeoutMs);
 
-      pendingRequestsRef.current.set(requestId, {
-        ackType,
-        resolve,
-        reject,
-        timeoutId
+        pendingRequestsRef.current.set(requestId, {
+          ackType,
+          resolve,
+          reject,
+          timeoutId,
+        });
+
+        sendMessage({ ...payload, requestId });
       });
-
-      sendMessage({ ...payload, requestId });
-    });
-  }, [sendMessage]);
+    },
+    [sendMessage]
+  );
 
   const isOnboardingForced = useCallback(() => {
-    if (typeof window === 'undefined') return false;
-    return ['1', 'true', 'yes', 'force'].includes(
-      (new URLSearchParams(window.location.search).get('onboarding') || '').toLowerCase()
+    if (typeof window === "undefined") return false;
+    return ["1", "true", "yes", "force"].includes(
+      (new URLSearchParams(window.location.search).get("onboarding") || "").toLowerCase()
     );
   }, []);
 
   // Request gateways on connect
   useEffect(() => {
-    if (connectionStatus === 'connected') {
-      sendMessage({ type: 'gateways.list' });
+    if (connectionStatus === "connected") {
+      sendMessage({ type: "gateways.list" });
     }
   }, [connectionStatus, sendMessage]);
 
   // On refresh, rehydrate chat history for already open chat panels.
   useEffect(() => {
-    if (connectionStatus !== 'connected') return;
+    if (connectionStatus !== "connected") return;
 
-    const openChatAgentIds = Array.from(new Set(
-      layout.panels
-        .filter((panel) => panel.type === 'chat' && panel.agentId)
-        .map((panel) => panel.agentId as string)
-    ));
+    const openChatAgentIds = Array.from(
+      new Set(
+        layout.panels
+          .filter((panel) => panel.type === "chat" && panel.agentId)
+          .map((panel) => panel.agentId as string)
+      )
+    );
 
     for (const agentId of openChatAgentIds) {
       if (hydratedHistoryAgentsRef.current.has(agentId)) continue;
 
       sendMessage({
-        type: 'chat.history.load',
+        type: "chat.history.load",
         agentId,
         params: {
           sessionKey: `agent:${agentId}:main`,
@@ -281,27 +310,27 @@ function MissionControlInner() {
 
         const state = await uiStateStore.getOnboardingState();
         const hasCompletedOnboarding = state?.isOnboarded === true;
-        
+
         setOnboardingChecked(true);
-        
+
         // Show onboarding wizard for first-time users with no gateway configured
-        if (!hasCompletedOnboarding && connectionStatus === 'no-config' && gateways.length === 0) {
+        if (!hasCompletedOnboarding && connectionStatus === "no-config" && gateways.length === 0) {
           setShowOnboarding(true);
         } else {
           setShowOnboarding(false);
         }
       } catch (err) {
-        console.error('Failed to check onboarding state:', err);
+        console.error("Failed to check onboarding state:", err);
         setOnboardingChecked(true);
         setShowOnboarding(false);
       }
     };
-    
+
     checkOnboarding();
   }, [gateways.length, connectionStatus, isOnboardingForced]);
 
   useEffect(() => {
-    if (connectionStatus !== 'connected') {
+    if (connectionStatus !== "connected") {
       setIsGatewayConnecting(false);
     }
   }, [connectionStatus]);
@@ -318,9 +347,9 @@ function MissionControlInner() {
             pendingRequestsRef.current.delete(requestId);
             return;
           }
-          if (message.type === 'error') {
+          if (message.type === "error") {
             clearTimeout(pending.timeoutId);
-            pending.reject(new Error(message.message || 'Request failed'));
+            pending.reject(new Error(message.message || "Request failed"));
             pendingRequestsRef.current.delete(requestId);
             return;
           }
@@ -328,35 +357,35 @@ function MissionControlInner() {
       }
 
       handleAgentEvent(message);
-      if (message.type === 'models' && message.data) {
+      if (message.type === "models" && message.data) {
         setModels(message.data.models || []);
-      } else if (message.type === 'gateways.list') {
+      } else if (message.type === "gateways.list") {
         setGateways(message.data || []);
         setActiveGatewayId(message.activeId);
         if (message.data.length === 0 && !isOnboardingForced()) {
           setShowSetup(true);
         }
-      } else if (message.type === 'gateways.add.ack') {
+      } else if (message.type === "gateways.add.ack") {
         setIsGatewayConnecting(false);
-        sendMessage({ type: 'gateways.list' });
+        sendMessage({ type: "gateways.list" });
         setShowSetup(false);
-      } else if (message.type === 'gateways.switch.ack' || message.type === 'gateways.remove.ack') {
-        sendMessage({ type: 'gateways.list' });
+      } else if (message.type === "gateways.switch.ack" || message.type === "gateways.remove.ack") {
+        sendMessage({ type: "gateways.list" });
         setShowSetup(false);
-      } else if (message.type === 'chat.abort.run.ack') {
+      } else if (message.type === "chat.abort.run.ack") {
         if (message.ok) {
           toast({
-            title: 'Run stopped',
-            description: 'Generation was aborted.'
+            title: "Run stopped",
+            description: "Generation was aborted.",
           });
         } else {
           toast({
-            title: 'Stop failed',
-            description: message.error || 'Failed to abort run.',
-            variant: 'destructive'
+            title: "Stop failed",
+            description: message.error || "Failed to abort run.",
+            variant: "destructive",
           });
         }
-      } else if (message.type === 'error') {
+      } else if (message.type === "error") {
         if (message.requestId) {
           return;
         }
@@ -366,7 +395,7 @@ function MissionControlInner() {
         // instead of waiting for timeout.
         pendingRequestsRef.current.forEach((pending, id) => {
           clearTimeout(pending.timeoutId);
-          pending.reject(new Error(message.message || 'Request failed'));
+          pending.reject(new Error(message.message || "Request failed"));
           pendingRequestsRef.current.delete(id);
         });
 
@@ -374,45 +403,45 @@ function MissionControlInner() {
         toast({
           title: "Gateway Error",
           description: message.message,
-          variant: "destructive"
+          variant: "destructive",
         });
         setLoading(false);
-      } else if (message.type === 'sessions' && message.data) {
+      } else if (message.type === "sessions" && message.data) {
         const sessions = message.data.sessions || [];
-        
+
         // Update the active panel's session settings in the global state
         if (activePanelAgentId) {
-          const agentSession = sessions.find((s: any) => 
+          const agentSession = sessions.find((s: any) =>
             s.key?.includes(`agent:${activePanelAgentId}`)
           );
           if (agentSession) {
             setSessionSettings({
               model: agentSession.model,
-              thinking: agentSession.thinkingLevel || 'low',
-              verbose: agentSession.verboseLevel || 'off',
-              reasoning: agentSession.reasoningLevel || 'off'
+              thinking: agentSession.thinkingLevel || "low",
+              verbose: agentSession.verboseLevel || "off",
+              reasoning: agentSession.reasoningLevel || "off",
             });
           }
         }
-        
+
         // Update all chat panels with their respective session settings
-        layout.panels.forEach(panel => {
-          if (panel.type === 'chat' && panel.agentId) {
-            const panelSession = sessions.find((s: any) => 
+        layout.panels.forEach((panel) => {
+          if (panel.type === "chat" && panel.agentId) {
+            const panelSession = sessions.find((s: any) =>
               s.key?.includes(`agent:${panel.agentId}`)
             );
             if (panelSession) {
               updatePanelSessionSettings(panel.id, {
                 model: panelSession.model,
                 modelProvider: panelSession.modelProvider,
-                thinking: panelSession.thinkingLevel || 'low'
+                thinking: panelSession.thinkingLevel || "low",
               });
             }
           }
         });
-        
+
         setLoading(false);
-      } else if (message.type === 'sessions.patch.ack') {
+      } else if (message.type === "sessions.patch.ack") {
         setLoading(false);
       }
     };
@@ -440,323 +469,406 @@ function MissionControlInner() {
   }, []);
 
   // Calculate active panel agent for UI display
-  const activePanelAgent = activePanel?.agentId ? agents.find(a => a.id === activePanel.agentId) : undefined;
+  const activePanelAgent = activePanel?.agentId
+    ? agents.find((a) => a.id === activePanel.agentId)
+    : undefined;
 
   // Handlers for updating per-panel settings
-  const handlePanelShowToolsChange = useCallback((panelId: string, show: boolean) => {
-    setActivePanel(panelId);
-    updatePanelSettings(panelId, { showTools: show });
-  }, [setActivePanel, updatePanelSettings]);
+  const handlePanelShowToolsChange = useCallback(
+    (panelId: string, show: boolean) => {
+      setActivePanel(panelId);
+      updatePanelSettings(panelId, { showTools: show });
+    },
+    [setActivePanel, updatePanelSettings]
+  );
 
-  const handlePanelShowReasoningChange = useCallback((panelId: string, show: boolean) => {
-    setActivePanel(panelId);
-    updatePanelSettings(panelId, { showReasoning: show });
-  }, [setActivePanel, updatePanelSettings]);
+  const handlePanelShowReasoningChange = useCallback(
+    (panelId: string, show: boolean) => {
+      setActivePanel(panelId);
+      updatePanelSettings(panelId, { showReasoning: show });
+    },
+    [setActivePanel, updatePanelSettings]
+  );
 
   // Active-panel wrappers used by mobile controls
-  const handleShowToolsChange = useCallback((show: boolean) => {
-    if (activePanel?.id) {
-      handlePanelShowToolsChange(activePanel.id, show);
-    }
-  }, [activePanel?.id, handlePanelShowToolsChange]);
+  const handleShowToolsChange = useCallback(
+    (show: boolean) => {
+      if (activePanel?.id) {
+        handlePanelShowToolsChange(activePanel.id, show);
+      }
+    },
+    [activePanel?.id, handlePanelShowToolsChange]
+  );
 
-  const handleShowReasoningChange = useCallback((show: boolean) => {
-    if (activePanel?.id) {
-      handlePanelShowReasoningChange(activePanel.id, show);
-    }
-  }, [activePanel?.id, handlePanelShowReasoningChange]);
+  const handleShowReasoningChange = useCallback(
+    (show: boolean) => {
+      if (activePanel?.id) {
+        handlePanelShowReasoningChange(activePanel.id, show);
+      }
+    },
+    [activePanel?.id, handlePanelShowReasoningChange]
+  );
 
   // Handler to open chat panel for an agent
-  const handleSelectAgent = useCallback((agentId: string) => {
-    const agent = agents.find(a => a.id === agentId);
-    openPanel('chat', { agentId, agentName: agent?.name || 'Chat' });
-    // Request session settings for this agent
-    if (connectionStatus === 'connected') {
-      sendMessage({ type: 'sessions.list' });
-    }
-  }, [agents, openPanel, connectionStatus, sendMessage]);
-  
+  const handleSelectAgent = useCallback(
+    (agentId: string) => {
+      const agent = agents.find((a) => a.id === agentId);
+      openPanel("chat", { agentId, agentName: agent?.name || "Chat" });
+      // Request session settings for this agent
+      if (connectionStatus === "connected") {
+        sendMessage({ type: "sessions.list" });
+      }
+    },
+    [agents, openPanel, connectionStatus, sendMessage]
+  );
+
   // Handler to open create agent panel
   const handleCreateAgent = useCallback(() => {
-    openPanel('create-agent');
+    openPanel("create-agent");
   }, [openPanel]);
 
-  const handleEditAgent = useCallback((agentId: string) => {
-    const agent = agents.find(a => a.id === agentId);
-    openPanel('update-agent', {
-      agentId,
-      agentName: agent?.name || 'Agent'
-    });
-  }, [agents, openPanel]);
+  const handleEditAgent = useCallback(
+    (agentId: string) => {
+      const agent = agents.find((a) => a.id === agentId);
+      openPanel("update-agent", {
+        agentId,
+        agentName: agent?.name || "Agent",
+      });
+    },
+    [agents, openPanel]
+  );
 
-  const handleOpenExtensionOnboarding = useCallback((extensionName: string) => {
-    openPanel('extension-onboarding', { extensionName });
-  }, [openPanel]);
+  const handleOpenExtensionOnboarding = useCallback(
+    (extensionName: string) => {
+      openPanel("extension-onboarding", { extensionName });
+    },
+    [openPanel]
+  );
 
   const handleOpenTagsSettings = useCallback(() => {
-    openPanel('tags-settings');
+    openPanel("tags-settings");
   }, [openPanel]);
 
   const handleOpenSkills = useCallback(() => {
-    openPanel('skills');
+    openPanel("skills");
     refreshSkills();
   }, [openPanel, refreshSkills]);
 
   // Cron handlers
-  const handleSelectCronJob = useCallback((jobId: string) => {
-    const job = cronJobs.find(j => j.id === jobId);
-    if (job) {
-      openPanel('cron', { jobId, jobName: job.name });
-    }
-  }, [cronJobs, openPanel]);
+  const handleSelectCronJob = useCallback(
+    (jobId: string) => {
+      const job = cronJobs.find((j) => j.id === jobId);
+      if (job) {
+        openPanel("cron", { jobId, jobName: job.name });
+      }
+    },
+    [cronJobs, openPanel]
+  );
 
-  const handleDeleteCronJob = useCallback(async (jobId: string) => {
-    try {
-      await deleteCronJob(jobId);
-      toast({
-        title: 'Cron job deleted',
-        description: 'The cron job has been removed.',
-      });
-      // Close any open cron panels for this job
-      layout.panels.forEach(panel => {
-        if (panel.type === 'cron' && panel.data?.jobId === jobId) {
-          closePanel(panel.id);
-        }
-      });
-    } catch (err) {
-      toast({
-        title: 'Failed to delete job',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-    }
-  }, [deleteCronJob, toast, layout.panels, closePanel]);
+  const handleDeleteCronJob = useCallback(
+    async (jobId: string) => {
+      try {
+        await deleteCronJob(jobId);
+        toast({
+          title: "Cron job deleted",
+          description: "The cron job has been removed.",
+        });
+        // Close any open cron panels for this job
+        layout.panels.forEach((panel) => {
+          if (panel.type === "cron" && panel.data?.jobId === jobId) {
+            closePanel(panel.id);
+          }
+        });
+      } catch (err) {
+        toast({
+          title: "Failed to delete job",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
+    },
+    [deleteCronJob, toast, layout.panels, closePanel]
+  );
 
   const handleOpenCreateCronPanel = useCallback(() => {
     setIsCronMenuOpen(false);
-    openPanel('create-cron');
+    openPanel("create-cron");
   }, [openPanel]);
 
-  const handleEditCronJob = useCallback((jobId: string) => {
-    const job = cronJobs.find(j => j.id === jobId);
-    if (!job) return;
-    openPanel('update-cron', { jobId, jobName: job.name });
-  }, [cronJobs, openPanel]);
+  const handleEditCronJob = useCallback(
+    (jobId: string) => {
+      const job = cronJobs.find((j) => j.id === jobId);
+      if (!job) return;
+      openPanel("update-cron", { jobId, jobName: job.name });
+    },
+    [cronJobs, openPanel]
+  );
 
-  const handleCreateCronJobRequest = useCallback(async (payload: any) => {
-    const createdJob = await addCronJob({
-      ...payload,
-      payload: {
-        ...payload.payload,
-        agentId: payload.payload?.agentId || activePanelAgentId || undefined,
-      }
-    });
+  const handleCreateCronJobRequest = useCallback(
+    async (payload: any) => {
+      const createdJob = await addCronJob({
+        ...payload,
+        payload: {
+          ...payload.payload,
+          agentId: payload.payload?.agentId || activePanelAgentId || undefined,
+        },
+      });
 
-    toast({
-      title: 'Cron job created',
-      description: `${createdJob.name} was added.`,
-    });
+      toast({
+        title: "Cron job created",
+        description: `${createdJob.name} was added.`,
+      });
 
-    openPanel('cron', { jobId: createdJob.id, jobName: createdJob.name });
-    return createdJob;
-  }, [addCronJob, activePanelAgentId, openPanel, toast]);
+      openPanel("cron", { jobId: createdJob.id, jobName: createdJob.name });
+      return createdJob;
+    },
+    [addCronJob, activePanelAgentId, openPanel, toast]
+  );
 
-  const handleUpdateCronJobRequest = useCallback(async (payload: { jobId: string; updates: any }) => {
-    const updatedJob = await updateCronJob(payload.jobId, payload.updates);
+  const handleUpdateCronJobRequest = useCallback(
+    async (payload: { jobId: string; updates: any }) => {
+      const updatedJob = await updateCronJob(payload.jobId, payload.updates);
 
-    toast({
-      title: 'Cron job updated',
-      description: `${updatedJob.name} was updated.`,
-    });
+      toast({
+        title: "Cron job updated",
+        description: `${updatedJob.name} was updated.`,
+      });
 
-    return updatedJob;
-  }, [updateCronJob, toast]);
+      return updatedJob;
+    },
+    [updateCronJob, toast]
+  );
 
   // Notes handlers
-  const handleSelectNoteGroup = useCallback((group: string | null) => {
-    setIsNotesMenuOpen(false);
-    openPanel('notes', { selectedGroup: group });
-  }, [openPanel]);
+  const handleSelectNoteGroup = useCallback(
+    (group: string | null) => {
+      setIsNotesMenuOpen(false);
+      openPanel("notes", { selectedGroup: group });
+    },
+    [openPanel]
+  );
 
   const handleOpenNotes = useCallback(() => {
     setIsNotesMenuOpen(false);
-    openPanel('notes', { selectedGroup: null });
+    openPanel("notes", { selectedGroup: null });
   }, [openPanel]);
 
-  const handleAddNote = useCallback(async (content: string, group: string, tags?: string[], imageUrl?: string) => {
-    try {
-      await addNote(content, group, tags, imageUrl);
-      toast({
-        title: 'Note added',
-        description: 'Your note has been saved.',
-      });
-    } catch (err) {
-      toast({
-        title: 'Failed to add note',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  }, [addNote, toast]);
+  const handleAddNote = useCallback(
+    async (content: string, group: string, tags?: string[], imageUrl?: string) => {
+      try {
+        await addNote(content, group, tags, imageUrl);
+        toast({
+          title: "Note added",
+          description: "Your note has been saved.",
+        });
+      } catch (err) {
+        toast({
+          title: "Failed to add note",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        throw err;
+      }
+    },
+    [addNote, toast]
+  );
 
-  const handleCreateNoteGroup = useCallback(async (group: string) => {
-    try {
-      await addGroup(group);
-    } catch (err) {
-      toast({
-        title: 'Failed to create group',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  }, [addGroup, toast]);
+  const handleCreateNoteGroup = useCallback(
+    async (group: string) => {
+      try {
+        await addGroup(group);
+      } catch (err) {
+        toast({
+          title: "Failed to create group",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        throw err;
+      }
+    },
+    [addGroup, toast]
+  );
 
-  const handleDeleteNoteGroup = useCallback(async (group: string) => {
-    try {
-      await deleteGroup(group);
-      toast({
-        title: 'Group deleted',
-        description: `${group} has been removed. Notes were moved to General.`,
-      });
-    } catch (err) {
-      toast({
-        title: 'Failed to delete group',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  }, [deleteGroup, toast]);
+  const handleDeleteNoteGroup = useCallback(
+    async (group: string) => {
+      try {
+        await deleteGroup(group);
+        toast({
+          title: "Group deleted",
+          description: `${group} has been removed. Notes were moved to General.`,
+        });
+      } catch (err) {
+        toast({
+          title: "Failed to delete group",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        throw err;
+      }
+    },
+    [deleteGroup, toast]
+  );
 
-  const handleUploadNoteImage = useCallback(async (file: File) => {
-    try {
-      return await uploadNoteImage(file);
-    } catch (err) {
-      toast({
-        title: 'Failed to upload image',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  }, [toast, uploadNoteImage]);
+  const handleUploadNoteImage = useCallback(
+    async (file: File) => {
+      try {
+        return await uploadNoteImage(file);
+      } catch (err) {
+        toast({
+          title: "Failed to upload image",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        throw err;
+      }
+    },
+    [toast, uploadNoteImage]
+  );
 
-  const handleDeleteNote = useCallback(async (id: string) => {
-    try {
-      await deleteNote(id);
-      toast({
-        title: 'Note deleted',
-        description: 'The note has been removed.',
-      });
-    } catch (err) {
-      toast({
-        title: 'Failed to delete note',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  }, [deleteNote, toast]);
+  const handleDeleteNote = useCallback(
+    async (id: string) => {
+      try {
+        await deleteNote(id);
+        toast({
+          title: "Note deleted",
+          description: "The note has been removed.",
+        });
+      } catch (err) {
+        toast({
+          title: "Failed to delete note",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        throw err;
+      }
+    },
+    [deleteNote, toast]
+  );
 
-  const handleUpdateNote = useCallback(async (id: string, updates: any) => {
-    try {
-      await updateNote(id, updates);
-      toast({
-        title: 'Note updated',
-        description: 'Your changes were saved.',
-      });
-    } catch (err) {
-      toast({
-        title: 'Failed to update note',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  }, [toast, updateNote]);
+  const handleUpdateNote = useCallback(
+    async (id: string, updates: any) => {
+      try {
+        await updateNote(id, updates);
+        toast({
+          title: "Note updated",
+          description: "Your changes were saved.",
+        });
+      } catch (err) {
+        toast({
+          title: "Failed to update note",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        throw err;
+      }
+    },
+    [toast, updateNote]
+  );
 
-  const handleSetTagColor = useCallback(async (tag: string, color: string) => {
-    try {
-      await setTagColor(tag, color);
-    } catch (err) {
-      toast({
-        title: 'Failed to set tag color',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  }, [setTagColor, toast]);
+  const handleSetTagColor = useCallback(
+    async (tag: string, color: string) => {
+      try {
+        await setTagColor(tag, color);
+      } catch (err) {
+        toast({
+          title: "Failed to set tag color",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        throw err;
+      }
+    },
+    [setTagColor, toast]
+  );
 
-  const handleDeleteTag = useCallback(async (tag: string) => {
-    try {
-      await deleteTag(tag);
-      toast({
-        title: 'Tag deleted',
-        description: `Removed "${tag}" from all notes.`,
-      });
-    } catch (err) {
-      toast({
-        title: 'Failed to delete tag',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  }, [deleteTag, toast]);
+  const handleDeleteTag = useCallback(
+    async (tag: string) => {
+      try {
+        await deleteTag(tag);
+        toast({
+          title: "Tag deleted",
+          description: `Removed "${tag}" from all notes.`,
+        });
+      } catch (err) {
+        toast({
+          title: "Failed to delete tag",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        throw err;
+      }
+    },
+    [deleteTag, toast]
+  );
 
-  const handleCreateTag = useCallback(async (tag: string) => {
-    try {
-      await createTag(tag);
-    } catch (err) {
-      toast({
-        title: 'Failed to create tag',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      throw err;
-    }
-  }, [createTag, toast]);
+  const handleCreateTag = useCallback(
+    async (tag: string) => {
+      try {
+        await createTag(tag);
+      } catch (err) {
+        toast({
+          title: "Failed to create tag",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        throw err;
+      }
+    },
+    [createTag, toast]
+  );
 
-  const handleCreateAgentRequest = useCallback(async (payload: {
-    id?: string;
-    name: string;
-    workspace?: string;
-    model?: string;
-    tools?: { profile: string };
-    sandbox?: { mode: string };
-  }) => {
-    const ack = await sendRequestWithAck({ type: 'agents.add', ...payload }, 'agents.add.ack');
-    return {
-      agentId: ack.agentId,
-      agentName: payload.name
-    };
-  }, [sendRequestWithAck]);
+  const handleCreateAgentRequest = useCallback(
+    async (payload: {
+      id?: string;
+      name: string;
+      workspace?: string;
+      model?: string;
+      tools?: { profile: string };
+      sandbox?: { mode: string };
+    }) => {
+      const ack = await sendRequestWithAck({ type: "agents.add", ...payload }, "agents.add.ack");
+      return {
+        agentId: ack.agentId,
+        agentName: payload.name,
+      };
+    },
+    [sendRequestWithAck]
+  );
 
-  const handleUpdateAgentRequest = useCallback(async (payload: { agentId: string; name: string }) => {
-    const ack = await sendRequestWithAck({ type: 'agents.update', ...payload }, 'agents.update.ack');
-    return {
-      agentId: ack.agentId,
-      name: ack.name
-    };
-  }, [sendRequestWithAck]);
+  const handleUpdateAgentRequest = useCallback(
+    async (payload: { agentId: string; name: string }) => {
+      const ack = await sendRequestWithAck(
+        { type: "agents.update", ...payload },
+        "agents.update.ack"
+      );
+      return {
+        agentId: ack.agentId,
+        name: ack.name,
+      };
+    },
+    [sendRequestWithAck]
+  );
 
-  const handleDeleteAgentRequest = useCallback(async (agentId: string) => {
-    const ack = await sendRequestWithAck({ type: 'agents.delete', agentId }, 'agents.delete.ack');
-    return {
-      agentId: ack.agentId,
-      removed: Boolean(ack.removed)
-    };
-  }, [sendRequestWithAck]);
+  const handleDeleteAgentRequest = useCallback(
+    async (agentId: string) => {
+      const ack = await sendRequestWithAck({ type: "agents.delete", agentId }, "agents.delete.ack");
+      return {
+        agentId: ack.agentId,
+        removed: Boolean(ack.removed),
+      };
+    },
+    [sendRequestWithAck]
+  );
 
-  const handleDeleteAgent = useCallback((agentId: string) => {
-    const agent = agents.find(a => a.id === agentId);
-    const agentName = agent?.name || agentId;
-    setAgentToDelete({ id: agentId, name: agentName });
-    setShowDeleteConfirm(true);
-  }, [agents]);
+  const handleDeleteAgent = useCallback(
+    (agentId: string) => {
+      const agent = agents.find((a) => a.id === agentId);
+      const agentName = agent?.name || agentId;
+      setAgentToDelete({ id: agentId, name: agentName });
+      setShowDeleteConfirm(true);
+    },
+    [agents]
+  );
 
   const handleConfirmDeleteAgent = useCallback(async () => {
     if (!agentToDelete) return;
@@ -765,25 +877,27 @@ function MissionControlInner() {
       const result = await handleDeleteAgentRequest(agentToDelete.id);
       if (result.removed) {
         toast({
-          title: 'Agent deleted',
-          description: `${agentToDelete.name} has been removed.`
+          title: "Agent deleted",
+          description: `${agentToDelete.name} has been removed.`,
         });
       } else {
         toast({
-          title: 'Agent not found',
-          description: `${agentToDelete.name} was already missing.`
+          title: "Agent not found",
+          description: `${agentToDelete.name} was already missing.`,
         });
       }
 
-      const panelForAgent = layout.panels.find((panel) => panel.agentId === agentToDelete.id && panel.isActive);
+      const panelForAgent = layout.panels.find(
+        (panel) => panel.agentId === agentToDelete.id && panel.isActive
+      );
       if (panelForAgent) {
         closePanel(panelForAgent.id);
       }
     } catch (err) {
       toast({
-        title: 'Delete failed',
-        description: err instanceof Error ? err.message : 'Failed to delete agent',
-        variant: 'destructive'
+        title: "Delete failed",
+        description: err instanceof Error ? err.message : "Failed to delete agent",
+        variant: "destructive",
       });
     } finally {
       setShowDeleteConfirm(false);
@@ -791,67 +905,82 @@ function MissionControlInner() {
     }
   }, [agentToDelete, handleDeleteAgentRequest, layout.panels, closePanel, toast]);
 
-  const handleOnboardingGatewayConnect = useCallback(async (name: string, url: string, token: string) => {
-    const ack = await sendRequestWithAck({ type: 'gateways.add', name, url, token }, 'gateways.add.ack');
-    if (ack?.ok === false) {
-      throw new Error(ack.error || 'Failed to connect to gateway');
-    }
-    sendMessage({ type: 'gateways.list' });
-  }, [sendRequestWithAck, sendMessage]);
+  const handleOnboardingGatewayConnect = useCallback(
+    async (name: string, url: string, token: string) => {
+      const ack = await sendRequestWithAck(
+        { type: "gateways.add", name, url, token },
+        "gateways.add.ack"
+      );
+      if (ack?.ok === false) {
+        throw new Error(ack.error || "Failed to connect to gateway");
+      }
+      sendMessage({ type: "gateways.list" });
+    },
+    [sendRequestWithAck, sendMessage]
+  );
 
   // Use the active panel's agent for session key
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
 
   // Handler for model change from panel header - panel-aware to avoid updating wrong session
-  const handleModelChange = useCallback((panelId: string, modelId: string, provider?: string) => {
-    const panel = layout.panels.find(p => p.id === panelId);
-    if (!panel?.agentId) return;
-    const panelSessionKey = `agent:${panel.agentId}:main`;
-    // Update the session on the server
-    updateSetting(panelSessionKey, { model: modelId, modelProvider: provider });
-    // Update the panel state immediately for responsive UI
-    updatePanelSessionSettings(panelId, { model: modelId, modelProvider: provider });
-  }, [layout.panels, updateSetting, updatePanelSessionSettings]);
+  const handleModelChange = useCallback(
+    (panelId: string, modelId: string, provider?: string) => {
+      const panel = layout.panels.find((p) => p.id === panelId);
+      if (!panel?.agentId) return;
+      const panelSessionKey = `agent:${panel.agentId}:main`;
+      // Update the session on the server
+      updateSetting(panelSessionKey, { model: modelId, modelProvider: provider });
+      // Update the panel state immediately for responsive UI
+      updatePanelSessionSettings(panelId, { model: modelId, modelProvider: provider });
+    },
+    [layout.panels, updateSetting, updatePanelSessionSettings]
+  );
 
   // Handler for thinking level change from panel header - panel-aware to avoid updating wrong session
-  const handleThinkingChange = useCallback((panelId: string, thinking: 'off' | 'low' | 'medium' | 'high') => {
-    const panel = layout.panels.find(p => p.id === panelId);
-    if (!panel?.agentId) return;
-    const panelSessionKey = `agent:${panel.agentId}:main`;
-    // Update the session on the server
-    updateSetting(panelSessionKey, { thinking });
-    // Update the panel state immediately for responsive UI
-    updatePanelSessionSettings(panelId, { thinking });
-  }, [layout.panels, updateSetting, updatePanelSessionSettings]);
+  const handleThinkingChange = useCallback(
+    (panelId: string, thinking: "off" | "low" | "medium" | "high") => {
+      const panel = layout.panels.find((p) => p.id === panelId);
+      if (!panel?.agentId) return;
+      const panelSessionKey = `agent:${panel.agentId}:main`;
+      // Update the session on the server
+      updateSetting(panelSessionKey, { thinking });
+      // Update the panel state immediately for responsive UI
+      updatePanelSessionSettings(panelId, { thinking });
+    },
+    [layout.panels, updateSetting, updatePanelSessionSettings]
+  );
 
   // Handler to refresh chat history for a specific agent
-  const handleRefreshChat = useCallback((agentId: string) => {
-    const agentName = agents.find((agent) => agent.id === agentId)?.name || agentId;
+  const handleRefreshChat = useCallback(
+    (agentId: string) => {
+      const agentName = agents.find((agent) => agent.id === agentId)?.name || agentId;
 
-    if (connectionStatus !== 'connected') {
-      toast({
-        title: 'Refresh unavailable',
-        description: 'Connect to a gateway to refresh chat history.',
-        variant: 'destructive',
+      if (connectionStatus !== "connected") {
+        toast({
+          title: "Refresh unavailable",
+          description: "Connect to a gateway to refresh chat history.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      sendMessage({
+        type: "chat.history.load",
+        agentId,
+        params: {
+          sessionKey: `agent:${agentId}:main`,
+          limit: 50,
+        },
       });
-      return;
-    }
 
-    sendMessage({
-      type: 'chat.history.load',
-      agentId,
-      params: {
-        sessionKey: `agent:${agentId}:main`,
-        limit: 50,
-      },
-    });
-
-    toast({
-      title: 'Refreshing chat',
-      description: `Reloading transcript for ${agentName}.`,
-      variant: 'success',
-    });
-  }, [agents, connectionStatus, sendMessage, toast]);
+      toast({
+        title: "Refreshing chat",
+        description: `Reloading transcript for ${agentName}.`,
+        variant: "success",
+      });
+    },
+    [agents, connectionStatus, sendMessage, toast]
+  );
 
   // Show onboarding wizard for first-time users with no config
   if (onboardingChecked && showOnboarding === true) {
@@ -860,7 +989,7 @@ function MissionControlInner() {
         onConnectGateway={handleOnboardingGatewayConnect}
         onComplete={() => {
           setShowOnboarding(false);
-          sendMessage({ type: 'gateways.list' });
+          sendMessage({ type: "gateways.list" });
         }}
         onSkip={() => {
           setShowOnboarding(false);
@@ -870,18 +999,22 @@ function MissionControlInner() {
   }
 
   // Show gateway setup for manual gateway addition or when no config and onboarding skipped/completed
-  if ((connectionStatus === 'no-config' && showOnboarding === false) || showSetup) {
+  if ((connectionStatus === "no-config" && showOnboarding === false) || showSetup) {
     return (
-      <GatewaySetup 
+      <GatewaySetup
         isLoading={isGatewayConnecting}
         onConnect={(name, url, token) => {
           setIsGatewayConnecting(true);
-          sendMessage({ type: 'gateways.add', name, url, token });
+          sendMessage({ type: "gateways.add", name, url, token });
         }}
-        onCancel={gateways.length > 0 ? () => {
-          setIsGatewayConnecting(false);
-          setShowSetup(false);
-        } : undefined}
+        onCancel={
+          gateways.length > 0
+            ? () => {
+                setIsGatewayConnecting(false);
+                setShowSetup(false);
+              }
+            : undefined
+        }
       />
     );
   }
@@ -897,10 +1030,14 @@ function MissionControlInner() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <div className={connectionStatus === 'connected' ? 'text-primary' : 'text-destructive'}>
-            {connectionStatus === 'connected' ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+          <div className={connectionStatus === "connected" ? "text-primary" : "text-destructive"}>
+            {connectionStatus === "connected" ? (
+              <Wifi className="w-4 h-4" />
+            ) : (
+              <WifiOff className="w-4 h-4" />
+            )}
           </div>
-          <button 
+          <button
             onClick={() => setIsMobilePanelOpen(true)}
             className="p-2 bg-secondary rounded-xl active:scale-90 transition-transform"
           >
@@ -918,8 +1055,10 @@ function MissionControlInner() {
               <LayoutGrid className="w-8 h-8 absolute -bottom-2 -right-2 opacity-20" />
             </div>
             <h1 className="text-xl font-bold text-foreground mb-2">Ready for deployment</h1>
-            <p className="max-w-xs text-sm opacity-60">Select an agent from the command panel to establish a secure uplink.</p>
-            <button 
+            <p className="max-w-xs text-sm opacity-60">
+              Select an agent from the command panel to establish a secure uplink.
+            </p>
+            <button
               onClick={() => setIsMobilePanelOpen(true)}
               className="mt-8 px-6 py-3 bg-primary text-primary-foreground rounded-2xl font-bold md:hidden"
             >
@@ -1001,12 +1140,11 @@ function MissionControlInner() {
           onEditAgent={handleEditAgent}
           onDeleteAgent={handleDeleteAgent}
           agentStatuses={agentStatuses}
-          
           gateways={gateways}
           activeGatewayId={activeGatewayId}
-          onSwitchGateway={(id) => sendMessage({ type: 'gateways.switch', id })}
+          onSwitchGateway={(id) => sendMessage({ type: "gateways.switch", id })}
           onAddGateway={() => setShowSetup(true)}
-          onRemoveGateway={(id) => sendMessage({ type: 'gateways.remove', id })}
+          onRemoveGateway={(id) => sendMessage({ type: "gateways.remove", id })}
           onOpenExtensionOnboarding={handleOpenExtensionOnboarding}
           onOpenTagsSettings={handleOpenTagsSettings}
           onOpenSkills={handleOpenSkills}
@@ -1043,32 +1181,40 @@ function MissionControlInner() {
         }}
         models={models}
         currentModel={sessionSettings.model}
-        thinkingMode={sessionSettings.thinking || 'low'}
+        thinkingMode={sessionSettings.thinking || "low"}
         showTools={activePanel?.settings?.showTools ?? false}
         showReasoning={activePanel?.settings?.showReasoning ?? true}
-        onModelChange={sessionKey ? (model, provider) => updateSetting(sessionKey, { model, modelProvider: provider }) : undefined}
-        onThinkingChange={sessionKey ? (thinking) => updateSetting(sessionKey, { thinking }) : undefined}
+        onModelChange={
+          sessionKey
+            ? (model, provider) => updateSetting(sessionKey, { model, modelProvider: provider })
+            : undefined
+        }
+        onThinkingChange={
+          sessionKey ? (thinking) => updateSetting(sessionKey, { thinking }) : undefined
+        }
         onShowToolsChange={handleShowToolsChange}
         onShowReasoningChange={handleShowReasoningChange}
-        
         connectionStatus={connectionStatus}
         gateways={gateways}
         activeGatewayId={activeGatewayId}
-        onSwitchGateway={(id) => sendMessage({ type: 'gateways.switch', id })}
+        onSwitchGateway={(id) => sendMessage({ type: "gateways.switch", id })}
         onAddGateway={() => {
           setShowSetup(true);
           setIsMobilePanelOpen(false);
         }}
-        onRemoveGateway={(id) => sendMessage({ type: 'gateways.remove', id })}
+        onRemoveGateway={(id) => sendMessage({ type: "gateways.remove", id })}
       />
-      
+
       {/* Click outside desktop menu */}
       {(isAgentMenuOpen || isCronMenuOpen || isNotesMenuOpen) && (
-        <div className="fixed inset-0 z-40" onClick={() => {
-          setIsAgentMenuOpen(false);
-          setIsCronMenuOpen(false);
-          setIsNotesMenuOpen(false);
-        }} />
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => {
+            setIsAgentMenuOpen(false);
+            setIsCronMenuOpen(false);
+            setIsNotesMenuOpen(false);
+          }}
+        />
       )}
 
       {/* Delete Agent Confirmation Modal */}

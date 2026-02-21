@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Settings, ChevronRight } from 'lucide-react';
+import { useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Settings, ChevronRight } from "lucide-react";
 
 interface ExtensionOption {
   name: string;
@@ -81,7 +81,9 @@ export function SettingsDropdown({
                 className="z-[120] min-w-[260px] max-w-[360px] max-h-[320px] overflow-y-auto bg-popover border border-border rounded-md shadow-lg p-1"
               >
                 {sortedExtensions.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-muted-foreground">No extensions available</div>
+                  <div className="px-3 py-2 text-xs text-muted-foreground">
+                    No extensions available
+                  </div>
                 ) : (
                   sortedExtensions.map((extension) => (
                     <DropdownMenu.Item
@@ -95,17 +97,19 @@ export function SettingsDropdown({
                       <div className="flex-1 min-w-0">
                         <div className="text-foreground truncate">{extension.name}</div>
                         {extension.description && (
-                          <div className="text-muted-foreground text-[10px] truncate">{extension.description}</div>
+                          <div className="text-muted-foreground text-[10px] truncate">
+                            {extension.description}
+                          </div>
                         )}
                       </div>
                       <span
                         className={
                           extension.enabled
-                            ? 'text-[10px] px-1.5 py-0.5 rounded bg-accent text-foreground'
-                            : 'text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground'
+                            ? "text-[10px] px-1.5 py-0.5 rounded bg-accent text-foreground"
+                            : "text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground"
                         }
                       >
-                        {extension.enabled ? 'Enabled' : 'Disabled'}
+                        {extension.enabled ? "Enabled" : "Disabled"}
                       </span>
                     </DropdownMenu.Item>
                   ))

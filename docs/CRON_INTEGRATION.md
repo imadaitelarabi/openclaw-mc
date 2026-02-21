@@ -1,11 +1,13 @@
 # Cron Job Integration - Implementation Documentation
 
 ## Overview
+
 This document describes the implementation of native cron job integration in OpenClaw MC, following the requirements specified in the feature request.
 
 ## Architecture
 
 ### Design Principles
+
 1. **Thin Proxy Pattern**: All cron operations use generic `gateway.call` RPC pass-throughs to the OpenClaw Gateway
 2. **Native Implementation**: Built into core components (Status Bar, Panels) rather than as an extension
 3. **Consistent UX**: Mirrors the Agent management workflow for familiar user experience
@@ -14,7 +16,9 @@ This document describes the implementation of native cron job integration in Ope
 ## Components
 
 ### Type Definitions (`types/cron.ts`)
+
 Defines the core data structures for cron jobs:
+
 - `CronJob`: Complete job configuration with schedule, payload, delivery settings
 - `CronStatus`: Overall scheduler status (enabled, job count, next wake time)
 - `CronRun`: Execution history entry with status and session key
@@ -22,7 +26,9 @@ Defines the core data structures for cron jobs:
 - `CronEvent`: Real-time event payload for job updates
 
 ### Server Handlers (`server/handlers/cron.handler.ts`)
+
 Implements RPC pass-through handlers:
+
 - `handleCronList`: Fetch all cron jobs
 - `handleCronStatus`: Get scheduler status
 - `handleCronAdd`: Create new job
@@ -36,7 +42,9 @@ All handlers use the gateway.call() method to forward requests to the OpenClaw G
 ### Hooks
 
 #### `useCronJobs` (`hooks/useCronJobs.ts`)
+
 Manages cron jobs list and operations:
+
 - Loads jobs and status on mount
 - Listens for WebSocket messages (responses and events)
 - Provides CRUD operations: `addJob`, `updateJob`, `deleteJob`
@@ -44,7 +52,9 @@ Manages cron jobs list and operations:
 - Uses pending request tracking for timeout handling
 
 #### `useCronRuns` (`hooks/useCronRuns.ts`)
+
 Manages run history for a specific job:
+
 - Loads runs for given jobId
 - Provides `triggerRun` for manual execution
 - Listens for job_started and job_finished events
@@ -53,7 +63,9 @@ Manages run history for a specific job:
 ### UI Components
 
 #### `CronStatusBarItem` (`components/cron/CronStatusBarItem.tsx`)
+
 Status bar integration:
+
 - Shows next scheduled job with countdown (e.g., "⏰ Daily Brief in 5m")
 - Displays running state with pulsing indicator (e.g., "● Running: Weekly Summary")
 - Opens dropdown menu listing all jobs, sorted by nextWake/priority
@@ -61,11 +73,13 @@ Status bar integration:
 - Disabled jobs shown with muted styling
 
 #### `CronPanel` (`components/cron/CronPanel.tsx`)
+
 Dedicated panel for job control:
+
 - **Header**: Job name, schedule (cron expression), next run time, enabled status
 - **Run Picker**: Dropdown to switch between current and historical runs
 - **Transcript Viewer**: Read-only chat history from selected run (reuses ChatMessageItem)
-- **Control Strip**: 
+- **Control Strip**:
   - Force Run: Triggers immediate execution
   - Reschedule: Quick schedule update (optional callback)
   - Edit: Full configuration form (optional callback)
@@ -74,17 +88,20 @@ Dedicated panel for job control:
 ### Integration
 
 #### Panel System (`components/panels/PanelContainer.tsx`)
+
 - Added `'cron'` to PanelType union
 - Renders CronPanel when panel.type === 'cron'
 - Requires `panel.data.jobId` to identify which job to display
 - Passes cronJobs, wsRef, and action callbacks as props
 
 #### Status Bar (`components/layout/StatusBar.tsx`)
+
 - Added optional cron props: `cronJobs`, `cronStatus`, `isCronMenuOpen`
 - Renders CronStatusBarItem when jobs exist and scheduler is enabled
 - Handles menu toggle and job selection
 
 #### Main App (`app/page.tsx`)
+
 - Initializes `useCronJobs` hook with wsRef
 - Manages `isCronMenuOpen` state
 - Implements handlers:
@@ -98,6 +115,7 @@ Dedicated panel for job control:
 ### Request/Response Patterns
 
 #### List Jobs
+
 ```typescript
 // Request
 { type: 'cron.list', requestId: 'uuid' }
@@ -107,6 +125,7 @@ Dedicated panel for job control:
 ```
 
 #### Get Status
+
 ```typescript
 // Request
 { type: 'cron.status', requestId: 'uuid' }
@@ -116,6 +135,7 @@ Dedicated panel for job control:
 ```
 
 #### Add Job
+
 ```typescript
 // Request
 { type: 'cron.add', requestId: 'uuid', job: Partial<CronJob> }
@@ -125,6 +145,7 @@ Dedicated panel for job control:
 ```
 
 #### Update Job
+
 ```typescript
 // Request
 { type: 'cron.update', requestId: 'uuid', jobId: string, updates: Partial<CronJob> }
@@ -134,6 +155,7 @@ Dedicated panel for job control:
 ```
 
 #### Delete Job
+
 ```typescript
 // Request
 { type: 'cron.delete', requestId: 'uuid', jobId: string }
@@ -143,6 +165,7 @@ Dedicated panel for job control:
 ```
 
 #### Get Run History
+
 ```typescript
 // Request
 { type: 'cron.runs', requestId: 'uuid', jobId: string, limit?: number }
@@ -152,6 +175,7 @@ Dedicated panel for job control:
 ```
 
 #### Trigger Run
+
 ```typescript
 // Request
 { type: 'cron.run', requestId: 'uuid', jobId: string, mode: 'force' | 'schedule' }
@@ -161,6 +185,7 @@ Dedicated panel for job control:
 ```
 
 ### Real-time Events
+
 ```typescript
 // WebSocket event
 {
@@ -181,11 +206,12 @@ Dedicated panel for job control:
 Cron runs create isolated sessions with key format: `cron:{jobId}:{runId}`
 
 To load transcript for a run:
+
 ```typescript
 sendMessage({
-  type: 'chat.history.load',
+  type: "chat.history.load",
   sessionKey: run.sessionKey,
-  limit: 100
+  limit: 100,
 });
 ```
 
@@ -194,23 +220,25 @@ The response will be a standard chat history message that can be rendered using 
 ## Usage Examples
 
 ### Opening a Cron Panel
+
 ```typescript
 const handleSelectCronJob = (jobId: string) => {
-  const job = cronJobs.find(j => j.id === jobId);
+  const job = cronJobs.find((j) => j.id === jobId);
   if (job) {
-    openPanel('cron', { jobId, jobName: job.name });
+    openPanel("cron", { jobId, jobName: job.name });
   }
 };
 ```
 
 ### Deleting a Job
+
 ```typescript
 const handleDeleteCronJob = async (jobId: string) => {
   try {
     await deleteCronJob(jobId);
     // Close any open panels for this job
-    layout.panels.forEach(panel => {
-      if (panel.type === 'cron' && panel.data?.jobId === jobId) {
+    layout.panels.forEach((panel) => {
+      if (panel.type === "cron" && panel.data?.jobId === jobId) {
         closePanel(panel.id);
       }
     });
@@ -223,6 +251,7 @@ const handleDeleteCronJob = async (jobId: string) => {
 ## Future Enhancements
 
 ### Not Yet Implemented
+
 1. **Reschedule Dialog**: Quick UI for updating schedule
 2. **Edit Form**: Full job configuration editor
 3. **Job Creation**: UI for adding new cron jobs
@@ -231,6 +260,7 @@ const handleDeleteCronJob = async (jobId: string) => {
 6. **Notifications**: Toast notifications for job events
 
 ### Potential Improvements
+
 1. **Persistent State**: Save open cron panels across sessions
 2. **Panel Settings**: Allow customizing transcript view (tools/reasoning)
 3. **Export Runs**: Download run transcripts as JSON/text

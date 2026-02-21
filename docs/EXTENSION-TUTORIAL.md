@@ -13,6 +13,7 @@ This tutorial will guide you through creating a simple extension that displays G
 ## Step 1: Set Up Extension Structure (5 minutes)
 
 1. **Copy the template:**
+
    ```bash
    cd extensions
    cp -r _template github-stars
@@ -44,6 +45,7 @@ This tutorial will guide you through creating a simple extension that displays G
 ## Step 2: Define Configuration (5 minutes)
 
 **File: `config.ts`**
+
 ```typescript
 export interface GitHubStarsConfig {
   token?: string;
@@ -59,8 +61,9 @@ export const defaultConfig: GitHubStarsConfig = {
 ## Step 3: Create API Client (15 minutes)
 
 **File: `api.ts`**
+
 ```typescript
-import type { GitHubStarsConfig } from './config';
+import type { GitHubStarsConfig } from "./config";
 
 export interface Repository {
   id: number;
@@ -73,7 +76,7 @@ export interface Repository {
 
 export class GitHubStarsAPI {
   private config: GitHubStarsConfig;
-  private baseURL = 'https://api.github.com';
+  private baseURL = "https://api.github.com";
 
   constructor(config: GitHubStarsConfig) {
     this.config = config;
@@ -81,15 +84,15 @@ export class GitHubStarsAPI {
 
   private async request<T>(endpoint: string): Promise<T> {
     const { token } = this.config;
-    
+
     if (!token) {
-      throw new Error('GitHub token not configured');
+      throw new Error("GitHub token not configured");
     }
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
       },
     });
 
@@ -102,27 +105,25 @@ export class GitHubStarsAPI {
 
   async testConnection(): Promise<boolean> {
     try {
-      await this.request('/user');
+      await this.request("/user");
       return true;
     } catch (error) {
-      console.error('[GitHubStarsAPI] Connection failed:', error);
+      console.error("[GitHubStarsAPI] Connection failed:", error);
       return false;
     }
   }
 
   async getUserRepos(): Promise<Repository[]> {
     const { username } = this.config;
-    
+
     if (!username) {
       return [];
     }
 
     try {
-      return await this.request<Repository[]>(
-        `/users/${username}/repos?sort=stars&per_page=10`
-      );
+      return await this.request<Repository[]>(`/users/${username}/repos?sort=stars&per_page=10`);
     } catch (error) {
-      console.error('[GitHubStarsAPI] Failed to fetch repos:', error);
+      console.error("[GitHubStarsAPI] Failed to fetch repos:", error);
       return [];
     }
   }
@@ -134,7 +135,7 @@ export class GitHubStarsAPI {
       );
       return result.items;
     } catch (error) {
-      console.error('[GitHubStarsAPI] Search failed:', error);
+      console.error("[GitHubStarsAPI] Search failed:", error);
       return [];
     }
   }
@@ -148,32 +149,30 @@ export class GitHubStarsAPI {
 ## Step 4: Implement Setup Logic (10 minutes)
 
 **File: `setup.ts`**
-```typescript
-import { SecureStorage } from '@/lib/secure-storage';
-import { uiStateStore } from '@/lib/ui-state-db';
-import type { GitHubStarsConfig } from './config';
-import { defaultConfig } from './config';
-import { GitHubStarsAPI } from './api';
 
-const EXTENSION_NAME = 'github-stars';
+```typescript
+import { SecureStorage } from "@/lib/secure-storage";
+import { uiStateStore } from "@/lib/ui-state-db";
+import type { GitHubStarsConfig } from "./config";
+import { defaultConfig } from "./config";
+import { GitHubStarsAPI } from "./api";
+
+const EXTENSION_NAME = "github-stars";
 
 export async function isSetupComplete(): Promise<boolean> {
   try {
     const config = await uiStateStore.getExtensionConfig(EXTENSION_NAME);
-    const token = await SecureStorage.getItem(EXTENSION_NAME, 'token');
+    const token = await SecureStorage.getItem(EXTENSION_NAME, "token");
     return !!(config?.username && token);
   } catch (error) {
-    console.error('[Setup] Check failed:', error);
+    console.error("[Setup] Check failed:", error);
     return false;
   }
 }
 
-export async function saveConfig(
-  config: GitHubStarsConfig, 
-  token: string
-): Promise<void> {
+export async function saveConfig(config: GitHubStarsConfig, token: string): Promise<void> {
   await uiStateStore.saveExtensionConfig(EXTENSION_NAME, config);
-  await SecureStorage.setItem(EXTENSION_NAME, 'token', token);
+  await SecureStorage.setItem(EXTENSION_NAME, "token", token);
 }
 
 export async function loadConfig(): Promise<GitHubStarsConfig> {
@@ -182,7 +181,7 @@ export async function loadConfig(): Promise<GitHubStarsConfig> {
 }
 
 export async function getToken(): Promise<string | null> {
-  return await SecureStorage.getItem(EXTENSION_NAME, 'token');
+  return await SecureStorage.getItem(EXTENSION_NAME, "token");
 }
 
 export async function initialize(): Promise<GitHubStarsAPI | null> {
@@ -194,7 +193,7 @@ export async function initialize(): Promise<GitHubStarsAPI | null> {
   }
 
   const api = new GitHubStarsAPI({ ...config, token });
-  
+
   if (!(await api.testConnection())) {
     return null;
   }
@@ -203,29 +202,25 @@ export async function initialize(): Promise<GitHubStarsAPI | null> {
 }
 
 export async function cleanup(): Promise<void> {
-  console.log('[Setup] Cleaned up');
+  console.log("[Setup] Cleaned up");
 }
 ```
 
 ## Step 5: Create Status Bar Component (10 minutes)
 
 **File: `ui/status-bar.tsx`**
-```typescript
-import type { StatusBarItem, StatusBarDropdownItem } from '@/types/extension';
-import { GitHubStarsAPI } from '../api';
 
-export async function getStatusBarData(
-  api: GitHubStarsAPI
-): Promise<StatusBarItem | null> {
+```typescript
+import type { StatusBarItem, StatusBarDropdownItem } from "@/types/extension";
+import { GitHubStarsAPI } from "../api";
+
+export async function getStatusBarData(api: GitHubStarsAPI): Promise<StatusBarItem | null> {
   try {
     const repos = await api.getUserRepos();
-    
-    const totalStars = repos.reduce(
-      (sum, repo) => sum + repo.stargazers_count, 
-      0
-    );
 
-    const items: StatusBarDropdownItem[] = repos.map(repo => ({
+    const totalStars = repos.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+
+    const items: StatusBarDropdownItem[] = repos.map((repo) => ({
       id: repo.id.toString(),
       text: repo.name,
       subtext: `⭐ ${repo.stargazers_count} stars`,
@@ -234,13 +229,13 @@ export async function getStatusBarData(
     }));
 
     return {
-      label: 'GitHub Stars',
+      label: "GitHub Stars",
       value: totalStars,
-      icon: 'Star',
+      icon: "Star",
       items,
     };
   } catch (error) {
-    console.error('[StatusBar] Failed:', error);
+    console.error("[StatusBar] Failed:", error);
     return null;
   }
 }
@@ -249,28 +244,27 @@ export async function getStatusBarData(
 ## Step 6: Create Chat Input Component (10 minutes)
 
 **File: `ui/chat-input.tsx`**
+
 ```typescript
-import type { ChatInputTagOption } from '@/types/extension';
-import { GitHubStarsAPI } from '../api';
+import type { ChatInputTagOption } from "@/types/extension";
+import { GitHubStarsAPI } from "../api";
 
 export async function getChatInputOptions(
   api: GitHubStarsAPI,
   query: string
 ): Promise<ChatInputTagOption[]> {
   try {
-    const repos = query 
-      ? await api.searchRepos(query)
-      : await api.getUserRepos();
-    
-    return repos.map(repo => ({
+    const repos = query ? await api.searchRepos(query) : await api.getUserRepos();
+
+    return repos.map((repo) => ({
       id: repo.id.toString(),
       label: repo.full_name,
       tag: `@repo-${repo.name}`,
       value: repo.html_url,
-      description: `⭐ ${repo.stargazers_count} - ${repo.description || 'No description'}`,
+      description: `⭐ ${repo.stargazers_count} - ${repo.description || "No description"}`,
     }));
   } catch (error) {
-    console.error('[ChatInput] Failed:', error);
+    console.error("[ChatInput] Failed:", error);
     return [];
   }
 }
@@ -279,28 +273,25 @@ export async function getChatInputOptions(
 ## Step 7: Create Onboarding Panel (15 minutes)
 
 **File: `ui/onboarding.tsx`**
+
 ```tsx
-'use client';
+"use client";
 
-import { useState } from 'react';
-import type { OnboardingProps } from '@/types/extension';
-import { saveConfig } from '../setup';
-import { GitHubStarsAPI } from '../api';
-import type { GitHubStarsConfig } from '../config';
+import { useState } from "react";
+import type { OnboardingProps } from "@/types/extension";
+import { saveConfig } from "../setup";
+import { GitHubStarsAPI } from "../api";
+import type { GitHubStarsConfig } from "../config";
 
-export function OnboardingPanel({ 
-  extensionName, 
-  onComplete, 
-  onCancel 
-}: OnboardingProps) {
-  const [token, setToken] = useState('');
-  const [username, setUsername] = useState('');
+export function OnboardingPanel({ extensionName, onComplete, onCancel }: OnboardingProps) {
+  const [token, setToken] = useState("");
+  const [username, setUsername] = useState("");
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSave = async () => {
     if (!token.trim() || !username.trim()) {
-      setError('All fields are required');
+      setError("All fields are required");
       return;
     }
 
@@ -309,9 +300,9 @@ export function OnboardingPanel({
 
     try {
       const api = new GitHubStarsAPI({ token, username });
-      
+
       if (!(await api.testConnection())) {
-        setError('Invalid GitHub token');
+        setError("Invalid GitHub token");
         return;
       }
 
@@ -323,7 +314,7 @@ export function OnboardingPanel({
       await saveConfig(config, token);
       onComplete();
     } catch (err) {
-      setError('Configuration failed. Please try again.');
+      setError("Configuration failed. Please try again.");
     } finally {
       setIsValidating(false);
     }
@@ -331,15 +322,11 @@ export function OnboardingPanel({
 
   return (
     <div className="p-6 max-w-md mx-auto">
-      <h2 className="text-xl font-semibold mb-4">
-        Setup GitHub Stars
-      </h2>
-      
+      <h2 className="text-xl font-semibold mb-4">Setup GitHub Stars</h2>
+
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">
-            GitHub Token
-          </label>
+          <label className="block text-sm font-medium mb-1">GitHub Token</label>
           <input
             type="password"
             value={token}
@@ -348,9 +335,9 @@ export function OnboardingPanel({
             className="w-full px-3 py-2 border border-border rounded bg-background text-sm"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            <a 
-              href="https://github.com/settings/tokens/new" 
-              target="_blank" 
+            <a
+              href="https://github.com/settings/tokens/new"
+              target="_blank"
               rel="noopener noreferrer"
               className="underline"
             >
@@ -360,9 +347,7 @@ export function OnboardingPanel({
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">
-            GitHub Username
-          </label>
+          <label className="block text-sm font-medium mb-1">GitHub Username</label>
           <input
             type="text"
             value={username}
@@ -373,9 +358,7 @@ export function OnboardingPanel({
         </div>
 
         {error && (
-          <div className="p-3 bg-destructive/10 text-destructive text-sm rounded">
-            {error}
-          </div>
+          <div className="p-3 bg-destructive/10 text-destructive text-sm rounded">{error}</div>
         )}
 
         <div className="flex gap-2 justify-end">
@@ -391,7 +374,7 @@ export function OnboardingPanel({
             disabled={isValidating}
             className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90"
           >
-            {isValidating ? 'Validating...' : 'Save'}
+            {isValidating ? "Validating..." : "Save"}
           </button>
         </div>
       </div>
@@ -403,21 +386,22 @@ export function OnboardingPanel({
 ## Step 8: Wire Up Extension (5 minutes)
 
 **File: `index.ts`**
+
 ```typescript
-import type { Extension, ExtensionHooks } from '@/types/extension';
-import manifest from './manifest.json';
-import { initialize, cleanup, isSetupComplete } from './setup';
-import { getStatusBarData } from './ui/status-bar';
-import { getChatInputOptions } from './ui/chat-input';
-import { OnboardingPanel } from './ui/onboarding';
-import { GitHubStarsAPI } from './api';
+import type { Extension, ExtensionHooks } from "@/types/extension";
+import manifest from "./manifest.json";
+import { initialize, cleanup, isSetupComplete } from "./setup";
+import { getStatusBarData } from "./ui/status-bar";
+import { getChatInputOptions } from "./ui/chat-input";
+import { OnboardingPanel } from "./ui/onboarding";
+import { GitHubStarsAPI } from "./api";
 
 let apiInstance: GitHubStarsAPI | null = null;
 
 async function setup(): Promise<void> {
   apiInstance = await initialize();
   if (!apiInstance) {
-    throw new Error('Failed to initialize');
+    throw new Error("Failed to initialize");
   }
 }
 
@@ -431,12 +415,12 @@ const hooks: ExtensionHooks = {
     if (!apiInstance) return null;
     return getStatusBarData(apiInstance);
   },
-  
+
   chatInput: async (query: string) => {
     if (!apiInstance) return [];
     return getChatInputOptions(apiInstance, query);
   },
-  
+
   onboarding: {
     isRequired: isSetupComplete,
     component: OnboardingPanel,
@@ -464,8 +448,8 @@ export default githubStarsExtension;
 **File: `app/page.tsx` (or wherever you initialize)**
 
 ```typescript
-import { extensionRegistry } from '@/lib/extension-registry';
-import githubStarsExtension from '@/extensions/github-stars';
+import { extensionRegistry } from "@/lib/extension-registry";
+import githubStarsExtension from "@/extensions/github-stars";
 
 // In your app initialization
 useEffect(() => {
@@ -473,7 +457,7 @@ useEffect(() => {
     await extensionRegistry.initialize();
     await extensionRegistry.register(githubStarsExtension);
   };
-  
+
   initExtensions();
 }, []);
 ```
@@ -481,6 +465,7 @@ useEffect(() => {
 ## Step 10: Test Your Extension (10 minutes)
 
 1. **Start OpenClaw MC:**
+
    ```bash
    npm run dev
    ```
@@ -508,16 +493,19 @@ useEffect(() => {
 ## Troubleshooting
 
 ### Extension not appearing
+
 - Check manifest.json syntax
 - Verify all files are in correct locations
 - Check browser console for errors
 
 ### Status bar not updating
+
 - Verify API token is valid
 - Check network tab for failed requests
 - Look for errors in console
 
 ### Onboarding fails
+
 - Test API token manually
 - Verify username is correct
 - Check CORS settings
@@ -527,12 +515,14 @@ useEffect(() => {
 ### Enhancements to Try
 
 1. **Add caching:**
+
    ```typescript
    private cache = new Map<string, any>();
    private cacheTimeout = 5 * 60 * 1000; // 5 minutes
    ```
 
 2. **Add error recovery:**
+
    ```typescript
    async getDataWithRetry(maxRetries = 3) {
      for (let i = 0; i < maxRetries; i++) {
@@ -547,10 +537,11 @@ useEffect(() => {
    ```
 
 3. **Add rate limiting:**
+
    ```typescript
    private lastRequest = 0;
    private minInterval = 1000;
-   
+
    async throttledRequest(endpoint: string) {
      const now = Date.now();
      const wait = this.minInterval - (now - this.lastRequest);
@@ -561,9 +552,10 @@ useEffect(() => {
    ```
 
 4. **Add loading states:**
+
    ```typescript
    const [isLoading, setIsLoading] = useState(false);
-   
+
    // Show spinner while loading
    {isLoading && <Spinner />}
    ```
@@ -592,6 +584,7 @@ You've built a complete OpenClaw MC extension in under an hour! 🎉
 ### Share Your Extension
 
 Consider sharing your extension:
+
 1. Add comprehensive README
 2. Test thoroughly
 3. Document setup steps

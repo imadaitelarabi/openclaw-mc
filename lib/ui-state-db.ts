@@ -4,8 +4,8 @@
  * Stores: scroll positions, drafts, tool card states, last-seen messages
  */
 
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import type { ExtensionState } from '@/types/extension';
+import { openDB, DBSchema, IDBPDatabase } from "idb";
+import type { ExtensionState } from "@/types/extension";
 
 // Workspace state interface for persistence
 export interface WorkspaceState {
@@ -25,23 +25,23 @@ export interface WorkspaceState {
 }
 
 interface UIStateDB extends DBSchema {
-  'scroll-positions': {
+  "scroll-positions": {
     key: string; // agentId
     value: { position: number; timestamp: number };
   };
-  'drafts': {
+  drafts: {
     key: string; // agentId
     value: { text: string; timestamp: number };
   };
-  'tool-cards': {
+  "tool-cards": {
     key: string; // `${agentId}:${runId}:${toolName}`
     value: { expanded: boolean };
   };
-  'last-seen': {
+  "last-seen": {
     key: string; // agentId
     value: { messageId: string; timestamp: number };
   };
-  'stream-states': {
+  "stream-states": {
     key: string; // agentId
     value: {
       runId: string;
@@ -50,23 +50,23 @@ interface UIStateDB extends DBSchema {
       timestamp: number;
     };
   };
-  'workspace': {
+  workspace: {
     key: string; // 'current'
     value: WorkspaceState;
   };
-  'extension-states': {
+  "extension-states": {
     key: string; // extension name
     value: ExtensionState;
   };
-  'extension-configs': {
+  "extension-configs": {
     key: string; // extension name
     value: { config: any; timestamp: number };
   };
-  'extension-data-cache': {
+  "extension-data-cache": {
     key: string; // extension name
     value: { data: any; timestamp: number };
   };
-  'panel-settings': {
+  "panel-settings": {
     key: string; // agentId
     value: {
       showTools: boolean;
@@ -74,7 +74,7 @@ interface UIStateDB extends DBSchema {
       timestamp: number;
     };
   };
-  'onboarding-state': {
+  "onboarding-state": {
     key: string; // 'global'
     value: {
       isOnboarded: boolean;
@@ -82,7 +82,7 @@ interface UIStateDB extends DBSchema {
       skipped?: boolean;
     };
   };
-  'skills-filters': {
+  "skills-filters": {
     key: string; // 'global'
     value: {
       filter: string;
@@ -98,67 +98,67 @@ class UIStateStore {
 
   private getDB(): Promise<IDBPDatabase<UIStateDB>> {
     // Only initialize in browser environment
-    if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
-      return Promise.reject(new Error('IndexedDB not available (SSR environment)'));
+    if (typeof window === "undefined" || typeof indexedDB === "undefined") {
+      return Promise.reject(new Error("IndexedDB not available (SSR environment)"));
     }
 
     if (!this.dbPromise) {
       // Version 7 adds onboarding-state store to track first-time user onboarding completion
       // (isOnboarded, completedAt, skipped) across sessions. This is a non-breaking change.
       // Version 8 adds skills-filters store for persisting skills panel filters.
-      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 8, {
+      this.dbPromise = openDB<UIStateDB>("openclaw-ui-state", 8, {
         upgrade(db, oldVersion) {
           // Create object stores if they don't exist
-          if (!db.objectStoreNames.contains('scroll-positions')) {
-            db.createObjectStore('scroll-positions');
+          if (!db.objectStoreNames.contains("scroll-positions")) {
+            db.createObjectStore("scroll-positions");
           }
-          if (!db.objectStoreNames.contains('drafts')) {
-            db.createObjectStore('drafts');
+          if (!db.objectStoreNames.contains("drafts")) {
+            db.createObjectStore("drafts");
           }
-          if (!db.objectStoreNames.contains('tool-cards')) {
-            db.createObjectStore('tool-cards');
+          if (!db.objectStoreNames.contains("tool-cards")) {
+            db.createObjectStore("tool-cards");
           }
-          if (!db.objectStoreNames.contains('last-seen')) {
-            db.createObjectStore('last-seen');
+          if (!db.objectStoreNames.contains("last-seen")) {
+            db.createObjectStore("last-seen");
           }
-          if (!db.objectStoreNames.contains('stream-states')) {
-            db.createObjectStore('stream-states');
+          if (!db.objectStoreNames.contains("stream-states")) {
+            db.createObjectStore("stream-states");
           }
           // Add workspace store in version 3
-          if (oldVersion < 3 && !db.objectStoreNames.contains('workspace')) {
-            db.createObjectStore('workspace');
+          if (oldVersion < 3 && !db.objectStoreNames.contains("workspace")) {
+            db.createObjectStore("workspace");
           }
           // Add extension stores in version 4
           if (oldVersion < 4) {
-            if (!db.objectStoreNames.contains('extension-states')) {
-              db.createObjectStore('extension-states');
+            if (!db.objectStoreNames.contains("extension-states")) {
+              db.createObjectStore("extension-states");
             }
-            if (!db.objectStoreNames.contains('extension-configs')) {
-              db.createObjectStore('extension-configs');
+            if (!db.objectStoreNames.contains("extension-configs")) {
+              db.createObjectStore("extension-configs");
             }
           }
           // Add extension data cache in version 5
           if (oldVersion < 5) {
-            if (!db.objectStoreNames.contains('extension-data-cache')) {
-              db.createObjectStore('extension-data-cache');
+            if (!db.objectStoreNames.contains("extension-data-cache")) {
+              db.createObjectStore("extension-data-cache");
             }
           }
           // Add panel settings in version 6
           if (oldVersion < 6) {
-            if (!db.objectStoreNames.contains('panel-settings')) {
-              db.createObjectStore('panel-settings');
+            if (!db.objectStoreNames.contains("panel-settings")) {
+              db.createObjectStore("panel-settings");
             }
           }
           // Add onboarding state in version 7
           if (oldVersion < 7) {
-            if (!db.objectStoreNames.contains('onboarding-state')) {
-              db.createObjectStore('onboarding-state');
+            if (!db.objectStoreNames.contains("onboarding-state")) {
+              db.createObjectStore("onboarding-state");
             }
           }
           // Add skills filters in version 8
           if (oldVersion < 8) {
-            if (!db.objectStoreNames.contains('skills-filters')) {
-              db.createObjectStore('skills-filters');
+            if (!db.objectStoreNames.contains("skills-filters")) {
+              db.createObjectStore("skills-filters");
             }
           }
         },
@@ -172,19 +172,19 @@ class UIStateStore {
   async saveDraft(agentId: string, text: string): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.put('drafts', { text, timestamp: Date.now() }, agentId);
+      await db.put("drafts", { text, timestamp: Date.now() }, agentId);
     } catch (err) {
-      console.error('[UIState] Failed to save draft:', err);
+      console.error("[UIState] Failed to save draft:", err);
     }
   }
 
   async getDraft(agentId: string): Promise<string | null> {
     try {
       const db = await this.getDB();
-      const draft = await db.get('drafts', agentId);
+      const draft = await db.get("drafts", agentId);
       return draft?.text || null;
     } catch (err) {
-      console.error('[UIState] Failed to get draft:', err);
+      console.error("[UIState] Failed to get draft:", err);
       return null;
     }
   }
@@ -192,9 +192,9 @@ class UIStateStore {
   async clearDraft(agentId: string): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.delete('drafts', agentId);
+      await db.delete("drafts", agentId);
     } catch (err) {
-      console.error('[UIState] Failed to clear draft:', err);
+      console.error("[UIState] Failed to clear draft:", err);
     }
   }
 
@@ -202,19 +202,19 @@ class UIStateStore {
   async saveScrollPosition(agentId: string, position: number): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.put('scroll-positions', { position, timestamp: Date.now() }, agentId);
+      await db.put("scroll-positions", { position, timestamp: Date.now() }, agentId);
     } catch (err) {
-      console.error('[UIState] Failed to save scroll position:', err);
+      console.error("[UIState] Failed to save scroll position:", err);
     }
   }
 
   async getScrollPosition(agentId: string): Promise<number | null> {
     try {
       const db = await this.getDB();
-      const pos = await db.get('scroll-positions', agentId);
+      const pos = await db.get("scroll-positions", agentId);
       return pos?.position ?? null;
     } catch (err) {
-      console.error('[UIState] Failed to get scroll position:', err);
+      console.error("[UIState] Failed to get scroll position:", err);
       return null;
     }
   }
@@ -229,9 +229,9 @@ class UIStateStore {
     try {
       const db = await this.getDB();
       const key = `${agentId}:${runId}:${toolName}`;
-      await db.put('tool-cards', { expanded }, key);
+      await db.put("tool-cards", { expanded }, key);
     } catch (err) {
-      console.error('[UIState] Failed to save tool card state:', err);
+      console.error("[UIState] Failed to save tool card state:", err);
     }
   }
 
@@ -243,10 +243,10 @@ class UIStateStore {
     try {
       const db = await this.getDB();
       const key = `${agentId}:${runId}:${toolName}`;
-      const state = await db.get('tool-cards', key);
+      const state = await db.get("tool-cards", key);
       return state?.expanded ?? null;
     } catch (err) {
-      console.error('[UIState] Failed to get tool card state:', err);
+      console.error("[UIState] Failed to get tool card state:", err);
       return null;
     }
   }
@@ -255,19 +255,19 @@ class UIStateStore {
   async saveLastSeen(agentId: string, messageId: string): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.put('last-seen', { messageId, timestamp: Date.now() }, agentId);
+      await db.put("last-seen", { messageId, timestamp: Date.now() }, agentId);
     } catch (err) {
-      console.error('[UIState] Failed to save last seen:', err);
+      console.error("[UIState] Failed to save last seen:", err);
     }
   }
 
   async getLastSeen(agentId: string): Promise<string | null> {
     try {
       const db = await this.getDB();
-      const lastSeen = await db.get('last-seen', agentId);
+      const lastSeen = await db.get("last-seen", agentId);
       return lastSeen?.messageId || null;
     } catch (err) {
-      console.error('[UIState] Failed to get last seen:', err);
+      console.error("[UIState] Failed to get last seen:", err);
       return null;
     }
   }
@@ -282,7 +282,7 @@ class UIStateStore {
     try {
       const db = await this.getDB();
       await db.put(
-        'stream-states',
+        "stream-states",
         {
           runId,
           assistantStream,
@@ -292,21 +292,23 @@ class UIStateStore {
         agentId
       );
     } catch (err) {
-      console.error('[UIState] Failed to save stream state:', err);
+      console.error("[UIState] Failed to save stream state:", err);
     }
   }
 
-  async getAllStreamStates(): Promise<Array<{
-    agentId: string;
-    runId: string;
-    assistantStream: string;
-    reasoningStream: string;
-    timestamp: number;
-  }>> {
+  async getAllStreamStates(): Promise<
+    Array<{
+      agentId: string;
+      runId: string;
+      assistantStream: string;
+      reasoningStream: string;
+      timestamp: number;
+    }>
+  > {
     try {
       const db = await this.getDB();
-      const tx = db.transaction('stream-states', 'readonly');
-      const store = tx.objectStore('stream-states');
+      const tx = db.transaction("stream-states", "readonly");
+      const store = tx.objectStore("stream-states");
       const keys = await store.getAllKeys();
       const values = await store.getAll();
       await tx.done;
@@ -314,27 +316,31 @@ class UIStateStore {
       return keys
         .map((key, index) => {
           const value = values[index];
-          if (typeof key !== 'string' || !value?.runId) {
+          if (typeof key !== "string" || !value?.runId) {
             return null;
           }
 
           return {
             agentId: key,
             runId: value.runId,
-            assistantStream: value.assistantStream || '',
-            reasoningStream: value.reasoningStream || '',
+            assistantStream: value.assistantStream || "",
+            reasoningStream: value.reasoningStream || "",
             timestamp: value.timestamp || Date.now(),
           };
         })
-        .filter((item): item is {
-          agentId: string;
-          runId: string;
-          assistantStream: string;
-          reasoningStream: string;
-          timestamp: number;
-        } => item !== null);
+        .filter(
+          (
+            item
+          ): item is {
+            agentId: string;
+            runId: string;
+            assistantStream: string;
+            reasoningStream: string;
+            timestamp: number;
+          } => item !== null
+        );
     } catch (err) {
-      console.error('[UIState] Failed to get stream states:', err);
+      console.error("[UIState] Failed to get stream states:", err);
       return [];
     }
   }
@@ -342,9 +348,9 @@ class UIStateStore {
   async clearStreamState(agentId: string): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.delete('stream-states', agentId);
+      await db.delete("stream-states", agentId);
     } catch (err) {
-      console.error('[UIState] Failed to clear stream state:', err);
+      console.error("[UIState] Failed to clear stream state:", err);
     }
   }
 
@@ -353,26 +359,26 @@ class UIStateStore {
     try {
       const db = await this.getDB();
       await Promise.all([
-        db.delete('scroll-positions', agentId),
-        db.delete('drafts', agentId),
-        db.delete('last-seen', agentId),
-        db.delete('stream-states', agentId),
+        db.delete("scroll-positions", agentId),
+        db.delete("drafts", agentId),
+        db.delete("last-seen", agentId),
+        db.delete("stream-states", agentId),
       ]);
-      
+
       // Clear all tool cards for this agent
-      const tx = db.transaction('tool-cards', 'readwrite');
-      const store = tx.objectStore('tool-cards');
+      const tx = db.transaction("tool-cards", "readwrite");
+      const store = tx.objectStore("tool-cards");
       const keys = await store.getAllKeys();
-      
+
       for (const key of keys) {
-        if (typeof key === 'string' && key.startsWith(`${agentId}:`)) {
+        if (typeof key === "string" && key.startsWith(`${agentId}:`)) {
           await store.delete(key);
         }
       }
-      
+
       await tx.done;
     } catch (err) {
-      console.error('[UIState] Failed to clear agent state:', err);
+      console.error("[UIState] Failed to clear agent state:", err);
     }
   }
 
@@ -380,19 +386,19 @@ class UIStateStore {
   async saveWorkspaceState(state: WorkspaceState): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.put('workspace', state, 'current');
+      await db.put("workspace", state, "current");
     } catch (err) {
-      console.error('[UIState] Failed to save workspace state:', err);
+      console.error("[UIState] Failed to save workspace state:", err);
     }
   }
 
   async getWorkspaceState(): Promise<WorkspaceState | null> {
     try {
       const db = await this.getDB();
-      const state = await db.get('workspace', 'current');
+      const state = await db.get("workspace", "current");
       return state || null;
     } catch (err) {
-      console.error('[UIState] Failed to get workspace state:', err);
+      console.error("[UIState] Failed to get workspace state:", err);
       return null;
     }
   }
@@ -400,9 +406,9 @@ class UIStateStore {
   async clearWorkspaceState(): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.delete('workspace', 'current');
+      await db.delete("workspace", "current");
     } catch (err) {
-      console.error('[UIState] Failed to clear workspace state:', err);
+      console.error("[UIState] Failed to clear workspace state:", err);
     }
   }
 
@@ -410,19 +416,19 @@ class UIStateStore {
   async saveExtensionState(state: ExtensionState): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.put('extension-states', state, state.name);
+      await db.put("extension-states", state, state.name);
     } catch (err) {
-      console.error('[UIState] Failed to save extension state:', err);
+      console.error("[UIState] Failed to save extension state:", err);
     }
   }
 
   async getExtensionState(extensionName: string): Promise<ExtensionState | null> {
     try {
       const db = await this.getDB();
-      const state = await db.get('extension-states', extensionName);
+      const state = await db.get("extension-states", extensionName);
       return state || null;
     } catch (err) {
-      console.error('[UIState] Failed to get extension state:', err);
+      console.error("[UIState] Failed to get extension state:", err);
       return null;
     }
   }
@@ -430,10 +436,10 @@ class UIStateStore {
   async getAllExtensionStates(): Promise<ExtensionState[]> {
     try {
       const db = await this.getDB();
-      const states = await db.getAll('extension-states');
+      const states = await db.getAll("extension-states");
       return states;
     } catch (err) {
-      console.error('[UIState] Failed to get all extension states:', err);
+      console.error("[UIState] Failed to get all extension states:", err);
       return [];
     }
   }
@@ -441,9 +447,9 @@ class UIStateStore {
   async deleteExtensionState(extensionName: string): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.delete('extension-states', extensionName);
+      await db.delete("extension-states", extensionName);
     } catch (err) {
-      console.error('[UIState] Failed to delete extension state:', err);
+      console.error("[UIState] Failed to delete extension state:", err);
     }
   }
 
@@ -451,19 +457,19 @@ class UIStateStore {
   async saveExtensionConfig(extensionName: string, config: any): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.put('extension-configs', { config, timestamp: Date.now() }, extensionName);
+      await db.put("extension-configs", { config, timestamp: Date.now() }, extensionName);
     } catch (err) {
-      console.error('[UIState] Failed to save extension config:', err);
+      console.error("[UIState] Failed to save extension config:", err);
     }
   }
 
   async getExtensionConfig(extensionName: string): Promise<any | null> {
     try {
       const db = await this.getDB();
-      const data = await db.get('extension-configs', extensionName);
+      const data = await db.get("extension-configs", extensionName);
       return data?.config || null;
     } catch (err) {
-      console.error('[UIState] Failed to get extension config:', err);
+      console.error("[UIState] Failed to get extension config:", err);
       return null;
     }
   }
@@ -471,9 +477,9 @@ class UIStateStore {
   async deleteExtensionConfig(extensionName: string): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.delete('extension-configs', extensionName);
+      await db.delete("extension-configs", extensionName);
     } catch (err) {
-      console.error('[UIState] Failed to delete extension config:', err);
+      console.error("[UIState] Failed to delete extension config:", err);
     }
   }
 
@@ -481,19 +487,21 @@ class UIStateStore {
   async saveExtensionDataCache(extensionName: string, data: any): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.put('extension-data-cache', { data, timestamp: Date.now() }, extensionName);
+      await db.put("extension-data-cache", { data, timestamp: Date.now() }, extensionName);
     } catch (err) {
-      console.error('[UIState] Failed to save extension data cache:', err);
+      console.error("[UIState] Failed to save extension data cache:", err);
     }
   }
 
-  async getExtensionDataCache(extensionName: string): Promise<{ data: any; timestamp: number } | null> {
+  async getExtensionDataCache(
+    extensionName: string
+  ): Promise<{ data: any; timestamp: number } | null> {
     try {
       const db = await this.getDB();
-      const cached = await db.get('extension-data-cache', extensionName);
+      const cached = await db.get("extension-data-cache", extensionName);
       return cached || null;
     } catch (err) {
-      console.error('[UIState] Failed to get extension data cache:', err);
+      console.error("[UIState] Failed to get extension data cache:", err);
       return null;
     }
   }
@@ -501,84 +509,101 @@ class UIStateStore {
   async deleteExtensionDataCache(extensionName: string): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.delete('extension-data-cache', extensionName);
+      await db.delete("extension-data-cache", extensionName);
     } catch (err) {
-      console.error('[UIState] Failed to delete extension data cache:', err);
+      console.error("[UIState] Failed to delete extension data cache:", err);
     }
   }
 
   // Panel settings management (showTools, showReasoning per agent)
-  async savePanelSettings(agentId: string, settings: { showTools: boolean; showReasoning: boolean }): Promise<void> {
+  async savePanelSettings(
+    agentId: string,
+    settings: { showTools: boolean; showReasoning: boolean }
+  ): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.put('panel-settings', { ...settings, timestamp: Date.now() }, agentId);
+      await db.put("panel-settings", { ...settings, timestamp: Date.now() }, agentId);
     } catch (err) {
-      console.error('[UIState] Failed to save panel settings:', err);
+      console.error("[UIState] Failed to save panel settings:", err);
     }
   }
 
-  async getPanelSettings(agentId: string): Promise<{ showTools: boolean; showReasoning: boolean } | null> {
+  async getPanelSettings(
+    agentId: string
+  ): Promise<{ showTools: boolean; showReasoning: boolean } | null> {
     try {
       const db = await this.getDB();
-      const settings = await db.get('panel-settings', agentId);
+      const settings = await db.get("panel-settings", agentId);
       if (settings) {
         return {
           showTools: settings.showTools,
-          showReasoning: settings.showReasoning
+          showReasoning: settings.showReasoning,
         };
       }
       return null;
     } catch (err) {
-      console.error('[UIState] Failed to get panel settings:', err);
+      console.error("[UIState] Failed to get panel settings:", err);
       return null;
     }
   }
 
-  async saveSkillsFilters(filters: { filter: string; workspace: string; status: string }): Promise<void> {
+  async saveSkillsFilters(filters: {
+    filter: string;
+    workspace: string;
+    status: string;
+  }): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.put('skills-filters', { ...filters, timestamp: Date.now() }, 'global');
+      await db.put("skills-filters", { ...filters, timestamp: Date.now() }, "global");
     } catch (err) {
-      console.error('[UIState] Failed to save skills filters:', err);
+      console.error("[UIState] Failed to save skills filters:", err);
     }
   }
 
   async getSkillsFilters(): Promise<{ filter: string; workspace: string; status: string } | null> {
     try {
       const db = await this.getDB();
-      const filters = await db.get('skills-filters', 'global');
+      const filters = await db.get("skills-filters", "global");
       if (!filters) {
         return null;
       }
       return {
-        filter: filters.filter ?? '',
-        workspace: filters.workspace ?? 'all',
-        status: filters.status ?? 'all',
+        filter: filters.filter ?? "",
+        workspace: filters.workspace ?? "all",
+        status: filters.status ?? "all",
       };
     } catch (err) {
-      console.error('[UIState] Failed to get skills filters:', err);
+      console.error("[UIState] Failed to get skills filters:", err);
       return null;
     }
   }
 
   // Onboarding state management
-  async getOnboardingState(): Promise<{ isOnboarded: boolean; completedAt?: number; skipped?: boolean } | null> {
+  async getOnboardingState(): Promise<{
+    isOnboarded: boolean;
+    completedAt?: number;
+    skipped?: boolean;
+  } | null> {
     try {
       const db = await this.getDB();
-      const state = await db.get('onboarding-state', 'global');
+      const state = await db.get("onboarding-state", "global");
       return state || null;
     } catch (err) {
-      console.error('[UIState] Failed to get onboarding state:', err);
+      console.error("[UIState] Failed to get onboarding state:", err);
       return null;
     }
   }
 
-  async setOnboardingState(state: { isOnboarded: boolean; completedAt?: number; skipped?: boolean }): Promise<void> {
+  async setOnboardingState(state: {
+    isOnboarded: boolean;
+    completedAt?: number;
+    skipped?: boolean;
+  }): Promise<void> {
     try {
       const db = await this.getDB();
-      await db.put('onboarding-state', state, 'global');
+      await db.put("onboarding-state", state, "global");
     } catch (err) {
-      console.error('[UIState] Failed to set onboarding state:', err);
+      console.error("[UIState] Failed to set onboarding state:", err);
     }
   }
 
@@ -586,7 +611,7 @@ class UIStateStore {
     await this.setOnboardingState({
       isOnboarded: true,
       completedAt: Date.now(),
-      skipped: false
+      skipped: false,
     });
   }
 
@@ -594,7 +619,7 @@ class UIStateStore {
     await this.setOnboardingState({
       isOnboarded: true,
       completedAt: Date.now(),
-      skipped: true
+      skipped: true,
     });
   }
 }

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { ChevronUp, Puzzle } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { ChevronUp, Puzzle } from "lucide-react";
 
 interface ExtensionOption {
   name: string;
@@ -27,14 +27,14 @@ export function ExtensionsDropdown({ extensions, onSelectExtension }: Extensions
       return;
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={() => setIsOpen((prev) => !prev)}
         className="flex items-center gap-1.5 px-2 py-1 hover:bg-accent rounded text-xs"
         title="Available extensions"
       >
@@ -50,7 +50,7 @@ export function ExtensionsDropdown({ extensions, onSelectExtension }: Extensions
             <div className="px-3 py-2 text-xs text-muted-foreground">No extensions available</div>
           ) : (
             <div className="py-1">
-              {extensions.map(extension => (
+              {extensions.map((extension) => (
                 <button
                   key={extension.name}
                   onClick={() => {
@@ -64,15 +64,17 @@ export function ExtensionsDropdown({ extensions, onSelectExtension }: Extensions
                     <span
                       className={
                         extension.enabled
-                          ? 'text-[10px] px-1.5 py-0.5 rounded bg-accent text-foreground'
-                          : 'text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground'
+                          ? "text-[10px] px-1.5 py-0.5 rounded bg-accent text-foreground"
+                          : "text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground"
                       }
                     >
-                      {extension.enabled ? 'Enabled' : 'Disabled'}
+                      {extension.enabled ? "Enabled" : "Disabled"}
                     </span>
                   </div>
                   {extension.description && (
-                    <div className="text-muted-foreground text-[10px] mt-0.5 truncate">{extension.description}</div>
+                    <div className="text-muted-foreground text-[10px] mt-0.5 truncate">
+                      {extension.description}
+                    </div>
                   )}
                 </button>
               ))}

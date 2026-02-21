@@ -40,56 +40,61 @@ OpenClaw separates **thinking/reasoning** from regular assistant content:
 ### Implementation Fix
 
 **Current (Incorrect):**
+
 ```typescript
 // ❌ Parsing <think> tags from assistant text
 const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/i);
 ```
 
 **Correct Implementation:**
+
 ```typescript
 const handleRawEvent = (message: any) => {
   const { event, payload } = message;
-  
-  if (event === 'agent' && payload.stream === 'reasoning') {
+
+  if (event === "agent" && payload.stream === "reasoning") {
     // Handle reasoning separately
     const { runId, data } = payload;
-    
+
     if (data?.delta) {
       // Stream reasoning deltas
-      setReasoningStreams(prev => ({
+      setReasoningStreams((prev) => ({
         ...prev,
-        [agentId]: (prev[agentId] || '') + data.delta
+        [agentId]: (prev[agentId] || "") + data.delta,
       }));
     } else if (data?.text) {
       // Final reasoning
-      setChatHistory(prev => {
+      setChatHistory((prev) => {
         const currentHistory = prev[agentId] || [];
         return {
           ...prev,
-          [agentId]: [...currentHistory, {
-            id: `${runId}-reasoning`,
-            role: 'reasoning',
-            content: data.text,
-            timestamp: Date.now(),
-            runId
-          }]
+          [agentId]: [
+            ...currentHistory,
+            {
+              id: `${runId}-reasoning`,
+              role: "reasoning",
+              content: data.text,
+              timestamp: Date.now(),
+              runId,
+            },
+          ],
         };
       });
-      setReasoningStreams(prev => { 
-        const next = { ...prev }; 
-        delete next[agentId]; 
-        return next; 
+      setReasoningStreams((prev) => {
+        const next = { ...prev };
+        delete next[agentId];
+        return next;
       });
     }
   }
-  
-  if (event === 'agent' && payload.stream === 'assistant') {
+
+  if (event === "agent" && payload.stream === "assistant") {
     // Assistant text should be clean (no <think> tags)
     const { data } = payload;
     if (data?.delta) {
-      setChatStreams(prev => ({
+      setChatStreams((prev) => ({
         ...prev,
-        [agentId]: (prev[agentId] || '') + data.delta
+        [agentId]: (prev[agentId] || "") + data.delta,
       }));
     }
   }
@@ -130,24 +135,24 @@ The `chat` event is a **wrapper** that OpenClaw generates for backward compatibi
 ```typescript
 const handleRawEvent = (message: any) => {
   const { event, payload } = message;
-  
+
   // Only process agent events
-  if (event !== 'agent') return;
-  
+  if (event !== "agent") return;
+
   const { stream, data, runId, sessionKey } = payload;
   const agentId = extractAgentId(sessionKey);
-  
+
   switch (stream) {
-    case 'assistant':
+    case "assistant":
       handleAssistantStream(agentId, data, runId);
       break;
-    case 'tool':
+    case "tool":
       handleToolStream(agentId, data, runId);
       break;
-    case 'reasoning':
+    case "reasoning":
       handleReasoningStream(agentId, data, runId);
       break;
-    case 'lifecycle':
+    case "lifecycle":
       handleLifecycle(agentId, data, runId);
       break;
   }
@@ -160,12 +165,12 @@ const handleRawEvent = (message: any) => {
 const handleAssistantStream = (agentId: string, data: any, runId: string) => {
   if (data?.delta) {
     // Accumulate deltas in temporary state
-    setChatStreams(prev => ({
+    setChatStreams((prev) => ({
       ...prev,
-      [`${agentId}-${runId}`]: (prev[`${agentId}-${runId}`] || '') + data.delta
+      [`${agentId}-${runId}`]: (prev[`${agentId}-${runId}`] || "") + data.delta,
     }));
   }
-  
+
   // Note: Do NOT create a final message here
   // Wait for lifecycle 'end' event
 };
@@ -175,35 +180,38 @@ const handleAssistantStream = (agentId: string, data: any, runId: string) => {
 
 ```typescript
 const handleLifecycle = (agentId: string, data: any, runId: string) => {
-  if (data.phase === 'end') {
+  if (data.phase === "end") {
     // Move accumulated stream to final history
-    setChatHistory(prev => {
+    setChatHistory((prev) => {
       const streamKey = `${agentId}-${runId}`;
-      const accumulatedText = chatStreams[streamKey] || '';
-      
+      const accumulatedText = chatStreams[streamKey] || "";
+
       if (!accumulatedText) return prev;
-      
+
       const currentHistory = prev[agentId] || [];
-      
+
       // Check if already exists (prevent duplicates)
-      if (currentHistory.some(m => m.runId === runId && m.role === 'assistant')) {
+      if (currentHistory.some((m) => m.runId === runId && m.role === "assistant")) {
         return prev;
       }
-      
+
       return {
         ...prev,
-        [agentId]: [...currentHistory, {
-          id: runId,
-          role: 'assistant',
-          content: accumulatedText,
-          timestamp: Date.now(),
-          runId
-        }]
+        [agentId]: [
+          ...currentHistory,
+          {
+            id: runId,
+            role: "assistant",
+            content: accumulatedText,
+            timestamp: Date.now(),
+            runId,
+          },
+        ],
       };
     });
-    
+
     // Clear stream
-    setChatStreams(prev => {
+    setChatStreams((prev) => {
       const next = { ...prev };
       delete next[`${agentId}-${runId}`];
       return next;
@@ -215,18 +223,24 @@ const handleLifecycle = (agentId: string, data: any, runId: string) => {
 **4. Render Streaming Text Separately**
 
 ```tsx
-{/* History messages */}
-{(chatHistory[selectedAgent] || []).map(msg => (
-  <MessageBubble key={msg.id} message={msg} />
-))}
+{
+  /* History messages */
+}
+{
+  (chatHistory[selectedAgent] || []).map((msg) => <MessageBubble key={msg.id} message={msg} />);
+}
 
-{/* Active streaming (ephemeral) */}
-{chatStreams[`${selectedAgent}-${currentRunId}`] && (
-  <div className="streaming-message opacity-80">
-    <Markdown>{chatStreams[`${selectedAgent}-${currentRunId}`]}</Markdown>
-    <span className="animate-pulse">▊</span>
-  </div>
-)}
+{
+  /* Active streaming (ephemeral) */
+}
+{
+  chatStreams[`${selectedAgent}-${currentRunId}`] && (
+    <div className="streaming-message opacity-80">
+      <Markdown>{chatStreams[`${selectedAgent}-${currentRunId}`]}</Markdown>
+      <span className="animate-pulse">▊</span>
+    </div>
+  );
+}
 ```
 
 ---
@@ -239,19 +253,19 @@ const handleLifecycle = (agentId: string, data: any, runId: string) => {
 interface ChatState {
   // Finalized messages
   chatHistory: Record<agentId, ChatMessage[]>;
-  
+
   // Active streams (keyed by agentId-runId)
-  chatStreams: Record<string, string>;           // assistant deltas
-  reasoningStreams: Record<string, string>;      // reasoning deltas
-  toolStatus: Record<string, ToolState>;         // tool phase tracking
-  
+  chatStreams: Record<string, string>; // assistant deltas
+  reasoningStreams: Record<string, string>; // reasoning deltas
+  toolStatus: Record<string, ToolState>; // tool phase tracking
+
   // Run tracking
-  activeRuns: Record<agentId, string>;           // current runId per agent
+  activeRuns: Record<agentId, string>; // current runId per agent
 }
 
 interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'tool' | 'reasoning';
+  role: "user" | "assistant" | "tool" | "reasoning";
   content: string;
   timestamp: number;
   runId?: string;
@@ -261,7 +275,7 @@ interface ChatMessage {
 interface ToolState {
   runId: string;
   name: string;
-  phase: 'start' | 'update' | 'end';
+  phase: "start" | "update" | "end";
   args?: any;
   result?: any;
 }
@@ -270,14 +284,17 @@ interface ToolState {
 ### Deduplication Strategy
 
 **Key by `runId`:**
+
 - Each assistant response has a unique `runId`
 - Never add duplicate messages with the same `runId` + `role`
 
 **Stream Key:**
+
 - Use `${agentId}-${runId}` for stream accumulation
 - Prevents collision when multiple agents are active
 
 **Tool Deduplication:**
+
 - Use `${runId}-${toolName}-${seq}` as tool message ID
 - Only create tool cards on `phase: 'start'`
 - Update existing card on `phase: 'update'` or `phase: 'end'`

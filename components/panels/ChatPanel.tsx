@@ -1,11 +1,17 @@
 "use client";
 
-import { memo, useState, useRef, useEffect, useMemo } from 'react';
-import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, ChatHistoryLoader } from '@/components/chat';
-import { useChatHistory, useChatPolling, useSessionUsage } from '@/hooks';
-import { uiStateStore } from '@/lib/ui-state-db';
-import { debounce } from '@/lib/utils';
-import type { Agent, Note, SkillStatusEntry } from '@/types';
+import { memo, useState, useRef, useEffect, useMemo } from "react";
+import {
+  ChatMessageItem,
+  ChatInput,
+  StreamingIndicator,
+  ScrollToBottomButton,
+  ChatHistoryLoader,
+} from "@/components/chat";
+import { useChatHistory, useChatPolling, useSessionUsage } from "@/hooks";
+import { uiStateStore } from "@/lib/ui-state-db";
+import { debounce } from "@/lib/utils";
+import type { Agent, Note, SkillStatusEntry } from "@/types";
 
 // Constants
 const HISTORY_PAGE_SIZE = 50;
@@ -21,7 +27,11 @@ interface ChatPanelProps {
   activeRunId: string | null;
   assistantStream?: string;
   reasoningStream?: string;
-  addUserMessage: (agentId: string, message: string, attachments?: Array<{fileName?: string, type: string, mimeType: string, content: string}>) => void;
+  addUserMessage: (
+    agentId: string,
+    message: string,
+    attachments?: Array<{ fileName?: string; type: string; mimeType: string; content: string }>
+  ) => void;
   models: any[];
   sessionSettings: Record<string, any>;
   updateSetting: (sessionKey: string, settings: any) => void;
@@ -31,11 +41,11 @@ interface ChatPanelProps {
   notes?: Note[];
   noteGroups?: string[];
   skills?: SkillStatusEntry[];
-  
+
   // Per-panel settings
   showTools?: boolean;
   showReasoning?: boolean;
-  
+
   // Panel state
   isActive?: boolean;
 
@@ -97,9 +107,10 @@ export const ChatPanel = memo(function ChatPanel({
 
   // Debounced scroll position save function
   const debouncedSaveScroll = useMemo(
-    () => debounce((agentId: string, position: number) => {
-      uiStateStore.saveScrollPosition(agentId, position);
-    }, 300),
+    () =>
+      debounce((agentId: string, position: number) => {
+        uiStateStore.saveScrollPosition(agentId, position);
+      }, 300),
     []
   );
 
@@ -112,13 +123,13 @@ export const ChatPanel = memo(function ChatPanel({
 
   // Filter messages based on per-panel settings
   const filteredChatHistory = useMemo(() => {
-    return chatHistory.filter(msg => {
+    return chatHistory.filter((msg) => {
       // Filter out reasoning messages if showReasoning is false
-      if (msg.role === 'reasoning' && !showReasoning) {
+      if (msg.role === "reasoning" && !showReasoning) {
         return false;
       }
       // Filter out tool messages if showTools is false
-      if (msg.role === 'tool' && !showTools) {
+      if (msg.role === "tool" && !showTools) {
         return false;
       }
       return true;
@@ -173,36 +184,37 @@ export const ChatPanel = memo(function ChatPanel({
 
   const sendChatMessage = (attachments?: any[]) => {
     if (!agentId || (!chatInput.trim() && (!attachments || attachments.length === 0))) return;
-    
+
     // Convert attachments to the Gateway protocol format
-    const attachmentData = attachments && attachments.length > 0 
-      ? attachments.map(att => ({
-          fileName: att.name,
-          type: 'image',
-          mimeType: att.mimeType,
-          content: att.media,
-        }))
-      : undefined;
-    
+    const attachmentData =
+      attachments && attachments.length > 0
+        ? attachments.map((att) => ({
+            fileName: att.name,
+            type: "image",
+            mimeType: att.mimeType,
+            content: att.media,
+          }))
+        : undefined;
+
     // Add user message with attachments
     addUserMessage(agentId, chatInput, attachmentData);
-    
-    const messageData: any = { 
-      type: 'chat.send', 
-      agentId: agentId, 
-      message: chatInput 
+
+    const messageData: any = {
+      type: "chat.send",
+      agentId: agentId,
+      message: chatInput,
     };
-    
+
     // Add attachments if provided
     if (attachmentData) {
       messageData.attachments = attachmentData;
     }
-    
+
     sendMessage(messageData);
     setChatInput("");
     // Clear draft after sending
     uiStateStore.clearDraft(agentId);
-    
+
     // Scroll to bottom to show new user message
     scrollToBottom();
   };
@@ -215,7 +227,7 @@ export const ChatPanel = memo(function ChatPanel({
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
     shouldAutoScrollRef.current = isAtBottom;
     setShowScrollButton(!isAtBottom);
-    
+
     // Save scroll position with debounce (max once every 300ms)
     debouncedSaveScroll(agentId, scrollTop);
   };
@@ -223,24 +235,24 @@ export const ChatPanel = memo(function ChatPanel({
   useEffect(() => {
     // Only scroll if we're supposed to auto-scroll and this is our own content
     if (shouldAutoScrollRef.current && chatEndRef.current && scrollContainerRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'auto' });
+      chatEndRef.current.scrollIntoView({ behavior: "auto" });
     }
   }, [chatHistory, assistantStream, agentId]);
 
   const scrollToBottom = () => {
     if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
 
   // Handle loading more history
   const handleLoadMore = async () => {
     if (chatHistory.length === 0) return;
-    
+
     // Get the oldest message ID for pagination
     const oldestMessage = chatHistory[0];
     const beforeId = oldestMessage?.id;
-    
+
     if (beforeId) {
       await loadMoreHistory(agentId, HISTORY_PAGE_SIZE, beforeId);
     }
@@ -249,7 +261,7 @@ export const ChatPanel = memo(function ChatPanel({
   return (
     <div className="flex flex-col h-full relative">
       {/* Chat History */}
-      <div 
+      <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 overscroll-contain"
@@ -267,13 +279,13 @@ export const ChatPanel = memo(function ChatPanel({
           {filteredChatHistory.map((msg) => (
             <ChatMessageItem key={msg.id} message={msg} showTools={showTools} />
           ))}
-          
-          <StreamingIndicator 
+
+          <StreamingIndicator
             assistantStream={assistantStream}
             reasoningStream={showReasoning ? reasoningStream : undefined}
             isTyping={Boolean(activeRunId)}
           />
-          
+
           <div ref={chatEndRef} />
         </div>
       </div>
@@ -290,7 +302,7 @@ export const ChatPanel = memo(function ChatPanel({
         notes={notes}
         noteGroups={noteGroups}
         skills={skills}
-        disabled={connectionStatus !== 'connected'}
+        disabled={connectionStatus !== "connected"}
         isRunning={Boolean(activeRunId)}
         onAbort={() => onAbortRun?.(agentId)}
         tokenUsage={tokenUsage}
@@ -299,4 +311,4 @@ export const ChatPanel = memo(function ChatPanel({
   );
 });
 
-ChatPanel.displayName = 'ChatPanel';
+ChatPanel.displayName = "ChatPanel";

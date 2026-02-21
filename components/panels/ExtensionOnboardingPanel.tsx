@@ -1,22 +1,20 @@
 "use client";
 
-import { useMemo, useState, useEffect } from 'react';
-import { useExtensions } from '@/contexts/ExtensionContext';
-import { useToast } from '@/hooks/useToast';
-import type { ExtensionConnectionStatus } from '@/types/extension';
+import { useMemo, useState, useEffect } from "react";
+import { useExtensions } from "@/contexts/ExtensionContext";
+import { useToast } from "@/hooks/useToast";
+import type { ExtensionConnectionStatus } from "@/types/extension";
 
 interface ExtensionOnboardingPanelProps {
   extensionName: string;
   onClose: () => void;
 }
 
-export function ExtensionOnboardingPanel({ extensionName, onClose }: ExtensionOnboardingPanelProps) {
-  const {
-    getExtension,
-    completeOnboarding,
-    enableExtension,
-    refreshExtensions,
-  } = useExtensions();
+export function ExtensionOnboardingPanel({
+  extensionName,
+  onClose,
+}: ExtensionOnboardingPanelProps) {
+  const { getExtension, completeOnboarding, enableExtension, refreshExtensions } = useExtensions();
   const { toast } = useToast();
   const [connectionStatus, setConnectionStatus] = useState<ExtensionConnectionStatus | undefined>();
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
@@ -36,7 +34,7 @@ export function ExtensionOnboardingPanel({ extensionName, onClose }: ExtensionOn
         const status = await extension.hooks.onboarding.checkStatus();
         setConnectionStatus(status);
       } catch (error) {
-        console.error('[ExtensionOnboarding] Failed to check connection status:', error);
+        console.error("[ExtensionOnboarding] Failed to check connection status:", error);
       } finally {
         setIsCheckingStatus(false);
       }
@@ -52,11 +50,12 @@ export function ExtensionOnboardingPanel({ extensionName, onClose }: ExtensionOn
       refreshExtensions();
       onClose();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to enable extension after onboarding.';
+      const message =
+        error instanceof Error ? error.message : "Failed to enable extension after onboarding.";
       toast({
-        title: 'Extension setup failed',
+        title: "Extension setup failed",
         description: message,
-        variant: 'destructive',
+        variant: "destructive",
       });
     }
   };

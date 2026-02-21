@@ -1,7 +1,7 @@
-export const FALLBACK_TAG_COLOR = '#64748b';
+export const FALLBACK_TAG_COLOR = "#64748b";
 
 function normalizeHex(color?: string): string {
-  const value = (color || '').trim();
+  const value = (color || "").trim();
   const match = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(value);
   if (!match) {
     return FALLBACK_TAG_COLOR;

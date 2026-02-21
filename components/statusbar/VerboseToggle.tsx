@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Terminal } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { ChevronDown, Terminal } from "lucide-react";
 
 interface VerboseSelectorProps {
   value: boolean;
@@ -8,15 +8,15 @@ interface VerboseSelectorProps {
 }
 
 const VERBOSE_MODES = [
-  { value: true, label: 'On', desc: 'Show tool calls' },
-  { value: false, label: 'Off', desc: 'Hide tool calls' },
+  { value: true, label: "On", desc: "Show tool calls" },
+  { value: false, label: "Off", desc: "Hide tool calls" },
 ];
 
 export function VerboseToggle({ value, onChange, disabled }: VerboseSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentMode = VERBOSE_MODES.find(m => m.value === value) || VERBOSE_MODES[1]; // Default to 'Off'
+  const currentMode = VERBOSE_MODES.find((m) => m.value === value) || VERBOSE_MODES[1]; // Default to 'Off'
 
   // Close on click outside
   useEffect(() => {
@@ -27,8 +27,8 @@ export function VerboseToggle({ value, onChange, disabled }: VerboseSelectorProp
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isOpen]);
 
@@ -49,7 +49,7 @@ export function VerboseToggle({ value, onChange, disabled }: VerboseSelectorProp
       {isOpen && (
         <div className="absolute bottom-full left-0 mb-2 w-48 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
           <div className="py-1">
-            {VERBOSE_MODES.map(mode => (
+            {VERBOSE_MODES.map((mode) => (
               <button
                 key={mode.value.toString()}
                 onClick={() => {
@@ -57,7 +57,7 @@ export function VerboseToggle({ value, onChange, disabled }: VerboseSelectorProp
                   setIsOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between ${
-                  value === mode.value ? 'bg-accent/50 text-primary' : ''
+                  value === mode.value ? "bg-accent/50 text-primary" : ""
                 }`}
               >
                 <div>

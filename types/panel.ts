@@ -1,27 +1,38 @@
-export type PanelType = 'chat' | 'create-agent' | 'update-agent' | 'agent-list' | 'extension-onboarding' | 'cron' | 'create-cron' | 'update-cron' | 'notes' | 'skills' | 'tags-settings';
+export type PanelType =
+  | "chat"
+  | "create-agent"
+  | "update-agent"
+  | "agent-list"
+  | "extension-onboarding"
+  | "cron"
+  | "create-cron"
+  | "update-cron"
+  | "notes"
+  | "skills"
+  | "tags-settings";
 
 export interface PanelSettings {
-  showTools: boolean;      // Verbose mode: show/hide tool calls
-  showReasoning: boolean;  // Show/hide reasoning blocks
+  showTools: boolean; // Verbose mode: show/hide tool calls
+  showReasoning: boolean; // Show/hide reasoning blocks
 }
 
 export interface Panel {
-  id: string;                  // Unique panel ID (UUID)
+  id: string; // Unique panel ID (UUID)
   type: PanelType;
   title: string;
-  agentId?: string;            // For chat/update-agent panels
-  data?: Record<string, any>;  // Panel-specific data
-  isActive: boolean;           // Currently focused panel
-  settings?: PanelSettings;    // Per-panel settings
+  agentId?: string; // For chat/update-agent panels
+  data?: Record<string, any>; // Panel-specific data
+  isActive: boolean; // Currently focused panel
+  settings?: PanelSettings; // Per-panel settings
   // Per-panel session settings (for chat panels)
-  sessionKey?: string;         // Session key for this panel (e.g., "agent:xyz:main")
-  model?: string;              // Model ID for this panel
-  modelProvider?: string;      // Model provider for this panel
-  thinking?: 'off' | 'low' | 'medium' | 'high';  // Thinking level for this panel
+  sessionKey?: string; // Session key for this panel (e.g., "agent:xyz:main")
+  model?: string; // Model ID for this panel
+  modelProvider?: string; // Model provider for this panel
+  thinking?: "off" | "low" | "medium" | "high"; // Thinking level for this panel
 }
 
 export interface PanelLayout {
   panels: Panel[];
-  maxPanels: number;           // Initially 2
-  activePanel: string | null;  // Active panel ID
+  maxPanels: number; // Initially 2
+  activePanel: string | null; // Active panel ID
 }

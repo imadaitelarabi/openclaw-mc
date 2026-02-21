@@ -3,11 +3,11 @@
  * Manages notes persistence to ~/.oc-mission-control/notes.json
  */
 
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import { v4 as uuidv4 } from 'uuid';
-import type { Note } from '../types/internal';
+import fs from "fs";
+import path from "path";
+import os from "os";
+import { v4 as uuidv4 } from "uuid";
+import type { Note } from "../types/internal";
 
 interface NotesStorage {
   notes: Note[];
@@ -16,8 +16,8 @@ interface NotesStorage {
   tags?: string[];
 }
 
-const DEFAULT_NOTE_GROUPS = ['General', 'Commands', 'Ideas', 'Snippets'];
-const FALLBACK_GROUP = 'General';
+const DEFAULT_NOTE_GROUPS = ["General", "Commands", "Ideas", "Snippets"];
+const FALLBACK_GROUP = "General";
 
 export class NotesManager {
   private configDir: string;
@@ -29,9 +29,9 @@ export class NotesManager {
   private explicitTags: string[] = [];
 
   constructor() {
-    this.configDir = path.join(os.homedir(), '.oc-mission-control');
-    this.notesPath = path.join(this.configDir, 'notes.json');
-    this.imagesDir = path.join(this.configDir, 'notes-images');
+    this.configDir = path.join(os.homedir(), ".oc-mission-control");
+    this.notesPath = path.join(this.configDir, "notes.json");
+    this.imagesDir = path.join(this.configDir, "notes-images");
     this.ensureConfigDir(this.configDir);
     this.ensureConfigDir(this.imagesDir);
     this.loadNotes();
@@ -46,21 +46,29 @@ export class NotesManager {
   private loadNotes(): void {
     try {
       if (fs.existsSync(this.notesPath)) {
-        const data = fs.readFileSync(this.notesPath, 'utf-8');
+        const data = fs.readFileSync(this.notesPath, "utf-8");
         const parsed = JSON.parse(data) as Note[] | NotesStorage;
 
         if (Array.isArray(parsed)) {
           this.notes = parsed;
-          this.groups = this.mergeGroups([FALLBACK_GROUP], this.notes.map(note => note.group));
+          this.groups = this.mergeGroups(
+            [FALLBACK_GROUP],
+            this.notes.map((note) => note.group)
+          );
           this.tagColors = {};
         } else {
           this.notes = Array.isArray(parsed.notes) ? parsed.notes : [];
           const persistedGroups = Array.isArray(parsed.groups) ? parsed.groups : [];
-          this.groups = this.mergeGroups([FALLBACK_GROUP], persistedGroups, this.notes.map(note => note.group));
-          this.tagColors = (parsed.tagColors && typeof parsed.tagColors === 'object')
-            ? parsed.tagColors
-            : {};
-          this.explicitTags = Array.isArray(parsed.tags) ? parsed.tags.filter(t => typeof t === 'string' && t.trim()) : [];
+          this.groups = this.mergeGroups(
+            [FALLBACK_GROUP],
+            persistedGroups,
+            this.notes.map((note) => note.group)
+          );
+          this.tagColors =
+            parsed.tagColors && typeof parsed.tagColors === "object" ? parsed.tagColors : {};
+          this.explicitTags = Array.isArray(parsed.tags)
+            ? parsed.tags.filter((t) => typeof t === "string" && t.trim())
+            : [];
         }
 
         this.ensureTagColors(this.listAllTags());
@@ -70,7 +78,7 @@ export class NotesManager {
         this.saveNotes();
       }
     } catch (err) {
-      console.error('[NotesManager] Failed to load notes:', err);
+      console.error("[NotesManager] Failed to load notes:", err);
       this.notes = [];
       this.groups = [...DEFAULT_NOTE_GROUPS];
       this.tagColors = {};
@@ -86,10 +94,10 @@ export class NotesManager {
         tags: this.explicitTags,
       };
 
-      fs.writeFileSync(this.notesPath, JSON.stringify(payload, null, 2), 'utf-8');
+      fs.writeFileSync(this.notesPath, JSON.stringify(payload, null, 2), "utf-8");
     } catch (err) {
-      console.error('[NotesManager] Failed to save notes:', err);
-      throw new Error('Failed to save notes');
+      console.error("[NotesManager] Failed to save notes:", err);
+      throw new Error("Failed to save notes");
     }
   }
 
@@ -98,7 +106,7 @@ export class NotesManager {
 
     for (const set of groupSets) {
       for (const group of set) {
-        const trimmed = typeof group === 'string' ? group.trim() : '';
+        const trimmed = typeof group === "string" ? group.trim() : "";
         if (!trimmed) {
           continue;
         }
@@ -116,17 +124,17 @@ export class NotesManager {
   private normalizeGroupName(group: string): string {
     const normalized = group.trim();
     if (!normalized) {
-      throw new Error('Group name cannot be empty');
+      throw new Error("Group name cannot be empty");
     }
     return normalized;
   }
 
   private isManagedImageUrl(imageUrl: string): boolean {
-    return imageUrl.startsWith('/api/notes/images/');
+    return imageUrl.startsWith("/api/notes/images/");
   }
 
   private resolveImagePathFromUrl(imageUrl: string): string {
-    const fileName = path.basename(decodeURIComponent(imageUrl.replace('/api/notes/images/', '')));
+    const fileName = path.basename(decodeURIComponent(imageUrl.replace("/api/notes/images/", "")));
     return path.join(this.imagesDir, fileName);
   }
 
@@ -135,7 +143,7 @@ export class NotesManager {
       return;
     }
 
-    const isStillReferenced = this.notes.some(note => note.imageUrl === imageUrl);
+    const isStillReferenced = this.notes.some((note) => note.imageUrl === imageUrl);
     if (isStillReferenced) {
       return;
     }
@@ -148,15 +156,15 @@ export class NotesManager {
 
   private extensionFromMimeType(mimeType: string): string {
     const lookup: Record<string, string> = {
-      'image/png': '.png',
-      'image/jpeg': '.jpg',
-      'image/jpg': '.jpg',
-      'image/webp': '.webp',
-      'image/gif': '.gif',
-      'image/svg+xml': '.svg',
+      "image/png": ".png",
+      "image/jpeg": ".jpg",
+      "image/jpg": ".jpg",
+      "image/webp": ".webp",
+      "image/gif": ".gif",
+      "image/svg+xml": ".svg",
     };
 
-    return lookup[mimeType.toLowerCase()] ?? '.bin';
+    return lookup[mimeType.toLowerCase()] ?? ".bin";
   }
 
   public getImagesDir(): string {
@@ -185,11 +193,11 @@ export class NotesManager {
     const normalized = this.normalizeGroupName(group);
 
     if (normalized.toLowerCase() === FALLBACK_GROUP.toLowerCase()) {
-      throw new Error('General group cannot be deleted');
+      throw new Error("General group cannot be deleted");
     }
 
     const existingGroup = this.groups.find(
-      existing => existing.toLowerCase() === normalized.toLowerCase()
+      (existing) => existing.toLowerCase() === normalized.toLowerCase()
     );
 
     if (!existingGroup) {
@@ -197,12 +205,12 @@ export class NotesManager {
     }
 
     this.groups = this.groups.filter(
-      existing => existing.toLowerCase() !== normalized.toLowerCase()
+      (existing) => existing.toLowerCase() !== normalized.toLowerCase()
     );
     this.groups = this.mergeGroups(this.groups, [FALLBACK_GROUP]);
 
     const now = Date.now();
-    this.notes = this.notes.map(note => {
+    this.notes = this.notes.map((note) => {
       if (note.group.toLowerCase() !== normalized.toLowerCase()) {
         return note;
       }
@@ -223,18 +231,18 @@ export class NotesManager {
     const base64Content = dataUriMatch?.groups?.content;
     const detectedMimeType = mimeType || dataUriMatch?.groups?.mime;
 
-    if (!base64Content || !detectedMimeType || !detectedMimeType.startsWith('image/')) {
-      throw new Error('Invalid image payload');
+    if (!base64Content || !detectedMimeType || !detectedMimeType.startsWith("image/")) {
+      throw new Error("Invalid image payload");
     }
 
     const safeBaseName = fileName
-      ? path.parse(path.basename(fileName)).name.replace(/[^a-zA-Z0-9-_]/g, '_')
-      : 'note-image';
+      ? path.parse(path.basename(fileName)).name.replace(/[^a-zA-Z0-9-_]/g, "_")
+      : "note-image";
     const extension = this.extensionFromMimeType(detectedMimeType);
-    const storedFileName = `${safeBaseName || 'note-image'}-${uuidv4()}${extension}`;
+    const storedFileName = `${safeBaseName || "note-image"}-${uuidv4()}${extension}`;
     const imagePath = path.join(this.imagesDir, storedFileName);
 
-    fs.writeFileSync(imagePath, Buffer.from(base64Content, 'base64'));
+    fs.writeFileSync(imagePath, Buffer.from(base64Content, "base64"));
 
     return `/api/notes/images/${encodeURIComponent(storedFileName)}`;
   }
@@ -260,14 +268,16 @@ export class NotesManager {
       }
     }
 
-    return Array.from(tagMap.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    return Array.from(tagMap.values()).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" })
+    );
   }
 
   private normalizeHexColor(color: string): string {
     const trimmed = color.trim();
     const hexMatch = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(trimmed);
     if (!hexMatch) {
-      throw new Error('Invalid color. Use hex format like #3b82f6');
+      throw new Error("Invalid color. Use hex format like #3b82f6");
     }
 
     const hex = hexMatch[1];
@@ -281,7 +291,7 @@ export class NotesManager {
   private hashTag(tag: string): number {
     let hash = 0;
     for (let index = 0; index < tag.length; index += 1) {
-      hash = ((hash << 5) - hash) + tag.charCodeAt(index);
+      hash = (hash << 5) - hash + tag.charCodeAt(index);
       hash |= 0;
     }
     return Math.abs(hash);
@@ -290,7 +300,7 @@ export class NotesManager {
   private hslToHex(hue: number, saturation: number, lightness: number): string {
     const normalizedS = saturation / 100;
     const normalizedL = lightness / 100;
-    const chroma = (1 - Math.abs((2 * normalizedL) - 1)) * normalizedS;
+    const chroma = (1 - Math.abs(2 * normalizedL - 1)) * normalizedS;
     const huePrime = hue / 60;
     const secondComponent = chroma * (1 - Math.abs((huePrime % 2) - 1));
 
@@ -318,12 +328,12 @@ export class NotesManager {
       bluePrime = secondComponent;
     }
 
-    const offset = normalizedL - (chroma / 2);
+    const offset = normalizedL - chroma / 2;
     const red = Math.round((redPrime + offset) * 255);
     const green = Math.round((greenPrime + offset) * 255);
     const blue = Math.round((bluePrime + offset) * 255);
 
-    const toHex = (channel: number) => channel.toString(16).padStart(2, '0');
+    const toHex = (channel: number) => channel.toString(16).padStart(2, "0");
     return `#${toHex(red)}${toHex(green)}${toHex(blue)}`;
   }
 
@@ -365,39 +375,49 @@ export class NotesManager {
   public setTagColor(tag: string, color: string): Record<string, string> {
     const normalizedTag = tag.trim();
     if (!normalizedTag) {
-      throw new Error('Tag is required');
+      throw new Error("Tag is required");
     }
 
     const allTags = this.listAllTags();
-    if (!allTags.some(existing => existing.toLowerCase() === normalizedTag.toLowerCase())) {
+    if (!allTags.some((existing) => existing.toLowerCase() === normalizedTag.toLowerCase())) {
       throw new Error(`Unknown tag: ${normalizedTag}`);
     }
 
-    const canonicalTag = allTags.find(existing => existing.toLowerCase() === normalizedTag.toLowerCase()) || normalizedTag;
+    const canonicalTag =
+      allTags.find((existing) => existing.toLowerCase() === normalizedTag.toLowerCase()) ||
+      normalizedTag;
     this.tagColors[canonicalTag] = this.normalizeHexColor(color);
     this.saveNotes();
     return this.listTagColors();
   }
 
-  public deleteTag(tag: string): { notes: Note[]; allTags: string[]; tagColors: Record<string, string> } {
+  public deleteTag(tag: string): {
+    notes: Note[];
+    allTags: string[];
+    tagColors: Record<string, string>;
+  } {
     const normalizedTag = tag.trim();
     if (!normalizedTag) {
-      throw new Error('Tag is required');
+      throw new Error("Tag is required");
     }
 
     const allTags = this.listAllTags();
-    const canonicalTag = allTags.find(existing => existing.toLowerCase() === normalizedTag.toLowerCase());
+    const canonicalTag = allTags.find(
+      (existing) => existing.toLowerCase() === normalizedTag.toLowerCase()
+    );
     if (!canonicalTag) {
       throw new Error(`Unknown tag: ${normalizedTag}`);
     }
 
     const now = Date.now();
-    this.notes = this.notes.map(note => {
+    this.notes = this.notes.map((note) => {
       if (!Array.isArray(note.tags) || note.tags.length === 0) {
         return note;
       }
 
-      const nextTags = note.tags.filter(existing => existing.toLowerCase() !== canonicalTag.toLowerCase());
+      const nextTags = note.tags.filter(
+        (existing) => existing.toLowerCase() !== canonicalTag.toLowerCase()
+      );
       if (nextTags.length === note.tags.length) {
         return note;
       }
@@ -412,7 +432,7 @@ export class NotesManager {
     delete this.tagColors[canonicalTag];
 
     this.explicitTags = this.explicitTags.filter(
-      t => t.toLowerCase() !== canonicalTag.toLowerCase()
+      (t) => t.toLowerCase() !== canonicalTag.toLowerCase()
     );
 
     this.saveNotes();
@@ -429,12 +449,12 @@ export class NotesManager {
   public createTag(tag: string): { allTags: string[]; tagColors: Record<string, string> } {
     const normalizedTag = tag.trim();
     if (!normalizedTag) {
-      throw new Error('Tag name is required');
+      throw new Error("Tag name is required");
     }
 
     const allTags = this.listAllTags();
     const alreadyExists = allTags.some(
-      existing => existing.toLowerCase() === normalizedTag.toLowerCase()
+      (existing) => existing.toLowerCase() === normalizedTag.toLowerCase()
     );
 
     if (!alreadyExists) {
@@ -461,7 +481,7 @@ export class NotesManager {
       id: uuidv4(),
       content,
       group: normalizedGroup,
-      tags: Array.isArray(tags) ? tags.map(t => t.trim()).filter(Boolean) : [],
+      tags: Array.isArray(tags) ? tags.map((t) => t.trim()).filter(Boolean) : [],
       createdAt: now,
       updatedAt: now,
       imageUrl,
@@ -478,21 +498,21 @@ export class NotesManager {
   /**
    * Update an existing note
    */
-  public updateNote(id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>): Note {
-    const index = this.notes.findIndex(n => n.id === id);
+  public updateNote(id: string, updates: Partial<Omit<Note, "id" | "createdAt">>): Note {
+    const index = this.notes.findIndex((n) => n.id === id);
     if (index === -1) {
       throw new Error(`Note not found: ${id}`);
     }
 
     const previousNote = this.notes[index];
-    const nextGroup = updates.group !== undefined ? this.normalizeGroupName(updates.group) : undefined;
+    const nextGroup =
+      updates.group !== undefined ? this.normalizeGroupName(updates.group) : undefined;
     if (nextGroup) {
       this.groups = this.mergeGroups(this.groups, [nextGroup]);
     }
 
-    const normalizedTags = updates.tags !== undefined
-      ? updates.tags.map(t => t.trim()).filter(Boolean)
-      : undefined;
+    const normalizedTags =
+      updates.tags !== undefined ? updates.tags.map((t) => t.trim()).filter(Boolean) : undefined;
 
     const note = this.notes[index];
     this.notes[index] = {
@@ -520,7 +540,7 @@ export class NotesManager {
    * Delete a note
    */
   public deleteNote(id: string): boolean {
-    const index = this.notes.findIndex(n => n.id === id);
+    const index = this.notes.findIndex((n) => n.id === id);
     if (index === -1) {
       return false;
     }

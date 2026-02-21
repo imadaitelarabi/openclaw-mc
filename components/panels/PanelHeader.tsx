@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { X, Plus, RefreshCw } from 'lucide-react';
-import { ConfigDropdown } from './ConfigDropdown';
-import { ModelSelector } from '../statusbar/ModelSelector';
-import { ThinkingToggle } from '../statusbar/ThinkingToggle';
-import { ConfirmationModal } from '../modals';
+import { useState } from "react";
+import { X, Plus, RefreshCw } from "lucide-react";
+import { ConfigDropdown } from "./ConfigDropdown";
+import { ModelSelector } from "../statusbar/ModelSelector";
+import { ThinkingToggle } from "../statusbar/ThinkingToggle";
+import { ConfirmationModal } from "../modals";
 
 interface Model {
   id: string;
@@ -11,7 +11,7 @@ interface Model {
   provider?: string;
 }
 
-export type AgentRunStatus = 'idle' | 'thinking' | 'text' | 'tool' | 'completed';
+export type AgentRunStatus = "idle" | "thinking" | "text" | "tool" | "completed";
 
 interface PanelHeaderProps {
   title: string;
@@ -21,7 +21,7 @@ interface PanelHeaderProps {
   showCloseButton?: boolean;
   onResetSession?: () => void;
   agentId?: string;
-  
+
   // Chat panel specific props
   showTools?: boolean;
   showReasoning?: boolean;
@@ -30,8 +30,8 @@ interface PanelHeaderProps {
   models?: Model[];
   currentModel?: string;
   onModelChange?: (modelId: string, provider?: string) => void;
-  thinkingMode?: 'off' | 'low' | 'medium' | 'high';
-  onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
+  thinkingMode?: "off" | "low" | "medium" | "high";
+  onThinkingChange?: (thinking: "off" | "low" | "medium" | "high") => void;
   onRefreshChat?: () => void;
 
   // Activity pulse indicator
@@ -39,11 +39,11 @@ interface PanelHeaderProps {
   onRunAcknowledged?: () => void;
 }
 
-export function PanelHeader({ 
-  title, 
-  isActive, 
-  onClose, 
-  onClick, 
+export function PanelHeader({
+  title,
+  isActive,
+  onClose,
+  onClick,
   showCloseButton = true,
   onResetSession,
   agentId,
@@ -54,10 +54,10 @@ export function PanelHeader({
   models,
   currentModel,
   onModelChange,
-  thinkingMode = 'low',
+  thinkingMode = "low",
   onThinkingChange,
   onRefreshChat,
-  activeRunStatus = 'idle',
+  activeRunStatus = "idle",
   onRunAcknowledged,
 }: PanelHeaderProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -82,7 +82,7 @@ export function PanelHeader({
   };
 
   const handleFocus = () => {
-    if (activeRunStatus === 'completed' && onRunAcknowledged) {
+    if (activeRunStatus === "completed" && onRunAcknowledged) {
       onRunAcknowledged();
     }
   };
@@ -90,28 +90,31 @@ export function PanelHeader({
   const isChatPanel = Boolean(agentId);
 
   const pulseColor =
-    activeRunStatus === 'thinking' || activeRunStatus === 'tool'
-      ? 'bg-amber-400'
-      : activeRunStatus === 'text'
-        ? 'bg-blue-400'
-        : activeRunStatus === 'completed'
-          ? 'bg-green-500'
+    activeRunStatus === "thinking" || activeRunStatus === "tool"
+      ? "bg-amber-400"
+      : activeRunStatus === "text"
+        ? "bg-blue-400"
+        : activeRunStatus === "completed"
+          ? "bg-green-500"
           : null;
 
   return (
-    <div 
+    <div
       className={`h-10 flex items-center justify-between px-4 border-b cursor-pointer transition-colors ${
-        isActive 
-          ? 'bg-accent border-primary text-foreground' 
-          : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
+        isActive
+          ? "bg-accent border-primary text-foreground"
+          : "bg-muted/50 border-border text-muted-foreground hover:bg-muted"
       }`}
-      onClick={() => { onClick(); handleFocus(); }}
+      onClick={() => {
+        onClick();
+        handleFocus();
+      }}
     >
       <div className="flex items-center gap-2 min-w-0">
         {pulseColor && (
           <span
             className={`flex-shrink-0 w-2 h-2 rounded-full ${pulseColor} ${
-              activeRunStatus !== 'completed' ? 'animate-pulse' : ''
+              activeRunStatus !== "completed" ? "animate-pulse" : ""
             }`}
           />
         )}
@@ -121,11 +124,7 @@ export function PanelHeader({
         {/* Model Selector - only for chat panels */}
         {isChatPanel && models && onModelChange && (
           <>
-            <ModelSelector
-              models={models}
-              currentModel={currentModel}
-              onChange={onModelChange}
-            />
+            <ModelSelector models={models} currentModel={currentModel} onChange={onModelChange} />
             <div className="h-4 w-px bg-border mx-1" />
           </>
         )}
@@ -133,25 +132,25 @@ export function PanelHeader({
         {/* Thinking Level - only for chat panels */}
         {isChatPanel && onThinkingChange && (
           <>
-            <ThinkingToggle
-              value={thinkingMode}
-              onChange={onThinkingChange}
-            />
+            <ThinkingToggle value={thinkingMode} onChange={onThinkingChange} />
             <div className="h-4 w-px bg-border mx-1" />
           </>
         )}
-        
+
         {/* Config Dropdown - only for chat panels */}
-        {isChatPanel && showTools !== undefined && showReasoning !== undefined && 
-         onShowToolsChange && onShowReasoningChange && (
-          <ConfigDropdown
-            showTools={showTools}
-            showReasoning={showReasoning}
-            onShowToolsChange={onShowToolsChange}
-            onShowReasoningChange={onShowReasoningChange}
-          />
-        )}
-        
+        {isChatPanel &&
+          showTools !== undefined &&
+          showReasoning !== undefined &&
+          onShowToolsChange &&
+          onShowReasoningChange && (
+            <ConfigDropdown
+              showTools={showTools}
+              showReasoning={showReasoning}
+              onShowToolsChange={onShowToolsChange}
+              onShowReasoningChange={onShowReasoningChange}
+            />
+          )}
+
         {/* Refresh Button - only for chat panels with refresh handler */}
         {isChatPanel && onRefreshChat && (
           <button
@@ -163,7 +162,7 @@ export function PanelHeader({
             <RefreshCw className="w-4 h-4" />
           </button>
         )}
-        
+
         {/* New Session Button - only for chat panels with agentId */}
         {agentId && onResetSession && (
           <button
@@ -175,7 +174,7 @@ export function PanelHeader({
             <Plus className="w-4 h-4" />
           </button>
         )}
-        
+
         {showCloseButton && (
           <button
             onClick={(e) => {

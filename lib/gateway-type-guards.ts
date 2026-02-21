@@ -4,7 +4,7 @@
  */
 
 export function isToolResultMessage(msg: unknown): msg is {
-  role: 'toolResult';
+  role: "toolResult";
   toolCallId?: string;
   toolName?: string;
   content: unknown;
@@ -12,76 +12,53 @@ export function isToolResultMessage(msg: unknown): msg is {
   isError?: boolean;
   timestamp?: number;
 } {
-  return (
-    typeof msg === 'object' &&
-    msg !== null &&
-    'role' in msg &&
-    msg.role === 'toolResult'
-  );
+  return typeof msg === "object" && msg !== null && "role" in msg && msg.role === "toolResult";
 }
 
 export function isAssistantMessage(msg: unknown): msg is {
-  role: 'assistant';
+  role: "assistant";
   content: unknown;
   id?: string;
   runId?: string;
   timestamp?: number;
 } {
-  return (
-    typeof msg === 'object' &&
-    msg !== null &&
-    'role' in msg &&
-    msg.role === 'assistant'
-  );
+  return typeof msg === "object" && msg !== null && "role" in msg && msg.role === "assistant";
 }
 
 export function isUserMessage(msg: unknown): msg is {
-  role: 'user';
+  role: "user";
   content: unknown;
   id?: string;
   timestamp?: number;
 } {
-  return (
-    typeof msg === 'object' &&
-    msg !== null &&
-    'role' in msg &&
-    msg.role === 'user'
-  );
+  return typeof msg === "object" && msg !== null && "role" in msg && msg.role === "user";
 }
 
 export function isReasoningMessage(msg: unknown): msg is {
-  role: 'reasoning';
+  role: "reasoning";
   content: unknown;
   id?: string;
   runId?: string;
   timestamp?: number;
 } {
-  return (
-    typeof msg === 'object' &&
-    msg !== null &&
-    'role' in msg &&
-    msg.role === 'reasoning'
-  );
+  return typeof msg === "object" && msg !== null && "role" in msg && msg.role === "reasoning";
 }
 
 export function isToolMessage(msg: unknown): msg is {
-  role: 'tool';
+  role: "tool";
   content: unknown;
   tool?: Record<string, unknown>;
   id?: string;
   runId?: string;
   timestamp?: number;
 } {
-  return (
-    typeof msg === 'object' &&
-    msg !== null &&
-    'role' in msg &&
-    msg.role === 'tool'
-  );
+  return typeof msg === "object" && msg !== null && "role" in msg && msg.role === "tool";
 }
 
 export function hasContentParts(content: unknown): content is Array<Record<string, unknown>> {
-  return Array.isArray(content) && content.every(part => typeof part === 'object' && part !== null);
+  return (
+    Array.isArray(content) && content.every((part) => typeof part === "object" && part !== null)
+  );
 }
 
 /**
@@ -93,9 +70,9 @@ export function isValidGatewayMessage(msg: unknown): msg is {
   timestamp?: number;
 } {
   return (
-    typeof msg === 'object' &&
+    typeof msg === "object" &&
     msg !== null &&
-    'role' in msg &&
-    typeof (msg as any).role === 'string'
+    "role" in msg &&
+    typeof (msg as any).role === "string"
   );
 }

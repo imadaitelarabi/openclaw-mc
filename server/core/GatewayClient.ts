@@ -4,8 +4,8 @@
  * Handles RPC calls, events, authentication, and reconnection
  */
 
-import WebSocket from 'ws';
-import { v4 as uuidv4 } from 'uuid';
+import WebSocket from "ws";
+import { v4 as uuidv4 } from "uuid";
 import type {
   GatewayRequest,
   GatewayResponse,
@@ -13,14 +13,14 @@ import type {
   ConnectParams,
   Agent,
   Session,
-} from '../types/gateway';
+} from "../types/gateway";
 import type {
   PendingRequest,
   ConnectWaiter,
   ExtendedWebSocket,
   TransformedAgent,
-} from '../types/internal';
-import { ConfigManager } from './ConfigManager';
+} from "../types/internal";
+import { ConfigManager } from "./ConfigManager";
 
 export class GatewayClient {
   private url: string | null = null;
@@ -40,7 +40,7 @@ export class GatewayClient {
     this.configManager = configManager;
     this.updateFromConfig();
     // Read DEBUG_GATEWAY_EVENTS from environment
-    this.debugGatewayEvents = process.env.DEBUG_GATEWAY_EVENTS === 'true';
+    this.debugGatewayEvents = process.env.DEBUG_GATEWAY_EVENTS === "true";
   }
 
   updateFromConfig(): void {
@@ -89,7 +89,7 @@ export class GatewayClient {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.connectWaiters = this.connectWaiters.filter((w) => w !== waiter);
-        reject(new Error('Gateway connection timeout'));
+        reject(new Error("Gateway connection timeout"));
       }, timeoutMs);
 
       const waiter: ConnectWaiter = {
@@ -109,31 +109,31 @@ export class GatewayClient {
 
   connect(): void {
     if (!this.url) {
-      console.log('[Gateway] No gateway configured');
-      this.broadcast({ type: 'status', status: 'no-config' });
-      this.resolveConnectWaiters(new Error('No gateway configured'));
+      console.log("[Gateway] No gateway configured");
+      this.broadcast({ type: "status", status: "no-config" });
+      this.resolveConnectWaiters(new Error("No gateway configured"));
       return;
     }
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
-    console.log('[Gateway] Connecting to:', this.url);
-    this.broadcast({ type: 'status', status: 'connecting', gatewayId: this.activeId || undefined });
+    console.log("[Gateway] Connecting to:", this.url);
+    this.broadcast({ type: "status", status: "connecting", gatewayId: this.activeId || undefined });
     this.ws = new WebSocket(this.url, {
       headers: {
-        Origin: 'http://localhost:3001',
+        Origin: "http://localhost:3001",
       },
     });
 
-    this.ws.on('open', () => {
-      console.log('[Gateway] Connected');
+    this.ws.on("open", () => {
+      console.log("[Gateway] Connected");
       this.authenticated = false;
     });
 
-    this.ws.on('message', (data: WebSocket.Data) => {
+    this.ws.on("message", (data: WebSocket.Data) => {
       try {
         const msg = JSON.parse(data.toString());
         if (
-          msg?.type === 'res' &&
+          msg?.type === "res" &&
           msg?.ok === true &&
           msg?.payload?.sessions &&
           Array.isArray(msg.payload.sessions)
@@ -142,39 +142,39 @@ export class GatewayClient {
             `[Gateway] Received sessions response: ${msg.payload.sessions.length} sessions`
           );
         } else {
-          console.log('[Gateway] Received message:', JSON.stringify(msg, null, 2));
+          console.log("[Gateway] Received message:", JSON.stringify(msg, null, 2));
         }
         this.handleGatewayMessage(msg);
       } catch (err) {
-        console.error('[Gateway] Failed to parse message:', err);
+        console.error("[Gateway] Failed to parse message:", err);
       }
     });
 
-    this.ws.on('close', (code: number, reason: Buffer) => {
+    this.ws.on("close", (code: number, reason: Buffer) => {
       console.log(`[Gateway] Closed: ${code} - ${reason.toString()}`);
       this.authenticated = false;
       this.ws = null;
       this.resolveConnectWaiters(new Error(`Gateway connection closed (${code})`));
 
-      this.broadcast({ type: 'status', status: 'disconnected' });
+      this.broadcast({ type: "status", status: "disconnected" });
 
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
       this.reconnectTimer = setTimeout(() => this.connect(), 5000);
     });
 
-    this.ws.on('error', (err: Error) => {
-      console.error('[Gateway] Error:', err.message);
-      this.resolveConnectWaiters(new Error(err.message || 'Gateway connection error'));
+    this.ws.on("error", (err: Error) => {
+      console.error("[Gateway] Error:", err.message);
+      this.resolveConnectWaiters(new Error(err.message || "Gateway connection error"));
     });
   }
 
   private async handleGatewayMessage(msg: GatewayResponse | GatewayEvent): Promise<void> {
-    if (msg.type === 'event' && (msg as GatewayEvent).event === 'connect.challenge') {
+    if (msg.type === "event" && (msg as GatewayEvent).event === "connect.challenge") {
       await this.authenticate((msg as GatewayEvent).payload);
       return;
     }
 
-    if (msg.type === 'res' && (msg as GatewayResponse).id) {
+    if (msg.type === "res" && (msg as GatewayResponse).id) {
       const response = msg as GatewayResponse;
       const pending = this.pending.get(response.id);
       if (pending) {
@@ -182,13 +182,13 @@ export class GatewayClient {
         if (response.ok) {
           pending.resolve(response.payload);
         } else {
-          pending.reject(new Error(response.error?.message || 'Request failed'));
+          pending.reject(new Error(response.error?.message || "Request failed"));
         }
       }
       return;
     }
 
-    if (msg.type === 'event') {
+    if (msg.type === "event") {
       await this.handleGatewayEvent(msg as GatewayEvent);
     }
   }
@@ -199,66 +199,64 @@ export class GatewayClient {
         minProtocol: 3,
         maxProtocol: 3,
         client: {
-          id: 'openclaw-control-ui',
-          version: '2.0.0',
-          platform: 'node',
-          mode: 'ui',
+          id: "openclaw-control-ui",
+          version: "2.0.0",
+          platform: "node",
+          mode: "ui",
           instanceId: uuidv4(),
         },
-        role: 'operator',
+        role: "operator",
         scopes: [
-          'operator.read',
-          'operator.write',
-          'operator.admin',
-          'operator.approvals',
-          'operator.pairing',
+          "operator.read",
+          "operator.write",
+          "operator.admin",
+          "operator.approvals",
+          "operator.pairing",
         ],
         auth: {
           token: this.token!,
         },
         caps: ["tool-events"],
-        userAgent: 'Mission-Control/2.0',
-        locale: 'en-US',
+        userAgent: "Mission-Control/2.0",
+        locale: "en-US",
       };
 
-      console.log('[Gateway] Sending connect request (token auth)');
-      const response = await this.request('connect', connectParams);
+      console.log("[Gateway] Sending connect request (token auth)");
+      const response = await this.request("connect", connectParams);
 
       this.authenticated = true;
-      console.log('[Gateway] Authenticated successfully');
+      console.log("[Gateway] Authenticated successfully");
       this.resolveConnectWaiters();
 
-      this.broadcast({ type: 'status', status: 'connected' });
+      this.broadcast({ type: "status", status: "connected" });
       await this.fetchInitialData();
     } catch (err) {
-      console.error('[Gateway] Authentication failed:', err);
-      this.resolveConnectWaiters(
-        new Error((err as Error).message || 'Authentication failed')
-      );
-      this.ws?.close(4008, 'Authentication failed');
+      console.error("[Gateway] Authentication failed:", err);
+      this.resolveConnectWaiters(new Error((err as Error).message || "Authentication failed"));
+      this.ws?.close(4008, "Authentication failed");
     }
   }
 
   async fetchInitialData(): Promise<void> {
     try {
       // Fetch Agents List first
-      const agents = await this.request('agents.list', {});
+      const agents = await this.request("agents.list", {});
       this.agentsList = Array.isArray(agents) ? agents : agents.agents || [];
 
       // Send Agent Definitions to client
-      this.broadcast({ type: 'agent_definitions', data: this.agentsList });
+      this.broadcast({ type: "agent_definitions", data: this.agentsList });
 
       // Fetch sessions to determine active runs
-      const sessions = await this.request('sessions.list', {});
+      const sessions = await this.request("sessions.list", {});
       this.transformAndBroadcastSessions(sessions);
 
       // Auto-subscribe to active sessions for event stream resumption
       if (sessions?.sessions && Array.isArray(sessions.sessions)) {
-        console.log('[Gateway] Auto-subscribing to active sessions for reconnection...');
+        console.log("[Gateway] Auto-subscribing to active sessions for reconnection...");
         sessions.sessions.forEach((session: Session) => {
           try {
             // Subscribe to each session to resume event streams
-            this.request('chat.subscribe', { sessionKey: session.key }).catch((err) => {
+            this.request("chat.subscribe", { sessionKey: session.key }).catch((err) => {
               console.error(`[Gateway] Failed to subscribe to ${session.key}:`, err);
             });
           } catch (err) {
@@ -268,7 +266,7 @@ export class GatewayClient {
       }
 
       // Fetch recent chat history for each agent (last 20 messages)
-      console.log('[Gateway] Fetching chat history for agents...');
+      console.log("[Gateway] Fetching chat history for agents...");
       const historyPromises = this.agentsList.map(async (agent) => {
         const sessionKey = `agent:${agent.id}:main`;
         try {
@@ -281,20 +279,20 @@ export class GatewayClient {
       });
 
       const histories = await Promise.all(historyPromises);
-      
+
       // Broadcast chat history to clients
       histories.forEach(({ agentId, messages }) => {
         if (messages.length > 0) {
           console.log(`[Gateway] Broadcasting ${messages.length} messages for agent ${agentId}`);
           this.broadcast({
-            type: 'chat_history',
+            type: "chat_history",
             agentId,
             messages,
           });
         }
       });
     } catch (err) {
-      console.error('[Gateway] Failed to fetch initial data:', err);
+      console.error("[Gateway] Failed to fetch initial data:", err);
     }
   }
 
@@ -303,14 +301,10 @@ export class GatewayClient {
     return agent ? agent.name : id;
   }
 
-  
   private async handleGatewayEvent(msg: GatewayEvent): Promise<void> {
-
-
-
     // 2. Broadcast ALL events to connected clients (Thin Proxy approach)
     this.broadcast({
-      type: 'event',
+      type: "event",
       event: msg.event,
       payload: msg.payload,
     });
@@ -321,7 +315,7 @@ export class GatewayClient {
 
     const activeSessions = new Set<string>();
     data.sessions.forEach((s: Session) => {
-      const parts = s.key.split(':');
+      const parts = s.key.split(":");
       if (parts.length >= 2) activeSessions.add(parts[1]);
     });
 
@@ -330,17 +324,17 @@ export class GatewayClient {
       name: a.name,
       identity: a.identityName,
       emoji: a.identityEmoji,
-      status: activeSessions.has(a.id) ? 'active' : 'idle',
+      status: activeSessions.has(a.id) ? "active" : "idle",
       model: a.model,
     }));
 
-    this.broadcast({ type: 'agents', data: agents });
+    this.broadcast({ type: "agents", data: agents });
   }
 
   request(method: string, params: any): Promise<any> {
     return new Promise((resolve, reject) => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-        reject(new Error('Not connected to gateway'));
+        reject(new Error("Not connected to gateway"));
         return;
       }
 
@@ -348,7 +342,7 @@ export class GatewayClient {
       this.pending.set(id, { resolve, reject });
 
       const request: GatewayRequest = {
-        type: 'req',
+        type: "req",
         id,
         method,
         params,
@@ -359,7 +353,7 @@ export class GatewayClient {
       setTimeout(() => {
         if (this.pending.has(id)) {
           this.pending.delete(id);
-          reject(new Error('Request timeout'));
+          reject(new Error("Request timeout"));
         }
       }, 30000);
     });
@@ -373,7 +367,11 @@ export class GatewayClient {
     return this.request(method, params);
   }
 
-  async sendChat(agentId: string, message: string, attachments?: any[]): Promise<{ ok: boolean; error?: string }> {
+  async sendChat(
+    agentId: string,
+    message: string,
+    attachments?: any[]
+  ): Promise<{ ok: boolean; error?: string }> {
     // Find active session for this agent
     const sessionKey = `agent:${agentId}:main`;
 
@@ -395,7 +393,7 @@ export class GatewayClient {
         params.attachments = attachments;
       }
 
-      const res = await this.request('chat.send', params);
+      const res = await this.request("chat.send", params);
       console.log(`[Chat] Sent successfully. RunID: ${res?.runId}`);
       return { ok: true };
     } catch (err) {
@@ -408,11 +406,11 @@ export class GatewayClient {
     const sessionKey = `agent:${agentId}:main`;
     console.log(`[Gateway] Aborting all runs for session: ${sessionKey}`);
     try {
-      await this.request('chat.abort', { sessionKey });
+      await this.request("chat.abort", { sessionKey });
       return { ok: true };
     } catch (err) {
       console.error(`[Gateway] Failed to abort chat for ${sessionKey}:`, err);
-      return { ok: false, error: (err as Error).message || 'Abort failed' };
+      return { ok: false, error: (err as Error).message || "Abort failed" };
     }
   }
 
@@ -423,22 +421,18 @@ export class GatewayClient {
    * @param before - Message ID to paginate from (optional)
    * @returns Array of chat messages
    */
-  async fetchChatHistory(
-    sessionKey: string,
-    limit: number = 20,
-    before?: string
-  ): Promise<any[]> {
+  async fetchChatHistory(sessionKey: string, limit: number = 20, before?: string): Promise<any[]> {
     try {
       const params: Record<string, unknown> = {
         sessionKey,
         limit,
       };
-      
+
       if (before) {
         params.before = before;
       }
 
-      const response = await this.request('chat.history', params);
+      const response = await this.request("chat.history", params);
       return Array.isArray(response) ? response : response?.messages || [];
     } catch (err) {
       console.error(`[Gateway] Failed to fetch chat history for ${sessionKey}:`, err);
@@ -451,17 +445,17 @@ export class GatewayClient {
 
     if (!this.url) {
       // No gateway configured - send no-config status
-      client.send(JSON.stringify({ type: 'status', status: 'no-config' }));
+      client.send(JSON.stringify({ type: "status", status: "no-config" }));
     } else if (this.authenticated) {
-      client.send(JSON.stringify({ type: 'status', status: 'connected' }));
+      client.send(JSON.stringify({ type: "status", status: "connected" }));
 
       // Send initial data
       if (this.agentsList.length > 0) {
-        this.broadcast({ type: 'agent_definitions', data: this.agentsList });
+        this.broadcast({ type: "agent_definitions", data: this.agentsList });
         this.fetchInitialData();
       }
     } else {
-      client.send(JSON.stringify({ type: 'status', status: 'connecting' }));
+      client.send(JSON.stringify({ type: "status", status: "connecting" }));
     }
   }
 
@@ -482,10 +476,10 @@ export class GatewayClient {
     setInterval(async () => {
       if (this.authenticated) {
         try {
-          const sessions = await this.request('sessions.list', {});
+          const sessions = await this.request("sessions.list", {});
           this.transformAndBroadcastSessions(sessions);
         } catch (err) {
-          console.error('[Gateway] Polling error:', err);
+          console.error("[Gateway] Polling error:", err);
         }
       }
     }, 2000);

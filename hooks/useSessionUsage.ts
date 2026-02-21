@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from "react";
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -17,29 +17,37 @@ interface UseSessionUsageProps {
   connectionStatus?: string;
 }
 
-export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus }: UseSessionUsageProps): SessionUsage {
+export function useSessionUsage({
+  wsRef,
+  agentId,
+  activeRunId,
+  connectionStatus,
+}: UseSessionUsageProps): SessionUsage {
   const [totalTokens, setTotalTokens] = useState<number | null>(null);
   const [modelContextWindow, setModelContextWindow] = useState<number | null>(null);
   const [isUnlimited, setIsUnlimited] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const previousRunIdRef = useRef<string | null>(null);
-  const pendingStatusRef = useRef<{ requestId: string; timeoutId: ReturnType<typeof setTimeout> } | null>(null);
+  const pendingStatusRef = useRef<{
+    requestId: string;
+    timeoutId: ReturnType<typeof setTimeout>;
+  } | null>(null);
   const sessionsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const parseContextWindow = useCallback((session: any, defaults?: any): number | null => {
     const fromSession = session?.modelContextWindow ?? session?.contextTokens;
-    if (typeof fromSession === 'number') return fromSession;
+    if (typeof fromSession === "number") return fromSession;
 
     const fromDefaults = defaults?.modelContextWindow ?? defaults?.contextTokens;
-    if (typeof fromDefaults === 'number') return fromDefaults;
+    if (typeof fromDefaults === "number") return fromDefaults;
 
     return null;
   }, []);
 
   const parseTotalTokens = useCallback((session: any): number | null => {
-    if (typeof session?.totalTokens === 'number') return session.totalTokens;
-    if (typeof session?.inputTokens === 'number' && typeof session?.outputTokens === 'number') {
+    if (typeof session?.totalTokens === "number") return session.totalTokens;
+    if (typeof session?.inputTokens === "number" && typeof session?.outputTokens === "number") {
       return session.inputTokens + session.outputTokens;
     }
     return null;
@@ -52,13 +60,13 @@ export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus 
     if (exact) return exact;
 
     const prefix = sessions.find((session: any) => {
-      const key: string = session?.key ?? '';
+      const key: string = session?.key ?? "";
       return key.startsWith(`agent:${currentAgentId}:`);
     });
     if (prefix) return prefix;
 
     const guardedContains = sessions.find((session: any) => {
-      const key: string = session?.key ?? '';
+      const key: string = session?.key ?? "";
       return key.includes(`agent:${currentAgentId}:`) || key.endsWith(`:${currentAgentId}`);
     });
     if (guardedContains) return guardedContains;
@@ -75,23 +83,24 @@ export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus 
       clearTimeout(pendingStatusRef.current.timeoutId);
     }
 
-    const requestId = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const requestId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const timeoutId = setTimeout(() => {
       pendingStatusRef.current = null;
       // Status timeout is non-fatal — don't surface error if sessions data loaded
     }, REQUEST_TIMEOUT_MS);
 
     pendingStatusRef.current = { requestId, timeoutId };
-    ws.send(JSON.stringify({ type: 'gateway.call', method: 'status', params: {}, requestId }));
+    ws.send(JSON.stringify({ type: "gateway.call", method: "status", params: {}, requestId }));
   }, [wsRef]);
 
   const fetchUsage = useCallback(() => {
     const ws = wsRef?.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       setIsLoading(false);
-      setError('Not connected');
+      setError("Not connected");
       return;
     }
 
@@ -102,16 +111,16 @@ export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus 
     if (sessionsTimeoutRef.current) clearTimeout(sessionsTimeoutRef.current);
     sessionsTimeoutRef.current = setTimeout(() => {
       setIsLoading(false);
-      setError('Usage unavailable');
+      setError("Usage unavailable");
     }, REQUEST_TIMEOUT_MS);
 
-    ws.send(JSON.stringify({ type: 'sessions.list' }));
+    ws.send(JSON.stringify({ type: "sessions.list" }));
     fetchStatus();
   }, [wsRef, fetchStatus]);
 
   // Fetch on mount/agent change and when connection becomes active
   useEffect(() => {
-    if (connectionStatus && connectionStatus !== 'connected') {
+    if (connectionStatus && connectionStatus !== "connected") {
       return;
     }
     fetchUsage();
@@ -134,7 +143,7 @@ export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus 
       try {
         const msg = JSON.parse(event.data as string);
 
-        if (msg.type === 'sessions' && msg.data) {
+        if (msg.type === "sessions" && msg.data) {
           // Cancel the sessions timeout
           if (sessionsTimeoutRef.current) {
             clearTimeout(sessionsTimeoutRef.current);
@@ -154,20 +163,18 @@ export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus 
             setError(null);
           }
           setIsLoading(false);
-
-        } else if (msg.type === 'gateway.call.response') {
+        } else if (msg.type === "gateway.call.response") {
           const pending = pendingStatusRef.current;
           if (pending && msg.requestId === pending.requestId) {
             clearTimeout(pending.timeoutId);
             pendingStatusRef.current = null;
-            if (typeof msg.result?.modelContextWindow === 'number') {
+            if (typeof msg.result?.modelContextWindow === "number") {
               const ctxWindow = msg.result.modelContextWindow;
               setModelContextWindow(ctxWindow);
               setIsUnlimited(ctxWindow === 0);
             }
           }
-
-        } else if (msg.type === 'gateway.call.error') {
+        } else if (msg.type === "gateway.call.error") {
           const pending = pendingStatusRef.current;
           if (pending && msg.requestId === pending.requestId) {
             clearTimeout(pending.timeoutId);
@@ -180,8 +187,8 @@ export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus 
       }
     };
 
-    ws.addEventListener('message', handleMessage);
-    return () => ws.removeEventListener('message', handleMessage);
+    ws.addEventListener("message", handleMessage);
+    return () => ws.removeEventListener("message", handleMessage);
   }, [wsRef, agentId, connectionStatus, parseContextWindow, parseTotalTokens, findAgentSession]);
 
   // Cleanup pending timers on unmount
@@ -194,4 +201,3 @@ export function useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus 
 
   return { totalTokens, modelContextWindow, isUnlimited, isLoading, error };
 }
-

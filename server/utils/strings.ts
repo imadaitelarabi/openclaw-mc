@@ -8,9 +8,9 @@
  * Used for creating workspace directory names
  */
 export function slugifyAgentName(name: string): string {
-  return String(name || '')
+  return String(name || "")
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }

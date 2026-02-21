@@ -1,15 +1,23 @@
 "use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 
 interface UpdateAgentPanelProps {
   agentId: string;
   initialName: string;
-  onUpdateAgent: (payload: { agentId: string; name: string }) => Promise<{ agentId: string; name: string }>;
+  onUpdateAgent: (payload: {
+    agentId: string;
+    name: string;
+  }) => Promise<{ agentId: string; name: string }>;
   onClose?: () => void;
 }
 
-export function UpdateAgentPanel({ agentId, initialName, onUpdateAgent, onClose }: UpdateAgentPanelProps) {
+export function UpdateAgentPanel({
+  agentId,
+  initialName,
+  onUpdateAgent,
+  onClose,
+}: UpdateAgentPanelProps) {
   const [name, setName] = useState(initialName);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +30,7 @@ export function UpdateAgentPanel({ agentId, initialName, onUpdateAgent, onClose 
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError('Agent name is required');
+      setError("Agent name is required");
       return;
     }
 
@@ -31,7 +39,7 @@ export function UpdateAgentPanel({ agentId, initialName, onUpdateAgent, onClose 
       const updated = await onUpdateAgent({ agentId, name: trimmedName });
       setUpdatedName(updated.name);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update agent');
+      setError(err instanceof Error ? err.message : "Failed to update agent");
     } finally {
       setIsSubmitting(false);
     }
@@ -84,7 +92,7 @@ export function UpdateAgentPanel({ agentId, initialName, onUpdateAgent, onClose 
                 disabled={isSubmitting}
                 className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
-                {isSubmitting ? 'Saving...' : 'Save Changes'}
+                {isSubmitting ? "Saving..." : "Save Changes"}
               </button>
               {onClose && (
                 <button
