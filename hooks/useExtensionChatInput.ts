@@ -15,6 +15,39 @@ const CACHE_MAX_AGE = 5 * 60 * 1000;
 // Extension option ID prefix for identifying extension-level options (Level 1)
 export const EXTENSION_OPTION_ID_PREFIX = 'ext-';
 
+/**
+ * Recursively extracts leaf nodes from a tree of ChatInputTagOptions.
+ * Leaf nodes are options without children (or with empty children arrays).
+ * For each leaf, the path of ancestor labels is joined and used as the subLevel
+ * source attribute to provide context about where the result came from.
+ *
+ * @param options - Tree of tag options
+ * @param sourceName - Top-level extension name (e.g. "Github")
+ * @param ancestorLabels - Labels of ancestor nodes accumulated during recursion
+ */
+function flattenToLeaves(
+  options: ChatInputTagOption[],
+  sourceName: string,
+  ancestorLabels: string[] = []
+): ChatInputTagOption[] {
+  const leaves: ChatInputTagOption[] = [];
+
+  for (const option of options) {
+    const hasChildren = Boolean(option.children && option.children.length > 0);
+
+    if (hasChildren) {
+      leaves.push(
+        ...flattenToLeaves(option.children!, sourceName, [...ancestorLabels, option.label])
+      );
+    } else {
+      const subLevel = ancestorLabels.length > 0 ? ancestorLabels.join(' › ') : undefined;
+      leaves.push({ ...option, source: { name: sourceName, subLevel } });
+    }
+  }
+
+  return leaves;
+}
+
 function optionMatchesQuery(option: ChatInputTagOption, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -258,7 +291,7 @@ export function useExtensionChatInput() {
           try {
             const options = await ext.hooks.chatInput!(searchTerm);
             const sourceName = ext.manifest.name.charAt(0).toUpperCase() + ext.manifest.name.slice(1);
-            return options.map(option => ({ ...option, source: { name: sourceName } }));
+            return flattenToLeaves(options, sourceName);
           } catch (error) {
             console.error(`[ChatInputHook] Error searching ${ext.manifest.name}:`, error);
             return [];
