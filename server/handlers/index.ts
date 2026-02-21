@@ -17,6 +17,7 @@ import {
   handleGatewayCall,
 } from './gateway.handler';
 import { handleModelsList } from './models.handler';
+import { handleSkillsList } from './skills.handler';
 import {
   handleCronList,
   handleCronStatus,
@@ -90,6 +91,10 @@ export async function handleMessage(
 
       case 'models.list':
         await handleModelsList(msg, ws, gateway);
+        break;
+
+      case 'skills.list':
+        await handleSkillsList(msg, ws, gateway);
         break;
 
       case 'sessions.list':

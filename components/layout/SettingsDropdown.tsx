@@ -12,12 +12,14 @@ interface SettingsDropdownProps {
   extensions?: ExtensionOption[];
   onSelectExtension?: (extensionName: string) => void;
   onOpenTagsSettings?: () => void;
+  onOpenSkills?: () => void;
 }
 
 export function SettingsDropdown({
   extensions = [],
   onSelectExtension,
   onOpenTagsSettings,
+  onOpenSkills,
 }: SettingsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -51,6 +53,16 @@ export function SettingsDropdown({
             className="w-full text-left px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs"
           >
             Tags
+          </DropdownMenu.Item>
+
+          <DropdownMenu.Item
+            onSelect={() => {
+              onOpenSkills?.();
+              setIsOpen(false);
+            }}
+            className="w-full text-left px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs"
+          >
+            Skills
           </DropdownMenu.Item>
 
           <DropdownMenu.Separator className="h-px bg-border my-1" />

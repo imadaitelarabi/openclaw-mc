@@ -51,6 +51,7 @@ export type ClientMessage =
     }
   | { type: 'chat.abort.run'; agentId: string }
   | { type: 'models.list' }
+  | { type: 'skills.list'; requestId?: string; agentId?: string }
   | { type: 'sessions.list' }
   | {
       type: 'sessions.patch';
@@ -116,6 +117,8 @@ export type ServerMessage =
   | { type: 'sessions'; data: { sessions: Session[] } }
   | { type: 'sessions.patch.ack' }
   | { type: 'models'; data: ModelsListResponse }
+  | { type: 'skills.list.response'; requestId?: string; report: unknown }
+  | { type: 'skills.list.error'; requestId?: string; error: string }
   | { type: 'agents.add.ack'; requestId?: string; agentId: string }
   | { type: 'agents.update.ack'; requestId?: string; agentId: string; name: string }
   | { type: 'agents.delete.ack'; requestId?: string; agentId: string; removed: boolean }

@@ -33,6 +33,7 @@ interface StatusBarProps {
   // Extension onboarding
   onOpenExtensionOnboarding?: (extensionName: string) => void;
   onOpenTagsSettings?: () => void;
+  onOpenSkills?: () => void;
 
   // Cron jobs
   cronJobs?: CronJob[];
@@ -70,6 +71,7 @@ export function StatusBar({
   onRemoveGateway,
   onOpenExtensionOnboarding,
   onOpenTagsSettings,
+  onOpenSkills,
   cronJobs = [],
   cronStatus = null,
   isCronMenuOpen = false,
@@ -187,6 +189,7 @@ export function StatusBar({
         extensions={availableExtensions}
         onSelectExtension={onOpenExtensionOnboarding}
         onOpenTagsSettings={onOpenTagsSettings}
+        onOpenSkills={onOpenSkills}
       />
 
       <div className="h-4 w-px bg-border" />
