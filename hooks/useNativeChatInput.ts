@@ -71,6 +71,15 @@ function buildNoteDescription(note: Note): string {
   return parts.join(' • ');
 }
 
+function hashId(value: string): string {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) - hash) + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 function buildNoteOptions(notes: Note[]): ChatInputTagOption[] {
   return [...notes]
     .sort((a, b) => b.updatedAt - a.updatedAt)
@@ -153,7 +162,7 @@ function buildNotesProvider(
       );
 
       const tagOptions: ChatInputTagOption[] = tagEntries.map((entry) => ({
-        id: `native-notes-tag-${groupSlug}-${toSlug(entry.label)}`,
+        id: `native-notes-tag-${groupSlug}-${toSlug(entry.label)}-${hashId(entry.label)}`,
         label: `#${entry.label}`,
         tag: `#notes ${group} #${entry.label}`,
         value: entry.label,
