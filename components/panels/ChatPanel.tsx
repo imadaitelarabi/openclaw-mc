@@ -5,7 +5,7 @@ import { ChatMessageItem, ChatInput, StreamingIndicator, ScrollToBottomButton, C
 import { useChatHistory, useChatPolling, useSessionUsage } from '@/hooks';
 import { uiStateStore } from '@/lib/ui-state-db';
 import { debounce } from '@/lib/utils';
-import type { Agent, Note } from '@/types';
+import type { Agent, Note, SkillStatusEntry } from '@/types';
 
 // Constants
 const HISTORY_PAGE_SIZE = 50;
@@ -30,6 +30,7 @@ interface ChatPanelProps {
   // Native mention sources
   notes?: Note[];
   noteGroups?: string[];
+  skills?: SkillStatusEntry[];
   
   // Per-panel settings
   showTools?: boolean;
@@ -56,6 +57,7 @@ export const ChatPanel = memo(function ChatPanel({
   onAbortRun,
   notes = [],
   noteGroups = [],
+  skills = [],
   showTools = false,
   showReasoning = true,
   isActive = true,
@@ -287,6 +289,7 @@ export const ChatPanel = memo(function ChatPanel({
         activeAgent={agent}
         notes={notes}
         noteGroups={noteGroups}
+        skills={skills}
         disabled={connectionStatus !== 'connected'}
         isRunning={Boolean(activeRunId)}
         onAbort={() => onAbortRun?.(agentId)}

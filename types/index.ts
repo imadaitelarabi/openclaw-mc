@@ -6,3 +6,4 @@ export * from './attachment';
 export * from './extension';
 export * from './cron';
 export * from './note';
+export * from './skill';

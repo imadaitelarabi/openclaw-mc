@@ -1,4 +1,4 @@
-export type PanelType = 'chat' | 'create-agent' | 'update-agent' | 'agent-list' | 'extension-onboarding' | 'cron' | 'create-cron' | 'update-cron' | 'notes' | 'tags-settings';
+export type PanelType = 'chat' | 'create-agent' | 'update-agent' | 'agent-list' | 'extension-onboarding' | 'cron' | 'create-cron' | 'update-cron' | 'notes' | 'skills' | 'tags-settings';
 
 export interface PanelSettings {
   showTools: boolean;      // Verbose mode: show/hide tool calls

@@ -12,7 +12,8 @@ import { ExtensionOnboardingPanel } from './ExtensionOnboardingPanel';
 import { TagsSettingsPanel } from './TagsSettingsPanel';
 import { CronPanel } from '../cron';
 import { NotesPanel } from '../notes';
-import type { CronJob } from '@/types';
+import { SkillsPanel } from '../skills';
+import type { CronJob, SkillStatusReport } from '@/types';
 
 interface PanelContainerProps {
   panels: Panel[];
@@ -73,6 +74,18 @@ interface PanelContainerProps {
   onDeleteNoteGroup?: (group: string) => Promise<void>;
   onUploadNoteImage?: (file: File) => Promise<string>;
   onDeleteNote?: (id: string) => Promise<void>;
+
+  // Skills-related props
+  skillsReport?: SkillStatusReport | null;
+  skillsLoading?: boolean;
+  skillsError?: string | null;
+  skillsFilter?: string;
+  skillsWorkspaceFilter?: string;
+  skillsStatusFilter?: string;
+  onSkillsFilterChange?: (next: string) => void;
+  onSkillsWorkspaceFilterChange?: (next: string) => void;
+  onSkillsStatusFilterChange?: (next: string) => void;
+  onRefreshSkills?: () => void;
 }
 
 export function PanelContainer({
@@ -121,6 +134,16 @@ export function PanelContainer({
   onDeleteNoteGroup,
   onUploadNoteImage,
   onDeleteNote,
+  skillsReport = null,
+  skillsLoading = false,
+  skillsError = null,
+  skillsFilter = '',
+  skillsWorkspaceFilter = 'all',
+  skillsStatusFilter = 'all',
+  onSkillsFilterChange,
+  onSkillsWorkspaceFilterChange,
+  onSkillsStatusFilterChange,
+  onRefreshSkills,
 }: PanelContainerProps) {
   if (panels.length === 0) {
     return null;
@@ -189,6 +212,7 @@ export function PanelContainer({
                 onAbortRun={onAbortRun}
                 notes={notes}
                 noteGroups={noteGroups}
+                skills={skillsReport?.skills ?? []}
                 showTools={panel.settings?.showTools ?? false}
                 showReasoning={panel.settings?.showReasoning ?? true}
                 isActive={panel.isActive}
@@ -294,6 +318,21 @@ export function PanelContainer({
                 onDeleteGroup={onDeleteNoteGroup}
                 onUploadNoteImage={onUploadNoteImage}
                 onDeleteNote={onDeleteNote}
+              />
+            )}
+
+            {panel.type === 'skills' && onSkillsFilterChange && onRefreshSkills && (
+              <SkillsPanel
+                report={skillsReport}
+                loading={skillsLoading}
+                error={skillsError}
+                filter={skillsFilter}
+                workspaceFilter={skillsWorkspaceFilter}
+                statusFilter={skillsStatusFilter}
+                onFilterChange={onSkillsFilterChange}
+                onWorkspaceFilterChange={onSkillsWorkspaceFilterChange ?? onSkillsFilterChange}
+                onStatusFilterChange={onSkillsStatusFilterChange ?? onSkillsFilterChange}
+                onRefresh={onRefreshSkills}
               />
             )}
 

@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import type { Note } from '@/types';
+import type { Note, SkillStatusEntry } from '@/types';
 import type { ChatInputTagOption } from '@/types/extension';
 
 export const NATIVE_PROVIDER_OPTION_ID_PREFIX = 'native-provider-';
@@ -14,6 +14,7 @@ export const NATIVE_PROVIDER_OPTION_ID_PREFIX = 'native-provider-';
 interface UseNativeChatInputProps {
   notes: Note[];
   groups?: string[];
+  skills?: SkillStatusEntry[];
 }
 
 function uniqueOrderedGroups(notes: Note[], groups?: string[]): string[] {
@@ -217,12 +218,66 @@ function buildNotesProvider(
   };
 }
 
-export function useNativeChatInput({ notes, groups }: UseNativeChatInputProps) {
+function isReadySkill(skill: SkillStatusEntry): boolean {
+  return Boolean(skill.eligible) && !skill.disabled;
+}
+
+function buildSkillOptions(skills: SkillStatusEntry[], filterText: string): ChatInputTagOption[] {
+  const normalizedFilter = normalizeQuery(filterText);
+
+  return skills
+    .filter((skill) => {
+      if (!normalizedFilter) {
+        return true;
+      }
+
+      const haystack = [skill.name, skill.description, skill.source, skill.skillKey]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(normalizedFilter);
+    })
+    .map((skill) => ({
+      id: `native-skill-${skill.skillKey}`,
+      label: skill.emoji ? `${skill.emoji} ${skill.name}` : skill.name,
+      tag: `#skill ${skill.name}`,
+      value: `use the following skill to process user request: ${skill.name}`,
+      description: skill.description || undefined,
+      meta: {
+        kind: 'native-skill',
+        skillKey: skill.skillKey,
+        skillName: skill.name,
+      },
+    }));
+}
+
+function buildSkillsProvider(skills: SkillStatusEntry[], filterText: string): ChatInputTagOption {
+  const filteredOptions = buildSkillOptions(skills, filterText);
+
+  return {
+    id: `${NATIVE_PROVIDER_OPTION_ID_PREFIX}skills`,
+    label: 'Skills',
+    tag: '#skills',
+    value: 'skills',
+    description: `${filteredOptions.length} ready skill${filteredOptions.length === 1 ? '' : 's'}`,
+    children: filteredOptions,
+  };
+}
+
+export function useNativeChatInput({ notes, groups, skills = [] }: UseNativeChatInputProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const effectiveGroups = useMemo(
     () => uniqueOrderedGroups(notes, groups),
     [notes, groups]
+  );
+
+  const readySkills = useMemo(
+    () => [...skills]
+      .filter(isReadySkill)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
+    [skills]
   );
 
   const searchTags = useCallback(async (query: string): Promise<ChatInputTagOption[]> => {
@@ -236,7 +291,10 @@ export function useNativeChatInput({ notes, groups }: UseNativeChatInputProps) {
 
       // "#" => show native providers
       if (!searchTerm) {
-        return [buildNotesProvider(notes, effectiveGroups, '')];
+        return [
+          buildNotesProvider(notes, effectiveGroups, ''),
+          buildSkillsProvider(readySkills, ''),
+        ];
       }
 
       const normalized = normalizeQuery(searchTerm);
@@ -251,11 +309,21 @@ export function useNativeChatInput({ notes, groups }: UseNativeChatInputProps) {
         return [buildNotesProvider(notes, effectiveGroups, noteFilter)];
       }
 
+      if ('skills'.startsWith(normalized) || 'skill'.startsWith(normalized)) {
+        return [buildSkillsProvider(readySkills, '')];
+      }
+
+      if (normalized.startsWith('skills') || normalized.startsWith('skill')) {
+        const token = normalized.startsWith('skills') ? 'skills' : 'skill';
+        const skillFilter = searchTerm.slice(token.length).trim();
+        return [buildSkillsProvider(readySkills, skillFilter)];
+      }
+
       return [];
     } finally {
       setIsLoading(false);
     }
-  }, [effectiveGroups, notes]);
+  }, [effectiveGroups, notes, readySkills]);
 
   return {
     searchTags,

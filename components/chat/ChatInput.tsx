@@ -1,6 +1,6 @@
 import { Send, Square, Paperclip } from 'lucide-react';
 import { useRef, useEffect, useState } from 'react';
-import type { Agent, ChatAttachment, Note } from '@/types';
+import type { Agent, ChatAttachment, Note, SkillStatusEntry } from '@/types';
 import { DEFAULT_ATTACHMENT_CONFIG } from '@/types/attachment';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ChatInputTagDropdown } from '@/components/extensions';
@@ -28,6 +28,7 @@ interface ChatInputProps {
   activeAgent?: Agent;
   notes?: Note[];
   noteGroups?: string[];
+  skills?: SkillStatusEntry[];
   disabled?: boolean;
   isRunning?: boolean;
   onAbort?: () => void;
@@ -41,6 +42,7 @@ export function ChatInput({
   activeAgent,
   notes = [],
   noteGroups = [],
+  skills = [],
   disabled,
   isRunning,
   onAbort,
@@ -57,6 +59,7 @@ export function ChatInput({
   const { searchTags: searchNativeTags, isLoading: isNativeTagLoading } = useNativeChatInput({
     notes,
     groups: noteGroups,
+    skills,
   });
   const { isTagging, tagQuery, handleInput, insertTag, cancelTagging } = useChatTagging();
 

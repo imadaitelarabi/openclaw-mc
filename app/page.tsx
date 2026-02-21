@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { MessageSquare, LayoutGrid, Wifi, WifiOff } from "lucide-react";
-import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useSessionControl, useCronJobs, useNotes } from "@/hooks";
+import { useGatewayWebSocket, useAgentEvents, useSessionSettings, useToast, useSessionControl, useCronJobs, useNotes, useSkills } from "@/hooks";
 import { StatusBar } from "@/components/layout";
 import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
@@ -112,6 +112,37 @@ function MissionControlInner() {
     deleteNote,
     refreshNotes,
   } = useNotes({ wsRef });
+
+  const [skillsFilter, setSkillsFilter] = useState('');
+  const [skillsWorkspaceFilter, setSkillsWorkspaceFilter] = useState('all');
+  const [skillsStatusFilter, setSkillsStatusFilter] = useState('all');
+  const {
+    report: skillsReport,
+    loading: skillsLoading,
+    error: skillsError,
+    refresh: refreshSkills,
+  } = useSkills({ wsRef, connectionStatus });
+
+  useEffect(() => {
+    let mounted = true;
+    uiStateStore.getSkillsFilters().then((saved) => {
+      if (!mounted || !saved) return;
+      setSkillsFilter(saved.filter ?? '');
+      setSkillsWorkspaceFilter(saved.workspace ?? 'all');
+      setSkillsStatusFilter(saved.status ?? 'all');
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    uiStateStore.saveSkillsFilters({
+      filter: skillsFilter,
+      workspace: skillsWorkspaceFilter,
+      status: skillsStatusFilter,
+    });
+  }, [skillsFilter, skillsWorkspaceFilter, skillsStatusFilter]);
 
   // Get the active panel and its settings
   const activePanel = getActivePanel();
@@ -464,6 +495,11 @@ function MissionControlInner() {
   const handleOpenTagsSettings = useCallback(() => {
     openPanel('tags-settings');
   }, [openPanel]);
+
+  const handleOpenSkills = useCallback(() => {
+    openPanel('skills');
+    refreshSkills();
+  }, [openPanel, refreshSkills]);
 
   // Cron handlers
   const handleSelectCronJob = useCallback((jobId: string) => {
@@ -922,6 +958,16 @@ function MissionControlInner() {
             onDeleteNoteGroup={handleDeleteNoteGroup}
             onUploadNoteImage={handleUploadNoteImage}
             onDeleteNote={handleDeleteNote}
+            skillsReport={skillsReport}
+            skillsLoading={skillsLoading}
+            skillsError={skillsError}
+            skillsFilter={skillsFilter}
+            skillsWorkspaceFilter={skillsWorkspaceFilter}
+            skillsStatusFilter={skillsStatusFilter}
+            onSkillsFilterChange={setSkillsFilter}
+            onSkillsWorkspaceFilterChange={setSkillsWorkspaceFilter}
+            onSkillsStatusFilterChange={setSkillsStatusFilter}
+            onRefreshSkills={refreshSkills}
           />
         )}
       </div>
@@ -948,6 +994,7 @@ function MissionControlInner() {
           onRemoveGateway={(id) => sendMessage({ type: 'gateways.remove', id })}
           onOpenExtensionOnboarding={handleOpenExtensionOnboarding}
           onOpenTagsSettings={handleOpenTagsSettings}
+          onOpenSkills={handleOpenSkills}
           cronJobs={cronJobs}
           cronStatus={cronStatus}
           isCronMenuOpen={isCronMenuOpen}

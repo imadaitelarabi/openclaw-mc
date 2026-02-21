@@ -196,6 +196,9 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         case 'tags-settings':
           title = 'Tags Settings';
           break;
+        case 'skills':
+          title = 'Skills';
+          break;
         default:
           title = type;
       }
