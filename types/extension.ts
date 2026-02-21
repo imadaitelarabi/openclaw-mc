@@ -153,7 +153,17 @@ export interface ChatInputTagOption {
     kind?: string;
     [key: string]: unknown;
   };
-  
+
+  /** Source metadata for aggregated global search results */
+  source?: {
+    /** Extension or provider name (e.g., "GitHub", "Notes") */
+    name: string;
+    /** Sub-level label (e.g., "Issues", "Pull Requests") */
+    subLevel?: string;
+    /** Icon identifier (lucide-react icon name) */
+    icon?: string;
+  };
+
   /** Nested options */
   children?: ChatInputTagOption[];
 }

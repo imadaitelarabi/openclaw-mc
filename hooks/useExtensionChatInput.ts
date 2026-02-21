@@ -15,6 +15,71 @@ const CACHE_MAX_AGE = 5 * 60 * 1000;
 // Extension option ID prefix for identifying extension-level options (Level 1)
 export const EXTENSION_OPTION_ID_PREFIX = 'ext-';
 
+/**
+ * Recursively extracts leaf nodes from a tree of ChatInputTagOptions.
+ * Leaf nodes are options without children (or with empty children arrays).
+ * For each leaf, the path of ancestor labels is joined and used as the subLevel
+ * source attribute to provide context about where the result came from.
+ *
+ * @param options - Tree of tag options
+ * @param sourceName - Top-level extension name (e.g. "Github")
+ * @param ancestorLabels - Labels of ancestor nodes accumulated during recursion
+ */
+function flattenToLeaves(
+  options: ChatInputTagOption[],
+  sourceName: string,
+  ancestorLabels: string[] = []
+): ChatInputTagOption[] {
+  const leaves: ChatInputTagOption[] = [];
+
+  for (const option of options) {
+    const hasChildren = Boolean(option.children && option.children.length > 0);
+
+    if (hasChildren) {
+      leaves.push(
+        ...flattenToLeaves(option.children!, sourceName, [...ancestorLabels, option.label])
+      );
+    } else {
+      const subLevel = ancestorLabels.length > 0 ? ancestorLabels.join(' › ') : undefined;
+      leaves.push({ ...option, source: { name: sourceName, subLevel } });
+    }
+  }
+
+  return leaves;
+}
+
+/**
+ * Scores a leaf option against a normalized query for relevance sorting.
+ * Returns 2 if the leaf's own content matches directly,
+ * 1 if only the ancestor breadcrumb path matches,
+ * 0 if there is no match at all.
+ */
+function scoreLeafRelevance(option: ChatInputTagOption, normalizedQuery: string): number {
+  if (!normalizedQuery) {
+    return 1;
+  }
+
+  const selfHaystack = [option.label, option.tag, option.description, option.value]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (selfHaystack.includes(normalizedQuery)) {
+    return 2;
+  }
+
+  const pathHaystack = [option.source?.name, option.source?.subLevel]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (pathHaystack.includes(normalizedQuery)) {
+    return 1;
+  }
+
+  return 0;
+}
+
 function optionMatchesQuery(option: ChatInputTagOption, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -246,10 +311,33 @@ export function useExtensionChatInput() {
       return [];
     }
 
-    // If no specific extension matched, filter extension list by query
+    // Generic query – run parallel search across all enabled extensions
     setIsLoading(true);
     try {
-      return await getExtensionOptionsWithChildren(searchTerm);
+      const chatInputExtensions = enabledExtensions.filter(
+        ext => ext.manifest.hooks.includes('chat-input') && ext.hooks.chatInput
+      );
+
+      const resultsPerExt = await Promise.all(
+        chatInputExtensions.map(async (ext): Promise<ChatInputTagOption[]> => {
+          try {
+            const options = await ext.hooks.chatInput!(searchTerm);
+            const sourceName = ext.manifest.name.charAt(0).toUpperCase() + ext.manifest.name.slice(1);
+            return flattenToLeaves(options, sourceName);
+          } catch (error) {
+            console.error(`[ChatInputHook] Error searching ${ext.manifest.name}:`, error);
+            return [];
+          }
+        })
+      );
+
+      const normalizedQuery = searchTerm.toLowerCase();
+      return resultsPerExt
+        .flat()
+        .map(leaf => ({ leaf, score: scoreLeafRelevance(leaf, normalizedQuery) }))
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(({ leaf }) => leaf);
     } finally {
       setIsLoading(false);
     }

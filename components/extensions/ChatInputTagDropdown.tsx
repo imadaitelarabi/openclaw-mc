@@ -304,6 +304,13 @@ export function ChatInputTagDropdown({
                 >
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-foreground truncate">{option.label}</div>
+                    {option.source && (
+                      <div className="text-[10px] text-muted-foreground/70 font-medium uppercase tracking-wide truncate mt-0.5">
+                        {option.source.subLevel
+                          ? `${option.source.name} › ${option.source.subLevel}`
+                          : option.source.name}
+                      </div>
+                    )}
                     {option.description && (
                       <div className="text-xs text-muted-foreground truncate mt-0.5">
                         {option.description}

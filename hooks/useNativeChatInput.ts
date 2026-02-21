@@ -319,7 +319,26 @@ export function useNativeChatInput({ notes, groups, skills = [] }: UseNativeChat
         return [buildSkillsProvider(readySkills, skillFilter)];
       }
 
-      return [];
+      // Generic query – run parallel search across all native providers
+      const noteMatches = notes.filter((note) => {
+        const haystack = [note.content, note.group, note.id, ...(note.tags || [])]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(normalized);
+      });
+
+      const noteResults = buildNoteOptions(noteMatches).map((opt) => ({
+        ...opt,
+        source: { name: 'Notes' },
+      }));
+
+      const skillResults = buildSkillOptions(readySkills, searchTerm).map((opt) => ({
+        ...opt,
+        source: { name: 'Skills' },
+      }));
+
+      return [...noteResults, ...skillResults];
     } finally {
       setIsLoading(false);
     }
