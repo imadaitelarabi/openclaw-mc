@@ -129,6 +129,16 @@ interface UseNotesReturn {
 }
 ```
 
+#### Native chat mentions (`hooks/useNativeChatInput.ts` + `components/chat/ChatInput.tsx`)
+Mission Control also exposes Notes directly in chat input via `#` mentions.
+
+**Behavior:**
+- Typing `#` opens native providers (currently Notes)
+- `#notes` shows note groups, then notes within each group
+- Selecting a note inserts its content into the chat input wrapped in `<note>...</note>`
+- If the note includes an image, Mission Control attempts to fetch and attach that image automatically
+- The textarea auto-resizes after mention insertion for cleaner UX
+
 ### Type Definitions
 
 #### Note (`types/note.ts`)
@@ -184,6 +194,21 @@ openPanel('notes', { selectedGroup: 'Commands' });
 - **Copy/Download Image**: If a note has an image, hover to see copy-to-clipboard (browser permitting) or download icons.
 - **Delete**: Hover over a note and click the trash icon.
 - **Manage Groups**: In the input area group dropdown, hover over custom groups to see the delete icon. Note: "General" is a permanent fallback group.
+
+### Using Notes in Chat via `#` Mentions
+
+1. In any chat panel, type `#` to open native mention providers.
+2. Select `Notes`, then optionally narrow by group (for example: `#notes Ideas`).
+3. Pick a note from the dropdown.
+4. Mission Control inserts:
+   ```text
+   <note>
+   ...note content...
+   </note>
+   ```
+5. If the selected note has an image, it is auto-attached to the outgoing message when possible.
+
+This workflow is useful for quickly grounding an agent with structured note context without copy/paste.
 
 ## WebSocket Protocol
 
