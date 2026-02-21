@@ -212,6 +212,7 @@ export function PanelContainer({
                 onAbortRun={onAbortRun}
                 notes={notes}
                 noteGroups={noteGroups}
+                skills={skillsReport?.skills ?? []}
                 showTools={panel.settings?.showTools ?? false}
                 showReasoning={panel.settings?.showReasoning ?? true}
                 isActive={panel.isActive}
