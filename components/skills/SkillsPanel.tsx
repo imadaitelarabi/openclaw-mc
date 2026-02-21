@@ -88,7 +88,7 @@ export function SkillsPanel({
           <div className="text-xs text-muted-foreground">Gateway skills status snapshot</div>
         </div>
         <button
-          onClick={onRefresh}
+          onClick={() => onRefresh()}
           disabled={loading}
           className="px-3 py-1.5 text-xs rounded bg-secondary hover:bg-accent disabled:opacity-60"
         >
