@@ -1,25 +1,25 @@
-import { Send, Square, Paperclip } from 'lucide-react';
-import { useRef, useEffect, useState } from 'react';
-import type { Agent, ChatAttachment, Note, SkillStatusEntry } from '@/types';
-import { DEFAULT_ATTACHMENT_CONFIG } from '@/types/attachment';
-import { AttachmentPreview } from './AttachmentPreview';
-import { ChatInputTagDropdown } from '@/components/extensions';
-import { 
-  fileToAttachment, 
-  validateFile, 
+import { Send, Square, Paperclip } from "lucide-react";
+import { useRef, useEffect, useState } from "react";
+import type { Agent, ChatAttachment, Note, SkillStatusEntry } from "@/types";
+import { DEFAULT_ATTACHMENT_CONFIG } from "@/types/attachment";
+import { AttachmentPreview } from "./AttachmentPreview";
+import { ChatInputTagDropdown } from "@/components/extensions";
+import {
+  fileToAttachment,
+  validateFile,
   getFilesFromClipboard,
   revokePreviewUrls,
-} from '@/lib/file-utils';
-import { useToast } from '@/hooks/useToast';
+} from "@/lib/file-utils";
+import { useToast } from "@/hooks/useToast";
 import {
   useExtensionChatInput,
   useNativeChatInput,
   useChatTagging,
   EXTENSION_OPTION_ID_PREFIX,
   NATIVE_PROVIDER_OPTION_ID_PREFIX,
-} from '@/hooks';
-import type { ChatInputTagOption } from '@/types/extension';
-import type { SessionUsage } from '@/hooks/useSessionUsage';
+} from "@/hooks";
+import type { ChatInputTagOption } from "@/types/extension";
+import type { SessionUsage } from "@/hooks/useSessionUsage";
 
 interface ChatInputProps {
   value: string;
@@ -55,7 +55,8 @@ export function ChatInput({
   const [isDragging, setIsDragging] = useState(false);
   const [tagOptions, setTagOptions] = useState<ChatInputTagOption[]>([]);
   const { toast } = useToast();
-  const { searchTags: searchExtensionTags, isLoading: isExtensionTagLoading } = useExtensionChatInput();
+  const { searchTags: searchExtensionTags, isLoading: isExtensionTagLoading } =
+    useExtensionChatInput();
   const { searchTags: searchNativeTags, isLoading: isNativeTagLoading } = useNativeChatInput({
     notes,
     groups: noteGroups,
@@ -63,16 +64,14 @@ export function ChatInput({
   });
   const { isTagging, tagQuery, handleInput, insertTag, cancelTagging } = useChatTagging();
 
-  const activeTagTrigger = isTagging ? tagQuery.trim().charAt(0) : '';
-  const isTagLoading = activeTagTrigger === '#'
-    ? isNativeTagLoading
-    : isExtensionTagLoading;
+  const activeTagTrigger = isTagging ? tagQuery.trim().charAt(0) : "";
+  const isTagLoading = activeTagTrigger === "#" ? isNativeTagLoading : isExtensionTagLoading;
   const isTagDropdownOpen = isTagging && (isTagLoading || tagOptions.length > 0);
 
   // Reset height when value is empty
   useEffect(() => {
     if (!value && textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
     }
   }, [value]);
 
@@ -99,14 +98,13 @@ export function ChatInput({
       }
 
       const trigger = tagQuery.trim().charAt(0);
-      if (trigger !== '@' && trigger !== '#') {
+      if (trigger !== "@" && trigger !== "#") {
         setTagOptions([]);
         return;
       }
 
-      const options = trigger === '#'
-        ? await searchNativeTags(tagQuery)
-        : await searchExtensionTags(tagQuery);
+      const options =
+        trigger === "#" ? await searchNativeTags(tagQuery) : await searchExtensionTags(tagQuery);
 
       if (!cancelled) {
         setTagOptions(options);
@@ -123,7 +121,7 @@ export function ChatInput({
   const autoResizeTextarea = () => {
     requestAnimationFrame(() => {
       if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = "auto";
         textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
       }
     });
@@ -136,7 +134,7 @@ export function ChatInput({
     setAttachments([]);
     // Reset height after sending
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
     }
   };
 
@@ -154,26 +152,26 @@ export function ChatInput({
       const validation = validateFile(file, DEFAULT_ATTACHMENT_CONFIG);
       if (!validation.valid) {
         toast({
-          title: 'Invalid file',
+          title: "Invalid file",
           description: validation.error,
-          variant: 'destructive',
+          variant: "destructive",
         });
         continue;
       }
 
       try {
         const attachment = await fileToAttachment(file);
-        setAttachments(prev => [...prev, attachment]);
+        setAttachments((prev) => [...prev, attachment]);
         toast({
-          title: 'File attached',
+          title: "File attached",
           description: file.name,
-          variant: 'success',
+          variant: "success",
         });
       } catch (error) {
         toast({
-          title: 'Failed to attach file',
+          title: "Failed to attach file",
           description: (error as Error).message,
-          variant: 'destructive',
+          variant: "destructive",
         });
       }
     }
@@ -188,29 +186,31 @@ export function ChatInput({
 
       const blob = await response.blob();
       const parsedUrl = new URL(imageUrl, window.location.origin);
-      const fileName = decodeURIComponent(parsedUrl.pathname.split('/').pop() || `note-image-${Date.now()}.png`);
+      const fileName = decodeURIComponent(
+        parsedUrl.pathname.split("/").pop() || `note-image-${Date.now()}.png`
+      );
       const file = new File([blob], fileName, {
-        type: blob.type || 'image/png',
+        type: blob.type || "image/png",
       });
 
       const validation = validateFile(file, DEFAULT_ATTACHMENT_CONFIG);
       if (!validation.valid) {
-        throw new Error(validation.error || 'Invalid note image');
+        throw new Error(validation.error || "Invalid note image");
       }
 
       const attachment = await fileToAttachment(file);
       setAttachments((prev) => [...prev, attachment]);
 
       toast({
-        title: 'Note image attached',
+        title: "Note image attached",
         description: fileName,
-        variant: 'success',
+        variant: "success",
       });
     } catch (error) {
       toast({
-        title: 'Failed to attach note image',
+        title: "Failed to attach note image",
         description: (error as Error).message,
-        variant: 'destructive',
+        variant: "destructive",
       });
     }
   };
@@ -222,7 +222,7 @@ export function ChatInput({
     }
     // Reset input so same file can be selected again
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -258,7 +258,7 @@ export function ChatInput({
   };
 
   const handleRemoveAttachment = (index: number) => {
-    setAttachments(prev => {
+    setAttachments((prev) => {
       const removed = prev[index];
       if (removed.previewUrl) {
         URL.revokeObjectURL(removed.previewUrl);
@@ -272,14 +272,16 @@ export function ChatInput({
     const isNativeProviderOption = option.id.startsWith(NATIVE_PROVIDER_OPTION_ID_PREFIX);
     const isProviderSelection = isExtensionProviderOption || isNativeProviderOption;
 
-    const isNativeNoteOption = option.meta?.kind === 'native-note';
+    const isNativeNoteOption = option.meta?.kind === "native-note";
 
     let newPosition = 0;
     const insertValue = isProviderSelection
       ? option.tag
       : isNativeNoteOption
-        ? `<note>\n${option.value?.trim() ? option.value : ''}\n</note>`
-        : (option.value?.trim() ? option.value : option.tag);
+        ? `<note>\n${option.value?.trim() ? option.value : ""}\n</note>`
+        : option.value?.trim()
+          ? option.value
+          : option.tag;
 
     const insertedValue = insertTag(value, insertValue, (cursorPosition: number) => {
       newPosition = cursorPosition;
@@ -296,7 +298,10 @@ export function ChatInput({
       requestAnimationFrame(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(cursorBeforeInsertedSpace, cursorBeforeInsertedSpace);
+          textareaRef.current.setSelectionRange(
+            cursorBeforeInsertedSpace,
+            cursorBeforeInsertedSpace
+          );
           handleInput(valueForLevel2, cursorBeforeInsertedSpace);
         }
       });
@@ -308,7 +313,11 @@ export function ChatInput({
     autoResizeTextarea();
     setTagOptions([]);
 
-    if (option.meta?.kind === 'native-note' && typeof option.meta.imageUrl === 'string' && option.meta.imageUrl) {
+    if (
+      option.meta?.kind === "native-note" &&
+      typeof option.meta.imageUrl === "string" &&
+      option.meta.imageUrl
+    ) {
       void attachNoteImage(option.meta.imageUrl);
     }
 
@@ -329,66 +338,65 @@ export function ChatInput({
     <div className="p-3 md:p-4 border-t border-border bg-background/50 backdrop-blur">
       <div className="max-w-4xl mx-auto">
         {/* Attachment Preview */}
-        <AttachmentPreview
-          attachments={attachments}
-          onRemove={handleRemoveAttachment}
-        />
+        <AttachmentPreview attachments={attachments} onRemove={handleRemoveAttachment} />
 
         {/* Token Usage Indicator */}
-        {tokenUsage && (() => {
-          const { totalTokens, modelContextWindow, isUnlimited, isLoading, error } = tokenUsage;
+        {tokenUsage &&
+          (() => {
+            const { totalTokens, modelContextWindow, isUnlimited, isLoading, error } = tokenUsage;
 
-          if (isLoading) {
+            if (isLoading) {
+              return (
+                <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                  Loading usage…
+                </div>
+              );
+            }
+
+            if (error) {
+              return (
+                <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                  Usage unavailable
+                </div>
+              );
+            }
+
+            if (isUnlimited) {
+              return (
+                <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                  Unlimited context
+                </div>
+              );
+            }
+
+            if (totalTokens === null || modelContextWindow === null || modelContextWindow === 0) {
+              return (
+                <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
+                  Usage unavailable
+                </div>
+              );
+            }
+
+            const percentage = (totalTokens / modelContextWindow) * 100;
+            const totalK = Math.floor(totalTokens / 1000);
+            const contextK = Math.floor(modelContextWindow / 1000);
+            const colorClass =
+              percentage >= 90
+                ? "text-destructive"
+                : percentage >= 70
+                  ? "text-yellow-500"
+                  : "text-green-500";
+
             return (
-              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
-                Loading usage…
+              <div className={`text-xs mb-1.5 transition-colors duration-300 ${colorClass}`}>
+                {totalK}k / {contextK}k tokens
               </div>
             );
-          }
-
-          if (error) {
-            return (
-              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
-                Usage unavailable
-              </div>
-            );
-          }
-
-          if (isUnlimited) {
-            return (
-              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
-                Unlimited context
-              </div>
-            );
-          }
-
-          if (totalTokens === null || modelContextWindow === null || modelContextWindow === 0) {
-            return (
-              <div className="text-xs text-muted-foreground mb-1.5 transition-colors duration-300">
-                Usage unavailable
-              </div>
-            );
-          }
-
-          const percentage = (totalTokens / modelContextWindow) * 100;
-          const totalK = Math.floor(totalTokens / 1000);
-          const contextK = Math.floor(modelContextWindow / 1000);
-          const colorClass = percentage >= 90
-            ? 'text-destructive'
-            : percentage >= 70
-              ? 'text-yellow-500'
-              : 'text-green-500';
-
-          return (
-            <div className={`text-xs mb-1.5 transition-colors duration-300 ${colorClass}`}>
-              {totalK}k / {contextK}k tokens
-            </div>
-          );
-        })()}
+          })()}
 
         {/* Input Container */}
-        <div 
-          className={`relative flex gap-2 md:gap-3 items-end ${isDragging ? 'ring-2 ring-primary rounded-lg' : ''}`}
+        <div
+          className={`relative flex gap-2 md:gap-3 items-end ${isDragging ? "ring-2 ring-primary rounded-lg" : ""}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -425,18 +433,29 @@ export function ChatInput({
               autoResizeTextarea();
             }}
             onKeyDown={(e) => {
-              if (isTagDropdownOpen && ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter', 'Escape', 'Tab'].includes(e.key)) {
+              if (
+                isTagDropdownOpen &&
+                [
+                  "ArrowDown",
+                  "ArrowUp",
+                  "ArrowLeft",
+                  "ArrowRight",
+                  "Enter",
+                  "Escape",
+                  "Tab",
+                ].includes(e.key)
+              ) {
                 e.preventDefault();
                 return;
               }
 
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
             }}
             onPaste={handlePaste}
-            placeholder={`Message ${activeAgent?.name || 'agent'}...`}
+            placeholder={`Message ${activeAgent?.name || "agent"}...`}
             className="flex-1 bg-secondary/50 border border-border rounded-lg px-3 py-2 md:px-4 md:py-3 focus:outline-none focus:border-primary/50 font-sans resize-none overflow-y-auto max-h-[200px] min-h-[40px] md:min-h-[46px] text-sm md:text-base"
             rows={1}
             autoFocus
@@ -455,13 +474,15 @@ export function ChatInput({
 
           <button
             onClick={handleButtonClick}
-            disabled={Boolean(disabled) || (!isRunning && !value.trim() && attachments.length === 0)}
+            disabled={
+              Boolean(disabled) || (!isRunning && !value.trim() && attachments.length === 0)
+            }
             className={`p-2.5 md:px-4 md:py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ${
               isRunning
-                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
             }`}
-            title={isRunning ? 'Stop generation' : 'Send message'}
+            title={isRunning ? "Stop generation" : "Send message"}
           >
             {isRunning ? <Square className="w-5 h-5" /> : <Send className="w-5 h-5" />}
           </button>

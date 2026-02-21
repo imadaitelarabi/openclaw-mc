@@ -5,7 +5,7 @@
 export interface GitHubConfig {
   // API credentials
   token?: string;
-  
+
   // User preferences
   refreshInterval?: number;
   maxResults?: number;

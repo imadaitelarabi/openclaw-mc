@@ -5,6 +5,7 @@
 1. **Client connects** to `ws://127.0.0.1:18789` or `wss://tailscale-domain/ws`
 
 2. **Server sends challenge:**
+
 ```json
 {
   "type": "event",
@@ -17,6 +18,7 @@
 ```
 
 3. **Client sends connect request:**
+
 ```json
 {
   "type": "req",
@@ -38,7 +40,7 @@
       "token": "gateway-token-from-config",
       "password": "optional-password"
     },
-    "device": null,  // or device crypto object
+    "device": null, // or device crypto object
     "caps": [],
     "userAgent": "Mozilla/...",
     "locale": "en-US"
@@ -47,6 +49,7 @@
 ```
 
 4. **Server responds:**
+
 ```json
 {
   "type": "res",
@@ -70,6 +73,7 @@
 ## Making Requests
 
 After authentication, send requests:
+
 ```json
 {
   "type": "req",
@@ -82,6 +86,7 @@ After authentication, send requests:
 ## Receiving Events
 
 Real-time events come as:
+
 ```json
 {
   "type": "event",
@@ -113,6 +118,7 @@ Real-time events come as:
 4. We're polling anyway (2-second intervals)
 
 WebSocket would be better for:
+
 - Sub-second latency requirements
 - Bidirectional commands (restart agents, etc.)
 - Lower overhead at scale

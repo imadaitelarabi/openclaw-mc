@@ -1,11 +1,11 @@
 /**
  * Extension API Client
- * 
+ *
  * Read-only API client for fetching data from external services.
  * All methods should be read-only - no mutations, writes, or actions.
  */
 
-import type { ExtensionConfig } from './config';
+import type { ExtensionConfig } from "./config";
 
 export class ExtensionAPI {
   private config: ExtensionConfig;
@@ -24,7 +24,7 @@ export class ExtensionAPI {
       // Example: fetch a simple endpoint to verify auth
       return true;
     } catch (error) {
-      console.error('[ExtensionAPI] Connection test failed:', error);
+      console.error("[ExtensionAPI] Connection test failed:", error);
       return false;
     }
   }
@@ -39,7 +39,7 @@ export class ExtensionAPI {
       // Example: fetch count of items, recent notifications, etc.
       return null;
     } catch (error) {
-      console.error('[ExtensionAPI] Failed to fetch status data:', error);
+      console.error("[ExtensionAPI] Failed to fetch status data:", error);
       return null;
     }
   }
@@ -54,7 +54,7 @@ export class ExtensionAPI {
       // Example: search PRs, issues, deployments, etc.
       return [];
     } catch (error) {
-      console.error('[ExtensionAPI] Failed to search items:', error);
+      console.error("[ExtensionAPI] Failed to search items:", error);
       return [];
     }
   }

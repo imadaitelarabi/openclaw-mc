@@ -18,6 +18,7 @@ This document describes the major architectural refactoring that transformed Ope
 ## 🏗️ Architecture Changes
 
 ### Before: Complex Event Processing
+
 ```
 Gateway → GatewayClient → processEvent() → formatEvent() → broadcast(processed + raw)
                                 ↓
@@ -28,6 +29,7 @@ Gateway → GatewayClient → processEvent() → formatEvent() → broadcast(pro
 ```
 
 ### After: Thin Proxy Pattern
+
 ```
 Gateway → GatewayClient → broadcast(raw events only) → UI Client
                                                          ↓
@@ -38,6 +40,7 @@ Gateway → GatewayClient → broadcast(raw events only) → UI Client
 ## 🗑️ Files Removed
 
 ### Server-Side Event Processing (5 files, ~800 lines)
+
 - `server/utils/event-processor.ts` - Server-side event pipeline
 - `server/utils/event-formatting.ts` - Tag-based formatting
 - `server/utils/deduplication.ts` - Deduplication service
@@ -45,6 +48,7 @@ Gateway → GatewayClient → broadcast(raw events only) → UI Client
 - `server/utils/__test__.ts` - Test utilities
 
 ### Client-Side Components (3 files, ~400 lines)
+
 - `components/chat/TranscriptItem.tsx` - Unused transcript rendering component
 - `components/chat/TaggedMessage.tsx` - Unused tagged message component
 - `lib/event-formatting.ts` - Client-side tag parsing (no longer needed)
@@ -56,6 +60,7 @@ Gateway → GatewayClient → broadcast(raw events only) → UI Client
 ### 1. Server-Side Changes
 
 #### GatewayClient.ts - Thin Proxy Implementation
+
 - **Removed**: `processEvent()` calls and event processing pipeline
 - **Removed**: Activity logging and persistence (activity-history.json)
 - **Removed**: Cron event handling and session filtering
@@ -70,13 +75,14 @@ this.broadcast(processed);
 
 // After: Simple pass-through
 this.broadcast({
-  type: 'event',
+  type: "event",
   event: msg.event,
-  payload: msg.payload
+  payload: msg.payload,
 });
 ```
 
 #### Gateway Handler - New RPC Pass-through
+
 - **Added**: `handleGatewayCall()` - Generic handler for any Gateway RPC method
 - **Benefit**: New Gateway features don't require server-side handler updates
 
@@ -87,17 +93,20 @@ export async function handleGatewayCall(
   gateway: GatewayClient
 ): Promise<void> {
   const result = await gateway.call(method, params || {});
-  ws.send(JSON.stringify({
-    type: 'gateway.call.response',
-    requestId,
-    result
-  }));
+  ws.send(
+    JSON.stringify({
+      type: "gateway.call.response",
+      requestId,
+      result,
+    })
+  );
 }
 ```
 
 ### 2. Frontend Changes
 
 #### useAgentEvents Hook - Direct Event Processing
+
 - **Removed**: `handleProcessedEvent()` function
 - **Removed**: `thinkingTraces` state (replaced by `reasoningStreams`)
 - **Simplified**: All event processing happens directly from raw Gateway events
@@ -113,6 +122,7 @@ const [reasoningStreams, setReasoningStreams] = useState<Record<string, string>>
 ```
 
 #### Component Updates
+
 - **StreamingIndicator**: Removed `thinkingTrace` prop
 - **ChatPanel**: Removed `thinkingTraces` prop chain
 - **PanelContainer**: Simplified prop interface
@@ -120,6 +130,7 @@ const [reasoningStreams, setReasoningStreams] = useState<Record<string, string>>
 ### 3. Type Safety Improvements
 
 #### server/types/gateway.ts
+
 ```typescript
 // Before
 params: any
@@ -133,6 +144,7 @@ payload: Record<string, unknown>
 ```
 
 #### server/types/internal.ts
+
 ```typescript
 // Before
 params?: any
@@ -149,35 +161,39 @@ data: ModelsListResponse
 
 ## 📊 Component Audit Results
 
-| Directory | Total Components | Active | Removed |
-|-----------|-----------------|--------|---------|
-| components/panels | 5 | 5 | 0 |
-| components/statusbar | 4 | 4 | 0 |
-| components/chat | 8 | 6 | 2 |
-| components/gateway | 2 | 2 | 0 |
-| components/agents | 1 | 1 | 0 |
-| components/layout | 1 | 1 | 0 |
-| components/mobile | 1 | 1 | 0 |
-| **TOTAL** | **22** | **20** | **2** |
+| Directory            | Total Components | Active | Removed |
+| -------------------- | ---------------- | ------ | ------- |
+| components/panels    | 5                | 5      | 0       |
+| components/statusbar | 4                | 4      | 0       |
+| components/chat      | 8                | 6      | 2       |
+| components/gateway   | 2                | 2      | 0       |
+| components/agents    | 1                | 1      | 0       |
+| components/layout    | 1                | 1      | 0       |
+| components/mobile    | 1                | 1      | 0       |
+| **TOTAL**            | **22**           | **20** | **2**   |
 
 **Ghost Components Removed:**
+
 - `TranscriptItem` - Part of old pattern-based event handling
 - `TaggedMessage` - Part of old pattern-based event handling
 
 ## 🔄 Message Flow Changes
 
 ### Client → Server Messages (Added)
+
 ```typescript
 | { type: 'gateway.call'; method: string; params?: Record<string, unknown>; requestId?: string }
 ```
 
 ### Server → Client Messages (Added)
+
 ```typescript
 | { type: 'gateway.call.response'; requestId?: string; result: unknown }
 | { type: 'gateway.call.error'; requestId?: string; error: string }
 ```
 
 ### Server → Client Messages (Removed)
+
 ```typescript
 // No longer sent:
 type: 'event.processed'
@@ -192,6 +208,7 @@ type: 'crons'
 ## 📚 Documentation Updates
 
 ### Updated Files
+
 - `docs/SERVER-ARCHITECTURE.md` - Comprehensive Thin Proxy pattern documentation
   - Added "Architectural Pattern: Thin Proxy" section
   - Updated GatewayClient API documentation
@@ -199,33 +216,40 @@ type: 'crons'
   - Updated message flow diagrams
 
 ### Legacy Documentation
+
 The following documentation files describe the old pattern and may need updates:
+
 - `docs/PATTERN-BASED-EVENT-HANDLING.md` - Describes old tag-based pattern
 - `docs/PATTERN-BASED-EVENT-HANDLING-QUICKSTART.md` - Quickstart for old pattern
 
 ## 🎯 Benefits of Thin Proxy Architecture
 
 ### 1. **Simplicity**
+
 - Server has ~1,200 fewer lines of complex event processing code
 - Easier to maintain and debug
 - Clear separation of concerns
 
 ### 2. **Scalability**
+
 - New Gateway features only require Frontend updates
 - No server deployment needed for UI enhancements
 - Generic `gateway.call` handles any future RPC method
 
 ### 3. **Performance**
+
 - Reduced server-side processing overhead
 - Direct event streaming to UI
 - No intermediate formatting or transformation
 
 ### 4. **Flexibility**
+
 - UI has full control over event interpretation
 - Different views can render same events differently
 - Easy to add new event types
 
 ### 5. **Type Safety**
+
 - Zero `any` types in core event path
 - Better IDE autocomplete and error checking
 - Compile-time verification of event structures
@@ -233,6 +257,7 @@ The following documentation files describe the old pattern and may need updates:
 ## 🚀 Future Enhancements
 
 ### Enabled by This Refactoring
+
 1. **Real-time Features**: Streaming indicators, progress bars, live updates
 2. **Custom Event Handling**: Different panels can interpret events differently
 3. **Event Replay**: Store and replay raw events for debugging
@@ -240,6 +265,7 @@ The following documentation files describe the old pattern and may need updates:
 5. **Event Filtering**: Client-side filtering without server changes
 
 ### Potential Additions
+
 - TypeBox schema validation for Gateway protocol (if needed)
 - Event batching for high-frequency updates
 - WebSocket compression for large payloads
@@ -248,6 +274,7 @@ The following documentation files describe the old pattern and may need updates:
 ## ⚠️ Known Issues
 
 ### TypeScript Build Configuration
+
 - **Issue**: `npm run build:server` fails due to Node.js types not being properly configured
 - **Impact**: Server must be run in dev mode with `tsx` (hot-reloading works perfectly)
 - **Workaround**: Use `npm run dev` for development
@@ -267,26 +294,34 @@ The following documentation files describe the old pattern and may need updates:
 For developers working on this codebase:
 
 ### If You Need to Handle New Gateway Events
+
 1. Add event handling in `useAgentEvents` hook (client-side only)
 2. Update UI components to render the new event type
 3. **No server changes needed**
 
 ### If You Need to Call New Gateway RPC Methods
+
 1. Use the generic `gateway.call` pass-through:
+
 ```typescript
 sendMessage({
-  type: 'gateway.call',
-  method: 'your.new.method',
-  params: { /* your params */ },
-  requestId: 'unique-id'
+  type: "gateway.call",
+  method: "your.new.method",
+  params: {
+    /* your params */
+  },
+  requestId: "unique-id",
 });
 ```
+
 2. Handle the response:
+
 ```typescript
-if (msg.type === 'gateway.call.response') {
+if (msg.type === "gateway.call.response") {
   // Handle result
 }
 ```
+
 3. **No server handler needed**
 
 ## 🙏 Acknowledgments

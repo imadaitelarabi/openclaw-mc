@@ -2,13 +2,13 @@
 
 ## 📊 Before & After
 
-| Metric | Before | After |
-|--------|--------|-------|
-| **page.tsx** | 591 lines | 124 lines |
-| **Files** | 1 monolithic file | 21 modular files |
-| **Structure** | Everything in one place | Organized by concern |
-| **Reusability** | 0% | Components + hooks reusable |
-| **Maintainability** | Low | High |
+| Metric              | Before                  | After                       |
+| ------------------- | ----------------------- | --------------------------- |
+| **page.tsx**        | 591 lines               | 124 lines                   |
+| **Files**           | 1 monolithic file       | 21 modular files            |
+| **Structure**       | Everything in one place | Organized by concern        |
+| **Reusability**     | 0%                      | Components + hooks reusable |
+| **Maintainability** | Low                     | High                        |
 
 ---
 
@@ -50,32 +50,38 @@ mission-control/
 ## 🎯 What Was Extracted
 
 ### 1. **Types** (types/)
+
 - `Agent`, `ConnectionStatus` - Agent interfaces
 - `ChatMessage` - Message structure
 - `GatewayEvent`, `WebSocketMessage` - Gateway types
 
 ### 2. **Utilities** (lib/)
+
 - `extractAgentId()` - Parse agent ID from session key
 - `getStreamKey()` - Generate unique stream keys
 - `getToolId()` - Generate unique tool IDs
 
 ### 3. **Custom Hooks** (hooks/)
+
 - `useGatewayWebSocket()` - WebSocket connection, reconnection, heartbeat
 - `useAgentEvents()` - Event handling, state management, message finalization
 
 ### 4. **Components** (components/)
 
 #### Chat Components
+
 - `ChatMessageItem` - Renders user/assistant/tool/reasoning messages
 - `ChatInput` - Auto-resizing textarea with send button
 - `ToolCard` - Collapsible tool args & results
 - `ReasoningCard` - Thinking process display
 - `StreamingIndicator` - Live streaming cursors
 
-#### Agent Components  
+#### Agent Components
+
 - `AgentSelector` - Dropdown with agent list
 
 #### Layout Components
+
 - `StatusBar` - Footer with agent selector & connection status
 
 ---
@@ -83,6 +89,7 @@ mission-control/
 ## ✨ Benefits
 
 ### **Separation of Concerns**
+
 - **page.tsx**: Only UI composition & local state
 - **hooks/**: Business logic & external state
 - **components/**: Pure UI components
@@ -90,16 +97,19 @@ mission-control/
 - **types/**: TypeScript interfaces
 
 ### **Reusability**
+
 - `ToolCard` can be reused in other views
 - `useGatewayWebSocket` can power other dashboards
 - Components are testable in isolation
 
 ### **Maintainability**
+
 - Each file has a single responsibility
 - Easy to locate & modify features
 - Changes don't ripple across the codebase
 
 ### **Type Safety**
+
 - Centralized type definitions
 - No prop drilling with proper typing
 - TypeScript autocomplete throughout
@@ -109,6 +119,7 @@ mission-control/
 ## 🔧 Key Patterns
 
 ### **Custom Hooks Pattern**
+
 ```typescript
 // Before: All logic in component
 // After: Logic in hook, component uses it
@@ -116,13 +127,15 @@ const { chatHistory, handleAgentEvent } = useAgentEvents();
 ```
 
 ### **Barrel Exports**
+
 ```typescript
 // Clean imports
-import { ChatMessageItem, ChatInput } from '@/components/chat';
-import { useGatewayWebSocket, useAgentEvents } from '@/hooks';
+import { ChatMessageItem, ChatInput } from "@/components/chat";
+import { useGatewayWebSocket, useAgentEvents } from "@/hooks";
 ```
 
 ### **Component Composition**
+
 ```typescript
 // Before: 400+ lines of JSX
 // After: <ChatMessageItem message={msg} />
@@ -132,14 +145,14 @@ import { useGatewayWebSocket, useAgentEvents } from '@/hooks';
 
 ## 📈 Lines of Code Breakdown
 
-| Category | Files | Total Lines |
-|----------|-------|-------------|
-| Types | 4 | ~60 |
-| Utilities | 1 | ~30 |
-| Hooks | 3 | ~250 |
-| Components | 13 | ~180 |
-| **Total Extracted** | **21** | **~520** |
-| **Main page.tsx** | **1** | **124** |
+| Category            | Files  | Total Lines |
+| ------------------- | ------ | ----------- |
+| Types               | 4      | ~60         |
+| Utilities           | 1      | ~30         |
+| Hooks               | 3      | ~250        |
+| Components          | 13     | ~180        |
+| **Total Extracted** | **21** | **~520**    |
+| **Main page.tsx**   | **1**  | **124**     |
 
 **Total: 644 lines** (was 591 monolithic, now organized & reusable)
 
@@ -148,6 +161,7 @@ import { useGatewayWebSocket, useAgentEvents } from '@/hooks';
 ## 🚀 Next Steps
 
 ### Potential Improvements
+
 1. **Add unit tests** for hooks & components
 2. **Storybook** for component documentation
 3. **Error boundaries** for graceful failures
@@ -155,6 +169,7 @@ import { useGatewayWebSocket, useAgentEvents } from '@/hooks';
 5. **Context API** for deep prop drilling (if needed)
 
 ### Easy to Add Now
+
 - New message types → Just add to `ChatMessageItem`
 - New agent features → Extend `Agent` type + update `AgentSelector`
 - New streaming types → Add handler in `useAgentEvents`
@@ -171,7 +186,7 @@ import { useGatewayWebSocket, useAgentEvents } from '@/hooks';
 ✅ Created reusable components  
 ✅ Reduced page.tsx from 591 → 124 lines  
 ✅ Maintained all functionality  
-✅ Zero breaking changes  
+✅ Zero breaking changes
 
 ---
 

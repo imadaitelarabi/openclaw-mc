@@ -1,17 +1,17 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from "react";
 
 // Constants - Adaptive polling intervals
 const POLL_INTERVALS = {
-  ACTIVE: 1000,      // When receiving frequent events (1 second)
-  IDLE: 2000,        // When no activity for 5s (2 seconds)
-  BACKGROUND: 5000   // When panel is inactive (5 seconds)
+  ACTIVE: 1000, // When receiving frequent events (1 second)
+  IDLE: 2000, // When no activity for 5s (2 seconds)
+  BACKGROUND: 5000, // When panel is inactive (5 seconds)
 };
 const POLL_COOLDOWN_MS = POLL_INTERVALS.ACTIVE * 2; // Timeout for race condition guard (2x active interval)
 const ACTIVITY_THRESHOLD_MS = 5000; // 5 seconds of inactivity to transition to IDLE
 
 // Debug flag for development/troubleshooting
 // Next.js inlines NEXT_PUBLIC_* env vars at build time, so this check works in browser
-const DEBUG = process.env.NEXT_PUBLIC_DEBUG_POLLING === 'true';
+const DEBUG = process.env.NEXT_PUBLIC_DEBUG_POLLING === "true";
 
 /**
  * Configuration for the polling hook
@@ -38,19 +38,19 @@ interface ActivityState {
 
 /**
  * Hook for polling chat history during active agent runs.
- * 
+ *
  * This hook implements per-panel isolated polling with adaptive intervals that:
  * - Only polls when the agent has an active run
  * - Fetches minimal data (last 10 messages) to reduce bandwidth
  * - Uses race condition guards to prevent overlapping requests
  * - Adjusts polling frequency based on activity and panel focus
  * - Automatically cleans up on unmount or run end
- * 
+ *
  * Polling Intervals:
  * - ACTIVE (1s): When receiving frequent events and panel is focused
  * - IDLE (2s): When no activity for 5+ seconds
  * - BACKGROUND (5s): When panel is not focused/active
- * 
+ *
  * @example
  * ```tsx
  * const { isPolling, trackActivity } = useChatPolling({
@@ -59,7 +59,7 @@ interface ActivityState {
  *   sendMessage: websocketSendFunction,
  *   isActivePanel: true,
  * });
- * 
+ *
  * // Signal activity when new messages arrive
  * useEffect(() => {
  *   if (chatHistory.length > 0) {
@@ -67,15 +67,15 @@ interface ActivityState {
  *   }
  * }, [chatHistory.length, trackActivity]);
  * ```
- * 
+ *
  * @param config - Configuration object
  * @returns Object containing polling state and activity tracking function
  */
-export function useChatPolling({ 
-  agentId, 
-  activeRunId, 
+export function useChatPolling({
+  agentId,
+  activeRunId,
   sendMessage,
-  isActivePanel = true 
+  isActivePanel = true,
 }: PollConfig): { isPolling: boolean; trackActivity: () => void } {
   // Isolated state per hook instance
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,7 +86,7 @@ export function useChatPolling({
   const activityRef = useRef<ActivityState>({
     lastEventTime: Date.now(),
     eventCount: 0,
-    isActive: true
+    isActive: true,
   });
 
   useEffect(() => {
@@ -100,11 +100,13 @@ export function useChatPolling({
     activityRef.current = {
       lastEventTime: Date.now(),
       eventCount: activityRef.current.eventCount + 1,
-      isActive: true
+      isActive: true,
     };
-    
+
     if (DEBUG) {
-      console.log(`[ChatPolling] Activity tracked for ${agentId} (count: ${activityRef.current.eventCount})`);
+      console.log(
+        `[ChatPolling] Activity tracked for ${agentId} (count: ${activityRef.current.eventCount})`
+      );
     }
   }, [agentId]);
 
@@ -118,7 +120,9 @@ export function useChatPolling({
     // Slow down polling for inactive/background panels
     if (!isActivePanel) {
       if (DEBUG) {
-        console.log(`[ChatPolling] ${agentId} is in background - using BACKGROUND interval (${POLL_INTERVALS.BACKGROUND}ms)`);
+        console.log(
+          `[ChatPolling] ${agentId} is in background - using BACKGROUND interval (${POLL_INTERVALS.BACKGROUND}ms)`
+        );
       }
       return POLL_INTERVALS.BACKGROUND;
     }
@@ -126,14 +130,18 @@ export function useChatPolling({
     // Active panel: adjust based on recent activity
     if (timeSinceLastEvent < ACTIVITY_THRESHOLD_MS) {
       if (DEBUG) {
-        console.log(`[ChatPolling] ${agentId} has recent activity - using ACTIVE interval (${POLL_INTERVALS.ACTIVE}ms)`);
+        console.log(
+          `[ChatPolling] ${agentId} has recent activity - using ACTIVE interval (${POLL_INTERVALS.ACTIVE}ms)`
+        );
       }
       return POLL_INTERVALS.ACTIVE;
     }
 
     // No recent activity
     if (DEBUG) {
-      console.log(`[ChatPolling] ${agentId} is idle - using IDLE interval (${POLL_INTERVALS.IDLE}ms)`);
+      console.log(
+        `[ChatPolling] ${agentId} is idle - using IDLE interval (${POLL_INTERVALS.IDLE}ms)`
+      );
     }
     return POLL_INTERVALS.IDLE;
   }, [agentId, isActivePanel]);
@@ -149,7 +157,7 @@ export function useChatPolling({
       }
       return;
     }
-    
+
     isPollingRef.current = true;
 
     if (DEBUG) {
@@ -159,7 +167,7 @@ export function useChatPolling({
     try {
       // Request minimal data (last 10 messages)
       sendMessageRef.current({
-        type: 'chat.history.load',
+        type: "chat.history.load",
         agentId,
         params: {
           sessionKey: `agent:${agentId}:main`,
@@ -219,12 +227,12 @@ export function useChatPolling({
 
     const schedulePoll = () => {
       if (isCleanedUpRef.current) return;
-      
+
       pollHistory();
-      
+
       // Check again after poll completes in case cleanup happened during poll
       if (isCleanedUpRef.current) return;
-      
+
       // Schedule next poll with adaptive interval
       const interval = getCurrentInterval();
       pollTimeoutRef.current = setTimeout(() => {

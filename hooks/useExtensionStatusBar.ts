@@ -1,12 +1,12 @@
 /**
  * Extension Hook: Status Bar
- * 
+ *
  * Hook for extensions to provide status bar items with dropdown functionality.
  */
 
-import { useEffect, useState, useCallback } from 'react';
-import { useExtensions } from '@/contexts/ExtensionContext';
-import type { StatusBarItem } from '@/types/extension';
+import { useEffect, useState, useCallback } from "react";
+import { useExtensions } from "@/contexts/ExtensionContext";
+import type { StatusBarItem } from "@/types/extension";
 
 const STATUS_BAR_REFRESH_INTERVAL_MS = 5000;
 
@@ -40,7 +40,7 @@ export function useExtensionStatusBar() {
     try {
       // Get status bar items from all enabled extensions
       const promises = enabledExtensions
-        .filter(ext => ext.manifest.hooks.includes('status-bar'))
+        .filter((ext) => ext.manifest.hooks.includes("status-bar"))
         .map(async (ext) => {
           if (ext.hooks.statusBar) {
             try {
@@ -57,7 +57,7 @@ export function useExtensionStatusBar() {
       await Promise.all(promises);
       setStatusBarItems(items);
     } catch (error) {
-      console.error('[StatusBarHook] Error refreshing status bar:', error);
+      console.error("[StatusBarHook] Error refreshing status bar:", error);
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +86,7 @@ export function useExtensionStatusBar() {
   return {
     statusBarItems,
     isLoading,
-    refreshStatusBar
+    refreshStatusBar,
   };
 }
 
@@ -129,6 +129,6 @@ export function useExtensionStatusBarItem(extensionName: string) {
   return {
     item,
     isLoading,
-    refresh
+    refresh,
   };
 }

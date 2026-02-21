@@ -5,17 +5,20 @@ GitHub integration for OpenClaw MC - quick access to pull requests and issues.
 ## Features
 
 ### Status Bar Integration
+
 - Shows count of open PRs across your organizations/repositories
 - Click to browse nested Organization → Repository → PRs
 - Copy PR URL or open in browser
 
 ### Chat Input Tagging
+
 - Type `@PR` to search and tag pull requests
 - Type `@issue` to search and tag issues
 - Type `@` to see grouped PR and issue options
 - Inserted tags include full GitHub URL
 
 ### Quick Actions
+
 - **Copy**: Copy PR/issue URL to clipboard
 - **Open**: Open PR/issue in browser
 
@@ -39,11 +42,15 @@ GitHub integration for OpenClaw MC - quick access to pull requests and issues.
 ## Usage Examples
 
 ### Status Bar
+
 The status bar shows:
+
 ```
 [GitHub icon] 5
 ```
+
 Click to see dropdown:
+
 ```
 org-name
   repo-a
@@ -55,23 +62,28 @@ org-name
 ```
 
 ### Chat Tagging
+
 In chat input:
+
 ```
 Check out @PR-123 for the authentication fix
 Check out @PR-org/repo#123 for the authentication fix
 ```
 
 Search for PRs:
+
 ```
 @PR authentication    → Shows PRs matching "authentication"
 ```
 
 Search for issues:
+
 ```
 @issue bug           → Shows issues matching "bug"
 ```
 
 Browse all:
+
 ```
 @                    → Shows grouped list of recent PRs and issues
 @                    → Shows nested organization/repository PR+issue options
@@ -80,11 +92,13 @@ Browse all:
 ## Configuration
 
 Stored in IndexedDB:
+
 - Refresh interval (default: 5 minutes)
 - Max results per repository (default: 5)
 - Max organizations and repositories per org
 
 Encrypted in localStorage:
+
 - GitHub Personal Access Token
 
 ## Permissions
@@ -94,6 +108,7 @@ Encrypted in localStorage:
 ## API Rate Limits
 
 GitHub API has rate limits:
+
 - Authenticated: 5,000 requests/hour
 - Search API: 30 requests/minute
 
@@ -109,15 +124,18 @@ The extension caches results and debounces requests to stay within limits.
 ## Troubleshooting
 
 ### "Failed to validate token"
+
 - Check token is valid and not expired
 - Ensure token has `repo` scope
 - Try regenerating the token
 
 ### "Failed to access repository"
+
 - Ensure token has access to organizations and repositories
 - For private org resources, include `read:org` + `repo` scopes
 
 ### No PRs/issues showing
+
 - Check your organizations/repositories actually have open PRs/issues
 - Verify internet connection
 - Check browser console for errors

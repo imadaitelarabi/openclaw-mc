@@ -4,7 +4,7 @@
  */
 export function extractAgentId(sessionKey: string | undefined): string | null {
   if (!sessionKey) return null;
-  const parts = sessionKey.split(':');
+  const parts = sessionKey.split(":");
   return parts.length >= 2 ? parts[1] : null;
 }
 

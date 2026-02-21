@@ -9,24 +9,28 @@ This implementation successfully delivers a structured pipeline for processing c
 All success criteria have been met:
 
 ### ✅ Reasoning/Thinking Traces Appear Live in the UI
+
 - **Implementation**: `thinkingTraces` state in `useAgentEvents` hook
 - **Live Updates**: Delta phase buffers reasoning as it arrives
 - **Commit Phase**: Thinking is committed to permanent history on lifecycle end
 - **UI Component**: `StreamingIndicator` shows live reasoning box with streaming content
 
 ### ✅ Tool Calls and Results Appear Exactly Once (No Duplicates)
+
 - **Implementation**: `DeduplicationService` with per-run hash-based Set storage
 - **How It Works**: Each formatted message is hashed and checked before adding to transcript
 - **Cleanup**: Run data is cleared 60 seconds after completion
 - **Performance**: O(1) hash lookups prevent any duplicate rendering
 
 ### ✅ Tool Results Include Execution Metadata
+
 - **Metadata Captured**: Exit codes, duration (ms), current working directory
 - **Format**: `[[tool-result]]\nExit Code: 0 | Duration: 150ms | CWD: /workspace`
 - **Parsing**: Frontend extracts metadata with individual regex patterns
 - **Display**: Metadata shown as styled badges in tool result cards
 
 ### ✅ Final Transcript is Clean with Appropriate Markdown Prefixes
+
 - **Tag Format**: `[[trace]]`, `[[tool]]`, `[[tool-result]]`, `[[meta]]`
 - **Parser**: Both server and client can parse tagged messages
 - **Styling**: Each tag type has distinct visual styling
@@ -35,6 +39,7 @@ All success criteria have been met:
 ## 📁 Files Created/Modified
 
 ### Server-Side (New Files)
+
 1. `server/utils/event-formatting.ts` - Tag-based markdown formatting utilities
 2. `server/utils/deduplication.ts` - Per-run line deduplication service
 3. `server/utils/message-extractor.ts` - Extract structured data from payloads
@@ -42,13 +47,16 @@ All success criteria have been met:
 5. `server/utils/__test__.ts` - Validation tests for all utilities
 
 ### Server-Side (Modified)
+
 1. `server/core/GatewayClient.ts` - Integrated event processor, broadcasts processed events
 
 ### Frontend (New Files)
+
 1. `lib/event-formatting.ts` - Client-side tagged message parsing
 2. `components/chat/TaggedMessage.tsx` - Render tagged messages with styling
 
 ### Frontend (Modified)
+
 1. `hooks/useAgentEvents.ts` - Added `thinkingTraces` state, processed event handling, optimized tool lookups
 2. `components/panels/ChatPanel.tsx` - Passes `thinkingTraces` to indicator
 3. `components/panels/PanelContainer.tsx` - Routes `thinkingTraces` to panels
@@ -57,6 +65,7 @@ All success criteria have been met:
 6. `app/page.tsx` - Pass `thinkingTraces` from hook to components
 
 ### Documentation
+
 1. `docs/PATTERN-BASED-EVENT-HANDLING.md` - Comprehensive architecture documentation
 
 ## 🔧 Key Technical Features
@@ -76,14 +85,16 @@ Gateway Event → processEvent() → {
 ### 2. Thinking Lifecycle
 
 **Delta Phase (Live):**
+
 - Buffer reasoning deltas in `thinkingBuffers` Map
 - Send `thinkingDelta` to frontend
 - Frontend accumulates in `thinkingTraces[streamKey]`
 - UI shows live reasoning box
 
 **Commit Phase (Final):**
+
 - Format buffered thinking as `[[trace]]`
-- Send `thinkingComplete` to frontend  
+- Send `thinkingComplete` to frontend
 - Frontend adds to permanent `chatHistory`
 - Clear thinking trace buffer
 
@@ -114,17 +125,20 @@ output content...
 ## 🎨 UI Enhancements
 
 ### Color Coding
+
 - **Purple** (`purple-500/10`) - Thinking/reasoning traces
 - **Amber** (`amber-500/10`) - Tool calls in progress
 - **Emerald** (`emerald-500/10`) - Tool results/completion
 - **Slate** (`slate-500/10`) - Meta information
 
 ### Accessibility
+
 - Added `aria-label` attributes to tool result details
 - Proper labeling for screen readers
 - Keyboard-accessible expand/collapse
 
 ### Visual Indicators
+
 - Animated pulse dots for active reasoning
 - Status icons (🧠 for thinking, ✓ for completed tools)
 - Metadata badges with rounded styling
@@ -150,6 +164,7 @@ output content...
 ## 🔄 Backward Compatibility
 
 The implementation maintains full backward compatibility:
+
 - Old event format (`event: 'chat'/'agent'`) still works
 - New processed events are additive
 - Existing components unchanged (except where enhanced)
@@ -161,7 +176,7 @@ All validation tests pass successfully:
 
 ```
 ✓ Formatting functions work correctly
-✓ Deduplication prevents duplicates  
+✓ Deduplication prevents duplicates
 ✓ Message extraction handles all types
 ✓ Event processor creates formatted messages
 ✓ Parsing recovers original content
@@ -178,22 +193,22 @@ All validation tests pass successfully:
 
 ```typescript
 // Server broadcasts processed event
-const processed = processEvent('agent', payload);
+const processed = processEvent("agent", payload);
 gateway.broadcast({
-  type: 'event.processed',
-  ...processed
+  type: "event.processed",
+  ...processed,
 });
 
 // Frontend receives and handles
-if (message.type === 'event.processed') {
+if (message.type === "event.processed") {
   // Live thinking updates
   if (thinkingDelta) {
-    setThinkingTraces(prev => ({
+    setThinkingTraces((prev) => ({
       ...prev,
-      [streamKey]: (prev[streamKey] || '') + thinkingDelta
+      [streamKey]: (prev[streamKey] || "") + thinkingDelta,
     }));
   }
-  
+
   // Commit completed thinking
   if (thinkingComplete) {
     setChatHistory(/* add reasoning message */);
@@ -216,7 +231,7 @@ The architecture supports future extensions:
 
 - [ ] Additional tag types (error, warning, info)
 - [ ] Nested tool call support
-- [ ] Trace collapsing/expansion controls  
+- [ ] Trace collapsing/expansion controls
 - [ ] Search and filtering by tag type
 - [ ] Trace export functionality
 - [ ] Configurable cleanup delays
@@ -225,6 +240,7 @@ The architecture supports future extensions:
 ## 📚 Documentation
 
 Complete documentation available at:
+
 - `docs/PATTERN-BASED-EVENT-HANDLING.md` - Full architecture guide
 - Inline code comments throughout implementation
 - Test file demonstrates all features

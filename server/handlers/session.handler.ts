@@ -3,8 +3,8 @@
  * Handles session operations (list, patch)
  */
 
-import type { ExtendedWebSocket } from '../types/internal';
-import type { GatewayClient } from '../core/GatewayClient';
+import type { ExtendedWebSocket } from "../types/internal";
+import type { GatewayClient } from "../core/GatewayClient";
 
 export async function handleSessionsList(
   msg: any,
@@ -13,7 +13,7 @@ export async function handleSessionsList(
   sessionPatches: Map<string, any>
 ): Promise<void> {
   try {
-    const sessions = await gateway.request('sessions.list', {});
+    const sessions = await gateway.request("sessions.list", {});
     // Merge patches
     if (sessions.sessions) {
       sessions.sessions.forEach((s: any) => {
@@ -21,11 +21,11 @@ export async function handleSessionsList(
         if (patch) Object.assign(s, patch);
       });
     }
-    ws.send(JSON.stringify({ type: 'sessions', data: sessions }));
+    ws.send(JSON.stringify({ type: "sessions", data: sessions }));
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'error',
+        type: "error",
         message: (err as Error).message,
       })
     );
@@ -62,13 +62,13 @@ export async function handleSessionsPatch(
     sessionPatches.set(sessionKey, { ...(sessionPatches.get(sessionKey) || {}), ...patch });
 
     // Forward to Gateway
-    const gatewayRes = await gateway.request('sessions.patch', { key: sessionKey, ...patch });
+    const gatewayRes = await gateway.request("sessions.patch", { key: sessionKey, ...patch });
     console.log(`[Gateway] Patch response:`, gatewayRes);
 
-    ws.send(JSON.stringify({ type: 'sessions.patch.ack' }));
+    ws.send(JSON.stringify({ type: "sessions.patch.ack" }));
 
     // Broadcast updated sessions to all clients immediately
-    const sessions = await gateway.request('sessions.list', {});
+    const sessions = await gateway.request("sessions.list", {});
     // Merge patches
     if (sessions.sessions) {
       sessions.sessions.forEach((s: any) => {
@@ -76,12 +76,12 @@ export async function handleSessionsPatch(
         if (p) Object.assign(s, p);
       });
     }
-    gateway.broadcast({ type: 'sessions', data: sessions });
+    gateway.broadcast({ type: "sessions", data: sessions });
   } catch (err) {
-    console.error('[Client] Patch failed:', err);
+    console.error("[Client] Patch failed:", err);
     ws.send(
       JSON.stringify({
-        type: 'error',
+        type: "error",
         message: (err as Error).message,
       })
     );

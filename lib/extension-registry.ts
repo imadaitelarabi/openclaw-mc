@@ -1,17 +1,17 @@
 /**
  * Extension Registry
- * 
+ *
  * Central registry for managing extensions, their lifecycle, and hook registration.
  */
 
-import type { 
-  Extension, 
-  ExtensionManifest, 
+import type {
+  Extension,
+  ExtensionManifest,
   ExtensionState,
   ExtensionRegistryEntry,
-  ExtensionHooks 
-} from '@/types/extension';
-import { uiStateStore } from './ui-state-db';
+  ExtensionHooks,
+} from "@/types/extension";
+import { uiStateStore } from "./ui-state-db";
 
 /**
  * Extension Registry Class
@@ -29,13 +29,13 @@ class ExtensionRegistry {
       return;
     }
 
-    console.log('[ExtensionRegistry] Initializing...');
-    
+    console.log("[ExtensionRegistry] Initializing...");
+
     try {
       // Load saved extension states from IndexedDB
       const savedStates = await uiStateStore.getAllExtensionStates();
       console.log(`[ExtensionRegistry] Found ${savedStates.length} saved extension states`);
-      
+
       // Initialize state for each saved extension
       for (const state of savedStates) {
         if (state.enabled) {
@@ -46,9 +46,9 @@ class ExtensionRegistry {
       }
 
       this.initialized = true;
-      console.log('[ExtensionRegistry] Initialization complete');
+      console.log("[ExtensionRegistry] Initialization complete");
     } catch (error) {
-      console.error('[ExtensionRegistry] Initialization failed:', error);
+      console.error("[ExtensionRegistry] Initialization failed:", error);
       throw error;
     }
   }
@@ -58,9 +58,9 @@ class ExtensionRegistry {
    */
   async register(extension: Extension): Promise<void> {
     const { manifest, state } = extension;
-    
+
     console.log(`[ExtensionRegistry] Registering extension: ${manifest.name}`);
-    
+
     // Validate manifest
     if (!this.validateManifest(manifest)) {
       throw new Error(`Invalid manifest for extension: ${manifest.name}`);
@@ -80,9 +80,9 @@ class ExtensionRegistry {
     const entry: ExtensionRegistryEntry = {
       extension: {
         ...extension,
-        state: finalState
+        state: finalState,
       },
-      loaded: false
+      loaded: false,
     };
 
     // Add to registry
@@ -101,7 +101,7 @@ class ExtensionRegistry {
    */
   async unregister(extensionName: string): Promise<void> {
     console.log(`[ExtensionRegistry] Unregistering extension: ${extensionName}`);
-    
+
     const entry = this.extensions.get(extensionName);
     if (!entry) {
       console.warn(`[ExtensionRegistry] Extension "${extensionName}" not found`);
@@ -156,12 +156,12 @@ class ExtensionRegistry {
       console.log(`[ExtensionRegistry] Extension "${extensionName}" loaded successfully`);
     } catch (error) {
       console.error(`[ExtensionRegistry] Failed to load extension "${extensionName}":`, error);
-      
+
       // Update error state
       entry.extension.state.error = (error as Error).message;
       entry.extension.state.enabled = false;
       await uiStateStore.saveExtensionState(entry.extension.state);
-      
+
       throw error;
     }
   }
@@ -231,7 +231,7 @@ class ExtensionRegistry {
    * Get all registered extensions
    */
   getAll(): Extension[] {
-    return Array.from(this.extensions.values()).map(entry => entry.extension);
+    return Array.from(this.extensions.values()).map((entry) => entry.extension);
   }
 
   /**
@@ -239,17 +239,15 @@ class ExtensionRegistry {
    */
   getEnabled(): Extension[] {
     return Array.from(this.extensions.values())
-      .filter(entry => entry.loaded && entry.extension.state.enabled)
-      .map(entry => entry.extension);
+      .filter((entry) => entry.loaded && entry.extension.state.enabled)
+      .map((entry) => entry.extension);
   }
 
   /**
    * Get extensions by hook type
    */
-  getByHook(hookType: 'status-bar' | 'chat-input' | 'onboarding'): Extension[] {
-    return this.getEnabled().filter(ext => 
-      ext.manifest.hooks.includes(hookType)
-    );
+  getByHook(hookType: "status-bar" | "chat-input" | "onboarding"): Extension[] {
+    return this.getEnabled().filter((ext) => ext.manifest.hooks.includes(hookType));
   }
 
   /**
@@ -271,23 +269,23 @@ class ExtensionRegistry {
    * Validate extension manifest
    */
   private validateManifest(manifest: ExtensionManifest): boolean {
-    if (!manifest.name || typeof manifest.name !== 'string') {
-      console.error('[ExtensionRegistry] Invalid manifest: missing name');
+    if (!manifest.name || typeof manifest.name !== "string") {
+      console.error("[ExtensionRegistry] Invalid manifest: missing name");
       return false;
     }
 
-    if (!manifest.version || typeof manifest.version !== 'string') {
-      console.error('[ExtensionRegistry] Invalid manifest: missing version');
+    if (!manifest.version || typeof manifest.version !== "string") {
+      console.error("[ExtensionRegistry] Invalid manifest: missing version");
       return false;
     }
 
     if (!Array.isArray(manifest.hooks) || manifest.hooks.length === 0) {
-      console.error('[ExtensionRegistry] Invalid manifest: must have at least one hook');
+      console.error("[ExtensionRegistry] Invalid manifest: must have at least one hook");
       return false;
     }
 
     if (!Array.isArray(manifest.permissions)) {
-      console.error('[ExtensionRegistry] Invalid manifest: permissions must be an array');
+      console.error("[ExtensionRegistry] Invalid manifest: permissions must be an array");
       return false;
     }
 
@@ -307,7 +305,7 @@ class ExtensionRegistry {
     entry.extension.state = {
       ...entry.extension.state,
       ...updates,
-      lastUpdated: Date.now()
+      lastUpdated: Date.now(),
     };
 
     // Persist to IndexedDB
@@ -339,7 +337,10 @@ class ExtensionRegistry {
     try {
       return await entry.extension.hooks.onboarding.isRequired();
     } catch (error) {
-      console.error(`[ExtensionRegistry] Failed to check onboarding for "${extensionName}":`, error);
+      console.error(
+        `[ExtensionRegistry] Failed to check onboarding for "${extensionName}":`,
+        error
+      );
       return true; // Default to requiring onboarding if check fails
     }
   }

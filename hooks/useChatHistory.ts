@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState } from "react";
 
 interface UseChatHistoryProps {
   sendMessage: (message: Record<string, unknown>) => void;
@@ -42,14 +42,14 @@ export function useChatHistory({ sendMessage }: UseChatHistoryProps) {
         // Send request to load more history
         // This will be handled by the server and result in a chat_history_more event
         sendMessage({
-          type: 'chat.history.load',
+          type: "chat.history.load",
           agentId,
           params,
         });
 
         // Clear timeout on successful send
         clearTimeout(timeoutId);
-        
+
         // Set loading to false after a reasonable wait for response
         setTimeout(() => {
           setLoading((prev) => ({ ...prev, [agentId]: false }));

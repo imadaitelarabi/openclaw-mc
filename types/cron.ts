@@ -4,21 +4,21 @@
  */
 
 export interface Schedule {
-  kind: 'cron' | 'interval' | 'oneshot';
-  expr?: string;  // Cron expression (e.g., "0 8 * * *")
-  intervalMs?: number;  // For interval schedules
-  tz?: string;  // Timezone (e.g., "UTC", "America/New_York")
+  kind: "cron" | "interval" | "oneshot";
+  expr?: string; // Cron expression (e.g., "0 8 * * *")
+  intervalMs?: number; // For interval schedules
+  tz?: string; // Timezone (e.g., "UTC", "America/New_York")
 }
 
 export interface CronPayload {
-  kind: 'agentTurn';
+  kind: "agentTurn";
   message: string;
   agentId?: string;
 }
 
 export interface CronDelivery {
-  mode: 'announce' | 'silent';
-  channel?: 'last' | 'new' | string;  // Session routing
+  mode: "announce" | "silent";
+  channel?: "last" | "new" | string; // Session routing
 }
 
 export interface CronJobState {
@@ -32,8 +32,8 @@ export interface CronJob {
   name: string;
   enabled: boolean;
   schedule: Schedule;
-  sessionTarget: 'isolated' | 'shared' | 'last'; // 'last' kept for backward compatibility with persisted legacy jobs
-  wakeMode?: 'now' | 'schedule';
+  sessionTarget: "isolated" | "shared" | "last"; // 'last' kept for backward compatibility with persisted legacy jobs
+  wakeMode?: "now" | "schedule";
   payload: CronPayload;
   delivery: CronDelivery;
   state?: CronJobState;
@@ -51,7 +51,7 @@ export interface CronStatus {
 export interface CronRun {
   id: string;
   jobId: string;
-  status: 'ok' | 'error' | 'running';
+  status: "ok" | "error" | "running";
   startedAtMs: number;
   finishedAtMs?: number;
   sessionKey: string;
@@ -64,8 +64,14 @@ export interface CronRunsResponse {
 }
 
 export interface CronEvent {
-  type: 'job_added' | 'job_updated' | 'job_deleted' | 'job_started' | 'job_finished' | 'status_changed';
-  action?: 'added' | 'updated' | 'deleted' | 'started' | 'finished' | 'status_changed';
+  type:
+    | "job_added"
+    | "job_updated"
+    | "job_deleted"
+    | "job_started"
+    | "job_finished"
+    | "status_changed";
+  action?: "added" | "updated" | "deleted" | "started" | "finished" | "status_changed";
   job?: CronJob;
   jobId?: string;
   status?: CronStatus;

@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import { Zap, ChevronDown, Pencil, Trash2 } from 'lucide-react';
-import type { Agent } from '@/types';
-import type { AgentRunStatus } from '@/components/panels/PanelHeader';
+import { useState, useEffect, useRef } from "react";
+import { Zap, ChevronDown, Pencil, Trash2 } from "lucide-react";
+import type { Agent } from "@/types";
+import type { AgentRunStatus } from "@/components/panels/PanelHeader";
 
 interface AgentSelectorProps {
   agents: Agent[];
@@ -16,12 +16,12 @@ interface AgentSelectorProps {
   agentStatuses?: Record<string, AgentRunStatus>;
 }
 
-export function AgentSelector({ 
-  agents, 
-  selectedAgent, 
-  activeAgent, 
-  isOpen, 
-  onToggle, 
+export function AgentSelector({
+  agents,
+  selectedAgent,
+  activeAgent,
+  isOpen,
+  onToggle,
   onSelect,
   onCreateAgent,
   onEditAgent,
@@ -48,20 +48,20 @@ export function AgentSelector({
     if (!container) return;
     const activeEl = container.querySelector('[data-active="true"]') as HTMLElement | null;
     if (activeEl) {
-      activeEl.scrollIntoView({ block: 'nearest' });
+      activeEl.scrollIntoView({ block: "nearest" });
     }
   }, [activeIndex, isOpen]);
 
   const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!isOpen) onToggle();
       setActiveIndex(0);
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (!isOpen) onToggle();
       setActiveIndex(totalItems - 1);
-    } else if (e.key === 'Escape' && isOpen) {
+    } else if (e.key === "Escape" && isOpen) {
       e.preventDefault();
       onToggle();
     }
@@ -70,13 +70,13 @@ export function AgentSelector({
   const handleDropdownKeyDown = (e: React.KeyboardEvent) => {
     if (totalItems === 0) return;
 
-    if (e.key === 'ArrowDown') {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex(prev => (prev + 1) % totalItems);
-    } else if (e.key === 'ArrowUp') {
+      setActiveIndex((prev) => (prev + 1) % totalItems);
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIndex(prev => (prev - 1 + totalItems) % totalItems);
-    } else if (e.key === 'Enter') {
+      setActiveIndex((prev) => (prev - 1 + totalItems) % totalItems);
+    } else if (e.key === "Enter") {
       e.preventDefault();
       if (onCreateAgent && activeIndex === 0) {
         onCreateAgent();
@@ -88,30 +88,28 @@ export function AgentSelector({
           onToggle();
         }
       }
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       e.preventDefault();
       onToggle();
     }
   };
 
   function getPulseClass(status: AgentRunStatus | undefined): string | null {
-    if (!status || status === 'idle') return null;
-    if (status === 'thinking' || status === 'tool') return 'bg-amber-400 animate-pulse';
-    if (status === 'text') return 'bg-blue-400 animate-pulse';
-    if (status === 'completed') return 'bg-green-500';
+    if (!status || status === "idle") return null;
+    if (status === "thinking" || status === "tool") return "bg-amber-400 animate-pulse";
+    if (status === "text") return "bg-blue-400 animate-pulse";
+    if (status === "completed") return "bg-green-500";
     return null;
   }
   return (
     <div className="relative">
-      <button 
+      <button
         onClick={onToggle}
         onKeyDown={handleTriggerKeyDown}
         className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors"
       >
         <Zap className="w-3 h-3 text-primary" />
-        <span className="font-medium">
-          {activeAgent ? activeAgent.name : "Select Agent"}
-        </span>
+        <span className="font-medium">{activeAgent ? activeAgent.name : "Select Agent"}</span>
         <ChevronDown className="w-3 h-3 opacity-50" />
       </button>
 
@@ -132,7 +130,9 @@ export function AgentSelector({
                 }}
                 onMouseEnter={() => setActiveIndex(0)}
                 className={`px-2 py-1 text-xs rounded transition-colors ${
-                  activeIndex === 0 ? 'bg-primary/90 text-primary-foreground' : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  activeIndex === 0
+                    ? "bg-primary/90 text-primary-foreground"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
                 }`}
               >
                 New
@@ -165,7 +165,7 @@ export function AgentSelector({
                       if (pulseClass) {
                         return <div className={`w-1.5 h-1.5 rounded-full ${pulseClass} mr-1`} />;
                       }
-                      if (agent.status === 'active') {
+                      if (agent.status === "active") {
                         return <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1" />;
                       }
                       return null;

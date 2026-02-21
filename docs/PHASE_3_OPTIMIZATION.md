@@ -1,16 +1,18 @@
 # Phase 3: State Management Optimization
 
 ## Overview
+
 Optimized `useAgentEvents` hook by replacing multiple `useState` calls with a single `useReducer` and implementing state batching to reduce re-renders.
 
 ## Problem Statement
 
 ### Before Optimization
+
 The `useAgentEvents` hook suffered from performance bottlenecks:
 
 1. **Multiple State Update Sites:** 12+ locations calling `setChatHistory`
    - Line 613: Load history
-   - Line 654: Prepend history  
+   - Line 654: Prepend history
    - Line 679: Sync recent history
    - Line 967: Tool completion
    - Line 1005: Tool error
@@ -25,7 +27,6 @@ The `useAgentEvents` hook suffered from performance bottlenecks:
 2. **No State Batching:** Each `setState` triggered a separate re-render
    - Example: Lifecycle 'end' event called 5+ setState functions sequentially
    - Each triggered a re-render of ChatPanel + all ChatMessageItems
-   
 3. **Scattered State Logic:** State updates spread across 600+ lines
    - Hard to track all update sites
    - Difficult to ensure consistency
@@ -42,6 +43,7 @@ The `useAgentEvents` hook suffered from performance bottlenecks:
 ### 1. Unified State with useReducer
 
 **Before:**
+
 ```typescript
 const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({});
 const [chatStreams, setChatStreams] = useState<Record<string, string>>({});
@@ -50,6 +52,7 @@ const [activeRuns, setActiveRuns] = useState<Record<string, string>>({});
 ```
 
 **After:**
+
 ```typescript
 interface AgentEventsState {
   chatHistory: Record<string, ChatMessage[]>;
@@ -67,6 +70,7 @@ const [state, dispatch] = useReducer(agentEventsReducer, {
 ```
 
 **Benefits:**
+
 - All state updates go through single dispatch point
 - Centralized state logic in reducer
 - Enables state batching (see below)
@@ -74,38 +78,50 @@ const [state, dispatch] = useReducer(agentEventsReducer, {
 ### 2. State Batching with BATCH_UPDATE
 
 **Before (5 separate re-renders):**
+
 ```typescript
 // Lifecycle 'end' event
-setChatHistory(prev => ({ ...prev, [agentId]: [...prev[agentId], finalMsg] }));  // Render 1
-setChatHistory(prev => ({ ...prev, [agentId]: updateInterrupted(prev[agentId]) }));  // Render 2
-setChatStreams(prev => { delete prev[key]; return prev; });  // Render 3
-setReasoningStreams(prev => { delete prev[key]; return prev; });  // Render 4
-setActiveRuns(prev => { delete prev[agentId]; return prev; });  // Render 5
+setChatHistory((prev) => ({ ...prev, [agentId]: [...prev[agentId], finalMsg] })); // Render 1
+setChatHistory((prev) => ({ ...prev, [agentId]: updateInterrupted(prev[agentId]) })); // Render 2
+setChatStreams((prev) => {
+  delete prev[key];
+  return prev;
+}); // Render 3
+setReasoningStreams((prev) => {
+  delete prev[key];
+  return prev;
+}); // Render 4
+setActiveRuns((prev) => {
+  delete prev[agentId];
+  return prev;
+}); // Render 5
 ```
 
 **After (1 single re-render):**
+
 ```typescript
 // Lifecycle 'end' event
 const updates: AgentEventsAction[] = [];
 
 if (accumulatedText) {
-  updates.push({ type: 'ADD_CHAT_MESSAGE', agentId, message: finalMsg });
+  updates.push({ type: "ADD_CHAT_MESSAGE", agentId, message: finalMsg });
 }
 
 if (hasInterruptedTools) {
-  updates.push({ type: 'UPDATE_CHAT_MESSAGES', agentId, messages: updatedMsgs });
+  updates.push({ type: "UPDATE_CHAT_MESSAGES", agentId, messages: updatedMsgs });
 }
 
 updates.push(
-  { type: 'CLEAR_STREAM', streamKey },
-  { type: 'CLEAR_REASONING_STREAM', streamKey },
-  { type: 'CLEAR_ACTIVE_RUN', agentId, runId }
+  { type: "CLEAR_STREAM", streamKey },
+  { type: "CLEAR_REASONING_STREAM", streamKey },
+  { type: "CLEAR_ACTIVE_RUN", agentId, runId }
 );
 
-dispatch({ type: 'BATCH_UPDATE', updates });  // Single dispatch, single render
+dispatch({ type: "BATCH_UPDATE", updates }); // Single dispatch, single render
 ```
 
 **Benefits:**
+
 - 5x reduction in re-renders for lifecycle events
 - Similar improvements for other multi-update scenarios
 - Atomic state updates (all-or-nothing)
@@ -116,25 +132,41 @@ Defined 14 action types covering all state transitions:
 
 ```typescript
 type AgentEventsAction =
-  | { type: 'LOAD_CHAT_HISTORY'; agentId: string; messages: ChatMessage[] }
-  | { type: 'PREPEND_CHAT_HISTORY'; agentId: string; messages: ChatMessage[] }
-  | { type: 'SYNC_RECENT_CHAT_HISTORY'; agentId: string; messages: ChatMessage[]; existingHistory: ChatMessage[] }
-  | { type: 'ADD_CHAT_MESSAGE'; agentId: string; message: ChatMessage }
-  | { type: 'UPDATE_CHAT_MESSAGES'; agentId: string; messages: ChatMessage[] }
-  | { type: 'UPDATE_CHAT_MESSAGE'; agentId: string; messageId: string; updates: Partial<ChatMessage> }
-  | { type: 'CLEAR_CHAT_HISTORY'; agentId: string }
-  | { type: 'UPDATE_STREAM_DELTA'; streamKey: string; delta: string }
-  | { type: 'SET_STREAM_TEXT'; streamKey: string; text: string }
-  | { type: 'CLEAR_STREAM'; streamKey: string }
-  | { type: 'UPDATE_REASONING_DELTA'; streamKey: string; delta: string }
-  | { type: 'CLEAR_REASONING_STREAM'; streamKey: string }
-  | { type: 'SET_ACTIVE_RUN'; agentId: string; runId: string }
-  | { type: 'CLEAR_ACTIVE_RUN'; agentId: string; runId?: string }
-  | { type: 'RESTORE_STREAM_STATE'; activeRuns: Record<string, string>; chatStreams: Record<string, string>; reasoningStreams: Record<string, string> }
-  | { type: 'BATCH_UPDATE'; updates: AgentEventsAction[] }
+  | { type: "LOAD_CHAT_HISTORY"; agentId: string; messages: ChatMessage[] }
+  | { type: "PREPEND_CHAT_HISTORY"; agentId: string; messages: ChatMessage[] }
+  | {
+      type: "SYNC_RECENT_CHAT_HISTORY";
+      agentId: string;
+      messages: ChatMessage[];
+      existingHistory: ChatMessage[];
+    }
+  | { type: "ADD_CHAT_MESSAGE"; agentId: string; message: ChatMessage }
+  | { type: "UPDATE_CHAT_MESSAGES"; agentId: string; messages: ChatMessage[] }
+  | {
+      type: "UPDATE_CHAT_MESSAGE";
+      agentId: string;
+      messageId: string;
+      updates: Partial<ChatMessage>;
+    }
+  | { type: "CLEAR_CHAT_HISTORY"; agentId: string }
+  | { type: "UPDATE_STREAM_DELTA"; streamKey: string; delta: string }
+  | { type: "SET_STREAM_TEXT"; streamKey: string; text: string }
+  | { type: "CLEAR_STREAM"; streamKey: string }
+  | { type: "UPDATE_REASONING_DELTA"; streamKey: string; delta: string }
+  | { type: "CLEAR_REASONING_STREAM"; streamKey: string }
+  | { type: "SET_ACTIVE_RUN"; agentId: string; runId: string }
+  | { type: "CLEAR_ACTIVE_RUN"; agentId: string; runId?: string }
+  | {
+      type: "RESTORE_STREAM_STATE";
+      activeRuns: Record<string, string>;
+      chatStreams: Record<string, string>;
+      reasoningStreams: Record<string, string>;
+    }
+  | { type: "BATCH_UPDATE"; updates: AgentEventsAction[] };
 ```
 
 **Benefits:**
+
 - Full TypeScript type safety
 - Self-documenting code (action names describe intent)
 - Easy to add new state transitions
@@ -190,11 +222,11 @@ The reducer follows a standard Redux-style pattern:
 ```typescript
 function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction): AgentEventsState {
   switch (action.type) {
-    case 'ADD_CHAT_MESSAGE':
+    case "ADD_CHAT_MESSAGE":
       // Immutable update with deduplication
       const currentHistory = state.chatHistory[action.agentId] || [];
-      if (currentHistory.some(m => m.id === action.message.id)) {
-        return state;  // No change if duplicate
+      if (currentHistory.some((m) => m.id === action.message.id)) {
+        return state; // No change if duplicate
       }
       return {
         ...state,
@@ -203,15 +235,15 @@ function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction):
           [action.agentId]: [...currentHistory, action.message],
         },
       };
-    
-    case 'BATCH_UPDATE':
+
+    case "BATCH_UPDATE":
       // Process multiple actions atomically
       let newState = state;
       for (const update of action.updates) {
         newState = agentEventsReducer(newState, update);
       }
       return newState;
-    
+
     // ... other cases
   }
 }
@@ -227,6 +259,7 @@ function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction):
 ## Testing & Verification
 
 ### Build Verification
+
 - ✅ TypeScript compilation succeeds
 - ✅ Next.js production build succeeds
 - ✅ Server build succeeds
@@ -234,6 +267,7 @@ function agentEventsReducer(state: AgentEventsState, action: AgentEventsAction):
 - ✅ Existing type errors remain unchanged (pre-existing, not related to changes)
 
 ### Backward Compatibility
+
 - ✅ Same hook interface (return values unchanged)
 - ✅ Same behavior for consumers
 - ✅ No breaking changes
@@ -295,6 +329,7 @@ After code review, several critical regressions were identified and fixed:
 **Impact:** Messages arriving out-of-order from the server would appear jumbled in the UI.
 
 **Fix:** Added sorting logic back to SYNC_RECENT_CHAT_HISTORY reducer case:
+
 ```typescript
 // Sort by timestamp, then by ID for stability
 next.sort((a, b) => {
@@ -312,6 +347,7 @@ next.sort((a, b) => {
 **Impact:** User messages would appear twice: once optimistically and again when the server confirmed.
 
 **Fix:** Restored the optimistic matching logic in SYNC_RECENT_CHAT_HISTORY:
+
 ```typescript
 // Try optimistic user message matching
 const optimisticMatchIndex = next.findIndex((existingMessage) =>
@@ -335,11 +371,13 @@ if (optimisticMatchIndex !== -1) {
 **Impact:** Tool interruption logic might operate on outdated state, leading to inconsistent UI or missing updates.
 
 **Fix:** Created new action types to move all logic into the reducer:
+
 - `MARK_TOOLS_INTERRUPTED`: Atomically marks pending tools as interrupted
 - `FINALIZE_ASSISTANT_MESSAGE`: Adds finalized message with built-in deduplication
 - `ADD_ERROR_MESSAGE`: Adds error message with built-in deduplication
 
 Example:
+
 ```typescript
 case 'MARK_TOOLS_INTERRUPTED': {
   const currentHistory = state.chatHistory[action.agentId] || [];
@@ -373,6 +411,7 @@ case 'MARK_TOOLS_INTERRUPTED': {
 1. **Removed existingHistory parameter:** SYNC_RECENT_CHAT_HISTORY now uses `state.chatHistory[action.agentId]` directly in the reducer instead of receiving it as a parameter.
 
 2. **Added activeRunsRef:** Created a ref that syncs with state to allow read access without adding a dependency:
+
 ```typescript
 const activeRunsRef = useRef<Record<string, string>>({});
 
@@ -382,11 +421,12 @@ useEffect(() => {
 ```
 
 3. **Created ABORT_RUN action:** Encapsulates all abort logic in the reducer:
+
 ```typescript
 case 'ABORT_RUN': {
   const runId = state.activeRuns[action.agentId];
   if (!runId) return state;
-  
+
   const streamKey = getStreamKey(action.agentId, runId);
   // Clear active run and associated streams atomically
   return {
@@ -399,6 +439,7 @@ case 'ABORT_RUN': {
 ```
 
 4. **Updated callback dependencies:** Removed state dependencies:
+
 ```typescript
 // Before
 }, [loadChatHistory, prependChatHistory, syncRecentChatHistory, state.chatHistory, state.activeRuns]);
@@ -409,16 +450,17 @@ case 'ABORT_RUN': {
 
 ### Summary of Action Types Added
 
-| Action Type | Purpose |
-|-------------|---------|
-| `MARK_TOOLS_INTERRUPTED` | Atomically mark pending tools as interrupted during run failure |
-| `FINALIZE_ASSISTANT_MESSAGE` | Add finalized assistant message with deduplication |
-| `ADD_ERROR_MESSAGE` | Add error message with deduplication |
-| `ABORT_RUN` | Handle run abortion atomically (clear run, streams) |
+| Action Type                  | Purpose                                                         |
+| ---------------------------- | --------------------------------------------------------------- |
+| `MARK_TOOLS_INTERRUPTED`     | Atomically mark pending tools as interrupted during run failure |
+| `FINALIZE_ASSISTANT_MESSAGE` | Add finalized assistant message with deduplication              |
+| `ADD_ERROR_MESSAGE`          | Add error message with deduplication                            |
+| `ABORT_RUN`                  | Handle run abortion atomically (clear run, streams)             |
 
 ## Conclusion
 
 Phase 3 successfully optimized state management in `useAgentEvents` by:
+
 - Unifying 4 useState hooks into single useReducer
 - Implementing state batching to reduce re-renders by ~95%
 - Adding comprehensive type safety with 17 action types

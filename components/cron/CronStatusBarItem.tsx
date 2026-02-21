@@ -3,11 +3,11 @@
  * Shows next scheduled job and running state, with dropdown menu for job selection
  */
 
-import { useState, useEffect, useRef } from 'react';
-import { Clock, ChevronDown, Play } from 'lucide-react';
-import type { CronJob, CronStatus } from '@/types';
-import { formatDistanceToNow } from 'date-fns';
-import { getCronScheduleLabel } from '@/lib/cron-schedule';
+import { useState, useEffect, useRef } from "react";
+import { Clock, ChevronDown, Play } from "lucide-react";
+import type { CronJob, CronStatus } from "@/types";
+import { formatDistanceToNow } from "date-fns";
+import { getCronScheduleLabel } from "@/lib/cron-schedule";
 
 interface CronStatusBarItemProps {
   jobs: CronJob[];
@@ -45,30 +45,30 @@ export function CronStatusBarItem({
     if (!container) return;
     const activeEl = container.querySelector('[data-active="true"]') as HTMLElement | null;
     if (activeEl) {
-      activeEl.scrollIntoView({ block: 'nearest' });
+      activeEl.scrollIntoView({ block: "nearest" });
     }
   }, [activeIndex, isOpen]);
 
   // Find next scheduled job and running jobs
   const nextJob = safeJobs
-    .filter(j => j.enabled && j.state?.nextRunAtMs)
+    .filter((j) => j.enabled && j.state?.nextRunAtMs)
     .sort((a, b) => (a.state?.nextRunAtMs || 0) - (b.state?.nextRunAtMs || 0))[0];
 
-  const runningJobs = safeJobs.filter(j => j.enabled && j.state?.nextRunAtMs === 0);
+  const runningJobs = safeJobs.filter((j) => j.enabled && j.state?.nextRunAtMs === 0);
   const isRunning = runningJobs.length > 0;
 
   // Format next run time
   const nextRunText = nextJob?.state?.nextRunAtMs
     ? formatDistanceToNow(nextJob.state.nextRunAtMs, { addSuffix: true })
-    : 'None';
+    : "None";
 
   // Sort jobs: running first, then by nextWake
   const sortedJobs = [...safeJobs].sort((a, b) => {
     const aRunning = a.enabled && a.state?.nextRunAtMs === 0 ? 1 : 0;
     const bRunning = b.enabled && b.state?.nextRunAtMs === 0 ? 1 : 0;
-    
+
     if (aRunning !== bRunning) return bRunning - aRunning;
-    
+
     const aNext = a.state?.nextRunAtMs || Infinity;
     const bNext = b.state?.nextRunAtMs || Infinity;
     return aNext - bNext;
@@ -79,15 +79,15 @@ export function CronStatusBarItem({
   }
 
   const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!isOpen) onToggle();
       setActiveIndex(0);
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (!isOpen) onToggle();
       setActiveIndex(sortedJobs.length - 1);
-    } else if (e.key === 'Escape' && isOpen) {
+    } else if (e.key === "Escape" && isOpen) {
       e.preventDefault();
       onToggle();
     }
@@ -95,19 +95,19 @@ export function CronStatusBarItem({
 
   const handleDropdownKeyDown = (e: React.KeyboardEvent) => {
     if (sortedJobs.length === 0) return;
-    if (e.key === 'ArrowDown') {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex(prev => (prev + 1) % sortedJobs.length);
-    } else if (e.key === 'ArrowUp') {
+      setActiveIndex((prev) => (prev + 1) % sortedJobs.length);
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIndex(prev => (prev - 1 + sortedJobs.length) % sortedJobs.length);
-    } else if (e.key === 'Enter') {
+      setActiveIndex((prev) => (prev - 1 + sortedJobs.length) % sortedJobs.length);
+    } else if (e.key === "Enter") {
       e.preventDefault();
       if (activeIndex >= 0 && activeIndex < sortedJobs.length) {
         onSelectJob(sortedJobs[activeIndex].id);
         onToggle();
       }
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       e.preventDefault();
       onToggle();
     }
@@ -120,11 +120,11 @@ export function CronStatusBarItem({
         onKeyDown={handleTriggerKeyDown}
         className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors"
       >
-        <Clock className={`w-3 h-3 ${isRunning ? 'text-green-500 animate-pulse' : 'text-muted-foreground'}`} />
+        <Clock
+          className={`w-3 h-3 ${isRunning ? "text-green-500 animate-pulse" : "text-muted-foreground"}`}
+        />
         {isRunning ? (
-          <span className="font-medium text-green-500">
-            ● Running: {runningJobs[0].name}
-          </span>
+          <span className="font-medium text-green-500">● Running: {runningJobs[0].name}</span>
         ) : nextJob ? (
           <span className="font-medium">
             ⏰ {nextJob.name} {nextRunText}
@@ -162,11 +162,12 @@ export function CronStatusBarItem({
               sortedJobs.map((job, index) => {
                 const isJobRunning = job.enabled && job.state?.nextRunAtMs === 0;
                 const nextRun = job.state?.nextRunAtMs;
-                const nextRunLabel = nextRun && nextRun > 0
-                  ? formatDistanceToNow(nextRun, { addSuffix: true })
-                  : isJobRunning
-                  ? 'Running now'
-                  : 'Not scheduled';
+                const nextRunLabel =
+                  nextRun && nextRun > 0
+                    ? formatDistanceToNow(nextRun, { addSuffix: true })
+                    : isJobRunning
+                      ? "Running now"
+                      : "Not scheduled";
 
                 return (
                   <button
@@ -186,7 +187,9 @@ export function CronStatusBarItem({
                         {isJobRunning && (
                           <Play className="w-3 h-3 text-green-500 flex-shrink-0 animate-pulse" />
                         )}
-                        <span className={`font-medium truncate ${!job.enabled ? 'text-muted-foreground' : ''}`}>
+                        <span
+                          className={`font-medium truncate ${!job.enabled ? "text-muted-foreground" : ""}`}
+                        >
                           {job.name}
                         </span>
                       </div>

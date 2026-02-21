@@ -5,6 +5,7 @@ This document describes the pattern-based event handling system for thinking and
 ## Overview
 
 The pattern-based event handling system provides a structured pipeline for processing `chat` and `agent` events with:
+
 - Tag-based Markdown formatting for different event types
 - Per-run deduplication to prevent duplicate rendering
 - Live thinking traces with commit phase
@@ -20,13 +21,11 @@ Provides utilities for creating tagged Markdown messages:
 
 ```typescript
 // Tag types
-[[trace]]     // For reasoning/thinking blocks
-[[tool]]      // For tool calls (name + arguments)
-[[tool-result]]  // For tool outputs (exit codes + CWD + result text)
-[[meta]]      // For internal metadata (timestamps, duration)
+[[trace]][[tool]][[tool - result]][[meta]]; // For reasoning/thinking blocks // For tool calls (name + arguments) // For tool outputs (exit codes + CWD + result text) // For internal metadata (timestamps, duration)
 ```
 
 **Functions:**
+
 - `formatTrace(content: string)` - Format thinking/reasoning text
 - `formatToolCall(name: string, args?: any)` - Format tool invocation
 - `formatToolResult(data: ToolResultData)` - Format tool output with metadata
@@ -82,6 +81,7 @@ const processed = processEvent(eventType, payload);
 ```
 
 **Key Features:**
+
 - Buffers thinking deltas in memory per run
 - Commits thinking to formatted trace on lifecycle end
 - Applies deduplication automatically
@@ -107,14 +107,15 @@ const {
   chatHistory,
   chatStreams,
   reasoningStreams,
-  thinkingTraces,  // NEW: Live thinking traces
+  thinkingTraces, // NEW: Live thinking traces
   activeRuns,
   handleAgentEvent,
-  addUserMessage
+  addUserMessage,
 } = useAgentEvents();
 ```
 
 **Event Flow:**
+
 1. Receives `event.processed` messages from server
 2. Updates `thinkingTraces` with live deltas
 3. Commits completed thinking to `chatHistory` as reasoning messages
@@ -123,11 +124,12 @@ const {
 #### 3. UI Components
 
 **StreamingIndicator** - Shows live thinking traces:
+
 ```tsx
-<StreamingIndicator 
+<StreamingIndicator
   assistantStream={assistantStream}
   reasoningStream={reasoningStream}
-  thinkingTrace={thinkingTrace}  // NEW
+  thinkingTrace={thinkingTrace} // NEW
   isTyping={isTyping}
 />
 ```
@@ -157,6 +159,7 @@ The server sends `event.processed` messages with this structure:
 ### Tagged Message Format
 
 #### Trace (Thinking/Reasoning)
+
 ```
 [[trace]]
 This is the agent's reasoning process...
@@ -164,6 +167,7 @@ Multiple lines are supported.
 ```
 
 #### Tool Call
+
 ```
 [[tool]] bash
 Arguments: {
@@ -173,6 +177,7 @@ Arguments: {
 ```
 
 #### Tool Result
+
 ```
 [[tool-result]]
 Exit Code: 0 | Duration: 150ms | CWD: /workspace
@@ -182,6 +187,7 @@ drwxr-xr-x 10 user  staff   320 Jan 15 10:25 ..
 ```
 
 #### Meta
+
 ```
 [[meta]] {"phase":"end","timestamp":1736938800000}
 ```
@@ -207,12 +213,14 @@ drwxr-xr-x 10 user  staff   320 Jan 15 10:25 ..
 ## Deduplication
 
 Prevents duplicate rendering by:
+
 1. Creating hash of each formatted message
 2. Storing in per-run Set
 3. Checking before adding to transcript
 4. Cleaning up Set when run completes
 
 This handles cases where:
+
 - Same tool call arrives via delta and final message
 - Lifecycle end triggers duplicate commits
 - Multiple event sources report same information
@@ -227,7 +235,7 @@ const processed = processEvent(msg.event, msg.payload);
 
 if (processed.formattedMessages.length > 0 || processed.thinkingDelta) {
   this.broadcast({
-    type: 'event.processed',
+    type: "event.processed",
     eventType: processed.type,
     agentId: processed.agentId,
     runId: processed.runId,
@@ -243,29 +251,32 @@ if (processed.formattedMessages.length > 0 || processed.thinkingDelta) {
 
 ```typescript
 // In useAgentEvents
-if (message.type === 'event.processed') {
+if (message.type === "event.processed") {
   const { agentId, runId, thinkingDelta, thinkingComplete } = message;
   const streamKey = getStreamKey(agentId, runId);
-  
+
   // Handle live thinking
   if (thinkingDelta) {
-    setThinkingTraces(prev => ({
+    setThinkingTraces((prev) => ({
       ...prev,
-      [streamKey]: (prev[streamKey] || '') + thinkingDelta
+      [streamKey]: (prev[streamKey] || "") + thinkingDelta,
     }));
   }
-  
+
   // Commit completed thinking
   if (thinkingComplete) {
-    setChatHistory(prev => ({
+    setChatHistory((prev) => ({
       ...prev,
-      [agentId]: [...prev[agentId], {
-        id: `${runId}-reasoning-trace`,
-        role: 'reasoning',
-        content: thinkingComplete,
-        timestamp: Date.now(),
-        runId
-      }]
+      [agentId]: [
+        ...prev[agentId],
+        {
+          id: `${runId}-reasoning-trace`,
+          role: "reasoning",
+          content: thinkingComplete,
+          timestamp: Date.now(),
+          runId,
+        },
+      ],
     }));
   }
 }
@@ -294,10 +305,10 @@ if (message.type === 'event.processed') {
 Chat events with `state === 'final'` serve as the definitive version of a conversation turn. The event processor handles these specially:
 
 ```typescript
-if (type === 'runtime-chat' && runId && payload.state === 'final') {
+if (type === "runtime-chat" && runId && payload.state === "final") {
   const message = payload.message;
   const extracted = extractFromMessage(message);
-  
+
   // Process thinking and tools from final message
   // These go through deduplication to avoid double-rendering
 }
@@ -358,4 +369,3 @@ const transcript: string[] = [
 ```
 
 This component parses the `[[tag]]` prefixes and renders appropriate UI elements.
-

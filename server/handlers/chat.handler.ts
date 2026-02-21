@@ -3,11 +3,11 @@
  * Handles chat message sending and history loading
  */
 
-import type { ExtendedWebSocket } from '../types/internal';
-import type { GatewayClient } from '../core/GatewayClient';
+import type { ExtendedWebSocket } from "../types/internal";
+import type { GatewayClient } from "../core/GatewayClient";
 
 interface ChatHistoryLoadMessage {
-  type: 'chat.history.load';
+  type: "chat.history.load";
   agentId: string;
   params: {
     sessionKey: string;
@@ -35,7 +35,7 @@ export async function handleChatHistoryLoad(
   try {
     const { agentId, params } = msg;
     if (!agentId || !params?.sessionKey) {
-      console.error('[Chat] Invalid chat.history.load request');
+      console.error("[Chat] Invalid chat.history.load request");
       return;
     }
 
@@ -49,7 +49,7 @@ export async function handleChatHistoryLoad(
     // Send response back to client
     ws.send(
       JSON.stringify({
-        type: 'chat_history_more',
+        type: "chat_history_more",
         agentId,
         sessionKey: params.sessionKey,
         messages,
@@ -57,11 +57,11 @@ export async function handleChatHistoryLoad(
       })
     );
   } catch (err) {
-    console.error('[Chat] Failed to load history:', err);
+    console.error("[Chat] Failed to load history:", err);
     ws.send(
       JSON.stringify({
-        type: 'error',
-        message: 'Failed to load chat history',
+        type: "error",
+        message: "Failed to load chat history",
       })
     );
   }
@@ -76,7 +76,7 @@ export async function handleChatAbort(
     const result = await gateway.abortChat(msg.agentId);
     ws.send(
       JSON.stringify({
-        type: 'chat.abort.run.ack',
+        type: "chat.abort.run.ack",
         agentId: msg.agentId,
         ok: result.ok,
         error: result.error,

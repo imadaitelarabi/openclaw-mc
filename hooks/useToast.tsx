@@ -1,42 +1,45 @@
-import * as React from "react"
-import { X } from "lucide-react"
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import * as React from "react";
+import { X } from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export interface Toast {
-  id: string
-  title?: string
-  description?: string
-  variant?: "default" | "destructive" | "success"
+  id: string;
+  title?: string;
+  description?: string;
+  variant?: "default" | "destructive" | "success";
 }
 
 interface ToastContextValue {
-  toasts: Toast[]
-  toast: (toast: Omit<Toast, "id">) => void
-  dismiss: (id: string) => void
+  toasts: Toast[];
+  toast: (toast: Omit<Toast, "id">) => void;
+  dismiss: (id: string) => void;
 }
 
-const ToastContext = React.createContext<ToastContextValue | undefined>(undefined)
+const ToastContext = React.createContext<ToastContextValue | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = React.useState<Toast[]>([])
+  const [toasts, setToasts] = React.useState<Toast[]>([]);
 
-  const toast = React.useCallback(({ title, description, variant = "default" }: Omit<Toast, "id">) => {
-    const id = Math.random().toString(36).substring(2, 9)
-    setToasts((prev) => [...prev, { id, title, description, variant }])
+  const toast = React.useCallback(
+    ({ title, description, variant = "default" }: Omit<Toast, "id">) => {
+      const id = Math.random().toString(36).substring(2, 9);
+      setToasts((prev) => [...prev, { id, title, description, variant }]);
 
-    setTimeout(() => {
-      dismiss(id)
-    }, 5000)
-  }, [])
+      setTimeout(() => {
+        dismiss(id);
+      }, 5000);
+    },
+    []
+  );
 
   const dismiss = React.useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   return (
     <ToastContext.Provider value={{ toasts, toast, dismiss }}>
@@ -47,18 +50,29 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             className={cn(
               "pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-4 pr-8 shadow-lg transition-all animate-in slide-in-from-top-full group",
-              t.variant === "destructive" 
-                ? "destructive border-destructive bg-destructive text-destructive-foreground" 
+              t.variant === "destructive"
+                ? "destructive border-destructive bg-destructive text-destructive-foreground"
                 : "bg-background text-foreground border-border",
               t.variant === "success" && "border-primary bg-card text-card-foreground"
             )}
           >
             <div className="grid gap-1">
               {t.title && (
-                <div className={cn("text-sm font-semibold", t.variant === "success" && "text-primary")}>{t.title}</div>
+                <div
+                  className={cn("text-sm font-semibold", t.variant === "success" && "text-primary")}
+                >
+                  {t.title}
+                </div>
               )}
               {t.description && (
-                <div className={cn("text-sm", t.variant === "success" ? "text-muted-foreground" : "opacity-90")}>{t.description}</div>
+                <div
+                  className={cn(
+                    "text-sm",
+                    t.variant === "success" ? "text-muted-foreground" : "opacity-90"
+                  )}
+                >
+                  {t.description}
+                </div>
               )}
             </div>
             <button
@@ -72,13 +86,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         ))}
       </div>
     </ToastContext.Provider>
-  )
+  );
 }
 
 export function useToast() {
-  const context = React.useContext(ToastContext)
+  const context = React.useContext(ToastContext);
   if (!context) {
-    throw new Error("useToast must be used within a ToastProvider")
+    throw new Error("useToast must be used within a ToastProvider");
   }
-  return context
+  return context;
 }

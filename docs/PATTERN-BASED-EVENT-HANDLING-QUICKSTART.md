@@ -5,15 +5,19 @@ This feature adds structured event handling with live thinking traces, deduplica
 ## 🚀 What's New
 
 ### Live Thinking Traces
+
 Agent reasoning now appears in real-time as purple cards that stream content as the agent thinks.
 
-### Deduplicated Tool Events  
+### Deduplicated Tool Events
+
 Tool calls and results appear exactly once, even with multiple event sources.
 
 ### Rich Metadata
+
 Tool results show exit codes, execution duration, and working directory.
 
 ### Structured Format
+
 All events use tag-based markdown (`[[trace]]`, `[[tool]]`, `[[tool-result]]`, `[[meta]]`) for clean, parseable transcripts.
 
 ## 📚 Documentation
@@ -26,10 +30,11 @@ All events use tag-based markdown (`[[trace]]`, `[[tool]]`, `[[tool-result]]`, `
 ## 🔧 How It Works
 
 ### Server Pipeline
+
 ```
 Gateway Event → processEvent() → {
   Extract data
-  Format with tags  
+  Format with tags
   Check deduplication
   Buffer thinking
   Commit on end
@@ -37,6 +42,7 @@ Gateway Event → processEvent() → {
 ```
 
 ### Frontend Flow
+
 ```
 event.processed → {
   Update thinkingTraces (live)
@@ -47,11 +53,11 @@ event.processed → {
 
 ## 🎨 UI Components
 
-| Component | Color | Purpose |
-|-----------|-------|---------|
-| Reasoning Card | Purple | Shows thinking traces |
-| Tool Call | Amber | Shows tool invocations |
-| Tool Result | Emerald | Shows tool outputs |
+| Component      | Color   | Purpose                |
+| -------------- | ------- | ---------------------- |
+| Reasoning Card | Purple  | Shows thinking traces  |
+| Tool Call      | Amber   | Shows tool invocations |
+| Tool Result    | Emerald | Shows tool outputs     |
 
 ## ✅ Verified
 
@@ -70,6 +76,7 @@ npx tsx server/utils/__test__.ts
 ```
 
 Expected output:
+
 ```
 ✅ All tests completed successfully!
 ✓ Formatting functions work correctly
@@ -92,7 +99,7 @@ Agent is thinking about the problem...
 [[tool]] bash
 Arguments: {"command": "ls -la"}
 
-// Tool Result  
+// Tool Result
 [[tool-result]]
 Exit Code: 0 | Duration: 150ms | CWD: /workspace
 total 48
@@ -105,7 +112,7 @@ drwxr-xr-x  4 user  staff   128 Jan 15 10:30 .
 ### Frontend Parsing
 
 ```typescript
-import { parseTaggedMessage } from '@/lib/event-formatting';
+import { parseTaggedMessage } from "@/lib/event-formatting";
 
 const parsed = parseTaggedMessage(message);
 // Returns: { type, content, toolName?, toolArgs?, toolMeta? }
@@ -136,7 +143,7 @@ All requirements met:
 ✅ Thinking traces appear live  
 ✅ No duplicate tool events  
 ✅ Metadata displayed (exit code, duration, CWD)  
-✅ Clean formatted transcripts  
+✅ Clean formatted transcripts
 
 ## 💡 Tips
 

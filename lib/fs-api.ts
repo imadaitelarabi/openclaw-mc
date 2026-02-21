@@ -35,10 +35,10 @@ export async function listFiles(dirPath: string) {
   try {
     const fullPath = path.join(WORKSPACE_PATH, dirPath);
     const entries = await fs.readdir(fullPath, { withFileTypes: true });
-    return entries.map(e => ({
+    return entries.map((e) => ({
       name: e.name,
       isDirectory: e.isDirectory(),
-      path: path.join(dirPath, e.name)
+      path: path.join(dirPath, e.name),
     }));
   } catch (error) {
     return [];

@@ -1,15 +1,15 @@
 /**
  * GitHub API Client
- * 
+ *
  * Read-only client for fetching GitHub data.
  */
 
-import type { GitHubConfig } from './config';
+import type { GitHubConfig } from "./config";
 
 export interface GitHubPR {
   number: number;
   title: string;
-  state: 'open' | 'closed';
+  state: "open" | "closed";
   html_url: string;
   user: {
     login: string;
@@ -21,7 +21,7 @@ export interface GitHubPR {
 export interface GitHubIssue {
   number: number;
   title: string;
-  state: 'open' | 'closed';
+  state: "open" | "closed";
   html_url: string;
   user: {
     login: string;
@@ -33,7 +33,7 @@ export interface GitHubIssue {
 
 export interface GitHubOrganization {
   login: string;
-  type: 'Organization' | 'User';
+  type: "Organization" | "User";
 }
 
 export interface GitHubUser {
@@ -53,13 +53,13 @@ export interface GitHubRepository {
   private: boolean;
   owner: {
     login: string;
-    type: 'Organization' | 'User';
+    type: "Organization" | "User";
   };
 }
 
 export class GitHubAPI {
   private config: GitHubConfig;
-  private baseURL = 'https://api.github.com';
+  private baseURL = "https://api.github.com";
 
   constructor(config: GitHubConfig) {
     this.config = config;
@@ -70,20 +70,20 @@ export class GitHubAPI {
    */
   private async request<T>(endpoint: string): Promise<T> {
     const { token } = this.config;
-    
+
     if (!token) {
-      throw new Error('GitHub token not configured');
+      throw new Error("GitHub token not configured");
     }
 
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
       },
     });
 
     if (!response.ok) {
-      let details = response.statusText || 'Unknown error';
+      let details = response.statusText || "Unknown error";
 
       try {
         const payload = await response.json();
@@ -96,8 +96,7 @@ export class GitHubAPI {
           if (text) {
             details = text;
           }
-        } catch {
-        }
+        } catch {}
       }
 
       throw new Error(`GitHub API ${response.status} on ${endpoint}: ${details}`);
@@ -111,10 +110,10 @@ export class GitHubAPI {
    */
   async testConnection(): Promise<boolean> {
     try {
-      await this.request('/user');
+      await this.request("/user");
       return true;
     } catch (error) {
-      console.error('[GitHubAPI] Connection test failed:', error);
+      console.error("[GitHubAPI] Connection test failed:", error);
       return false;
     }
   }
@@ -123,7 +122,7 @@ export class GitHubAPI {
    * Get authenticated user information
    */
   async getUser(): Promise<GitHubUser> {
-    return this.request<GitHubUser>('/user');
+    return this.request<GitHubUser>("/user");
   }
 
   /**
@@ -135,18 +134,20 @@ export class GitHubAPI {
 
     try {
       const [user, orgs] = await Promise.all([
-        this.request<{ login: string }>('/user'),
-        this.request<Array<{ login: string }>>(`/user/orgs?per_page=${Math.max(maxOrganizations, 1)}`),
+        this.request<{ login: string }>("/user"),
+        this.request<Array<{ login: string }>>(
+          `/user/orgs?per_page=${Math.max(maxOrganizations, 1)}`
+        ),
       ]);
 
       const organizations: GitHubOrganization[] = [
-        { login: user.login, type: 'User' },
-        ...orgs.map(org => ({ login: org.login, type: 'Organization' as const })),
+        { login: user.login, type: "User" },
+        ...orgs.map((org) => ({ login: org.login, type: "Organization" as const })),
       ];
 
       return organizations.slice(0, Math.max(maxOrganizations, 1));
     } catch (error) {
-      console.error('[GitHubAPI] Failed to fetch organizations:', error);
+      console.error("[GitHubAPI] Failed to fetch organizations:", error);
       return [];
     }
   }
@@ -154,14 +155,18 @@ export class GitHubAPI {
   /**
    * Get repositories for a specific organization/user.
    */
-  async getRepositories(owner: string, ownerType: 'Organization' | 'User' = 'Organization'): Promise<GitHubRepository[]> {
+  async getRepositories(
+    owner: string,
+    ownerType: "Organization" | "User" = "Organization"
+  ): Promise<GitHubRepository[]> {
     const { maxReposPerOrg = 6 } = this.config;
 
     try {
       const perPage = Math.max(maxReposPerOrg, 1);
-      const endpoint = ownerType === 'User'
-        ? `/user/repos?affiliation=owner&sort=updated&per_page=${perPage}`
-        : `/orgs/${owner}/repos?sort=updated&per_page=${perPage}`;
+      const endpoint =
+        ownerType === "User"
+          ? `/user/repos?affiliation=owner&sort=updated&per_page=${perPage}`
+          : `/orgs/${owner}/repos?sort=updated&per_page=${perPage}`;
 
       const repos = await this.request<GitHubRepository[]>(endpoint);
       return repos.slice(0, perPage);
@@ -198,7 +203,7 @@ export class GitHubAPI {
       const issues = await this.request<GitHubIssue[]>(
         `/repos/${owner}/${repo}/issues?state=open&per_page=${Math.max(maxResults, 1)}`
       );
-      return issues.filter(issue => !('pull_request' in issue));
+      return issues.filter((issue) => !("pull_request" in issue));
     } catch (error) {
       console.error(`[GitHubAPI] Failed to fetch issues for ${owner}/${repo}:`, error);
       return [];
@@ -209,7 +214,6 @@ export class GitHubAPI {
    * Search pull requests scoped to a specific repository.
    */
   async searchPullRequests(owner: string, repo: string, query: string): Promise<GitHubPR[]> {
-
     try {
       const searchQuery = `repo:${owner}/${repo} is:pr ${query}`;
       const result = await this.request<{ items: GitHubPR[] }>(

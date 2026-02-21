@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useCallback } from 'react';
-import { Sparkles, Check } from 'lucide-react';
-import { uiStateStore } from '@/lib/ui-state-db';
-import { GatewayConnectionStep } from './GatewayConnectionStep';
-import { ExtensionsSetupStep } from './ExtensionsSetupStep';
+import { useState, useCallback } from "react";
+import { Sparkles, Check } from "lucide-react";
+import { uiStateStore } from "@/lib/ui-state-db";
+import { GatewayConnectionStep } from "./GatewayConnectionStep";
+import { ExtensionsSetupStep } from "./ExtensionsSetupStep";
 
-type OnboardingStep = 'gateway' | 'extensions';
+type OnboardingStep = "gateway" | "extensions";
 
 interface OnboardingWizardProps {
   onConnectGateway: (name: string, url: string, token: string) => Promise<void>;
@@ -15,12 +15,12 @@ interface OnboardingWizardProps {
 }
 
 export function OnboardingWizard({ onConnectGateway, onComplete, onSkip }: OnboardingWizardProps) {
-  const [currentStep, setCurrentStep] = useState<OnboardingStep>('gateway');
+  const [currentStep, setCurrentStep] = useState<OnboardingStep>("gateway");
   const [gatewayConfigured, setGatewayConfigured] = useState(false);
 
   const handleGatewayComplete = useCallback(() => {
     setGatewayConfigured(true);
-    setCurrentStep('extensions');
+    setCurrentStep("extensions");
   }, []);
 
   const handleSkip = useCallback(async () => {
@@ -59,14 +59,16 @@ export function OnboardingWizard({ onConnectGateway, onComplete, onSkip }: Onboa
         <div className="flex items-center gap-2">
           <div
             className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-              currentStep === 'gateway' || gatewayConfigured
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-muted-foreground'
+              currentStep === "gateway" || gatewayConfigured
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground"
             }`}
           >
-            {gatewayConfigured ? <Check className="w-4 h-4" /> : '1'}
+            {gatewayConfigured ? <Check className="w-4 h-4" /> : "1"}
           </div>
-          <span className={`text-sm font-medium ${currentStep === 'gateway' ? 'text-foreground' : 'text-muted-foreground'}`}>
+          <span
+            className={`text-sm font-medium ${currentStep === "gateway" ? "text-foreground" : "text-muted-foreground"}`}
+          >
             Gateway
           </span>
         </div>
@@ -74,14 +76,16 @@ export function OnboardingWizard({ onConnectGateway, onComplete, onSkip }: Onboa
         <div className="flex items-center gap-2">
           <div
             className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-              currentStep === 'extensions'
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-muted-foreground'
+              currentStep === "extensions"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary text-muted-foreground"
             }`}
           >
             2
           </div>
-          <span className={`text-sm font-medium ${currentStep === 'extensions' ? 'text-foreground' : 'text-muted-foreground'}`}>
+          <span
+            className={`text-sm font-medium ${currentStep === "extensions" ? "text-foreground" : "text-muted-foreground"}`}
+          >
             Extensions
           </span>
         </div>
@@ -89,15 +93,13 @@ export function OnboardingWizard({ onConnectGateway, onComplete, onSkip }: Onboa
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
-        {currentStep === 'gateway' && (
-          <GatewayConnectionStep 
+        {currentStep === "gateway" && (
+          <GatewayConnectionStep
             onConnectGateway={onConnectGateway}
-            onComplete={handleGatewayComplete} 
+            onComplete={handleGatewayComplete}
           />
         )}
-        {currentStep === 'extensions' && (
-          <ExtensionsSetupStep onComplete={handleComplete} />
-        )}
+        {currentStep === "extensions" && <ExtensionsSetupStep onComplete={handleComplete} />}
       </div>
     </div>
   );

@@ -3,21 +3,21 @@
  * Central dispatcher for WebSocket client messages
  */
 
-import type { ClientMessage, ExtendedWebSocket } from '../types/internal';
-import type { GatewayClient } from '../core/GatewayClient';
-import { ConfigManager } from '../core/ConfigManager';
-import { handleAgentAdd, handleAgentUpdate, handleAgentDelete } from './agent.handler';
-import { handleChatSend, handleChatHistoryLoad, handleChatAbort } from './chat.handler';
-import { handleSessionsList, handleSessionsPatch } from './session.handler';
+import type { ClientMessage, ExtendedWebSocket } from "../types/internal";
+import type { GatewayClient } from "../core/GatewayClient";
+import { ConfigManager } from "../core/ConfigManager";
+import { handleAgentAdd, handleAgentUpdate, handleAgentDelete } from "./agent.handler";
+import { handleChatSend, handleChatHistoryLoad, handleChatAbort } from "./chat.handler";
+import { handleSessionsList, handleSessionsPatch } from "./session.handler";
 import {
   handleGatewaysList,
   handleGatewaysAdd,
   handleGatewaysSwitch,
   handleGatewaysRemove,
   handleGatewayCall,
-} from './gateway.handler';
-import { handleModelsList } from './models.handler';
-import { handleSkillsList } from './skills.handler';
+} from "./gateway.handler";
+import { handleModelsList } from "./models.handler";
+import { handleSkillsList } from "./skills.handler";
 import {
   handleCronList,
   handleCronStatus,
@@ -26,7 +26,7 @@ import {
   handleCronDelete,
   handleCronRuns,
   handleCronRun,
-} from './cron.handler';
+} from "./cron.handler";
 import {
   handleNotesList,
   handleNotesGroupsList,
@@ -39,7 +39,7 @@ import {
   handleNotesTagColorSet,
   handleNotesTagDelete,
   handleNotesTagCreate,
-} from './notes.handler';
+} from "./notes.handler";
 
 // Singleton config manager (shared with GatewayClient)
 const configManager = new ConfigManager();
@@ -54,139 +54,139 @@ export async function handleMessage(
 ): Promise<void> {
   try {
     switch (msg.type) {
-      case 'ping':
-        ws.send(JSON.stringify({ type: 'pong' }));
+      case "ping":
+        ws.send(JSON.stringify({ type: "pong" }));
         break;
 
-      case 'gateways.list':
+      case "gateways.list":
         await handleGatewaysList(msg, ws, configManager);
         break;
 
-      case 'gateways.add':
+      case "gateways.add":
         await handleGatewaysAdd(msg, ws, gateway, configManager);
         break;
 
-      case 'gateways.switch':
+      case "gateways.switch":
         await handleGatewaysSwitch(msg, ws, gateway);
         break;
 
-      case 'gateways.remove':
+      case "gateways.remove":
         await handleGatewaysRemove(msg, ws, gateway, configManager);
         break;
 
-      case 'gateway.call':
+      case "gateway.call":
         await handleGatewayCall(msg, ws, gateway);
         break;
 
-      case 'chat.send':
+      case "chat.send":
         await handleChatSend(msg, ws, gateway);
         break;
 
-      case 'chat.history.load':
+      case "chat.history.load":
         await handleChatHistoryLoad(msg, ws, gateway);
         break;
 
-      case 'chat.abort.run':
+      case "chat.abort.run":
         await handleChatAbort(msg, ws, gateway);
         break;
 
-      case 'models.list':
+      case "models.list":
         await handleModelsList(msg, ws, gateway);
         break;
 
-      case 'skills.list':
+      case "skills.list":
         await handleSkillsList(msg, ws, gateway);
         break;
 
-      case 'sessions.list':
+      case "sessions.list":
         await handleSessionsList(msg, ws, gateway, sessionPatches);
         break;
 
-      case 'sessions.patch':
+      case "sessions.patch":
         await handleSessionsPatch(msg, ws, gateway, sessionPatches);
         break;
 
-      case 'agents.add':
+      case "agents.add":
         await handleAgentAdd(msg, ws, gateway);
         break;
 
-      case 'agents.update':
+      case "agents.update":
         await handleAgentUpdate(msg, ws, gateway);
         break;
 
-      case 'agents.delete':
+      case "agents.delete":
         await handleAgentDelete(msg, ws, gateway);
         break;
 
-      case 'cron.list':
+      case "cron.list":
         await handleCronList(msg, ws, gateway);
         break;
 
-      case 'cron.status':
+      case "cron.status":
         await handleCronStatus(msg, ws, gateway);
         break;
 
-      case 'cron.add':
+      case "cron.add":
         await handleCronAdd(msg, ws, gateway);
         break;
 
-      case 'cron.update':
+      case "cron.update":
         await handleCronUpdate(msg, ws, gateway);
         break;
 
-      case 'cron.delete':
+      case "cron.delete":
         await handleCronDelete(msg, ws, gateway);
         break;
 
-      case 'cron.runs':
+      case "cron.runs":
         await handleCronRuns(msg, ws, gateway);
         break;
 
-      case 'cron.run':
+      case "cron.run":
         await handleCronRun(msg, ws, gateway);
         break;
 
-      case 'notes.list':
+      case "notes.list":
         await handleNotesList(msg, ws);
         break;
 
-      case 'notes.groups.list':
+      case "notes.groups.list":
         await handleNotesGroupsList(msg, ws);
         break;
 
-      case 'notes.groups.add':
+      case "notes.groups.add":
         await handleNotesGroupsAdd(msg, ws);
         break;
 
-      case 'notes.groups.delete':
+      case "notes.groups.delete":
         await handleNotesGroupsDelete(msg, ws);
         break;
 
-      case 'notes.image.upload':
+      case "notes.image.upload":
         await handleNotesImageUpload(msg, ws);
         break;
 
-      case 'notes.add':
+      case "notes.add":
         await handleNotesAdd(msg, ws);
         break;
 
-      case 'notes.update':
+      case "notes.update":
         await handleNotesUpdate(msg, ws);
         break;
 
-      case 'notes.delete':
+      case "notes.delete":
         await handleNotesDelete(msg, ws);
         break;
 
-      case 'notes.tags.color.set':
+      case "notes.tags.color.set":
         await handleNotesTagColorSet(msg, ws);
         break;
 
-      case 'notes.tags.delete':
+      case "notes.tags.delete":
         await handleNotesTagDelete(msg, ws);
         break;
 
-      case 'notes.tags.create':
+      case "notes.tags.create":
         await handleNotesTagCreate(msg, ws);
         break;
 
@@ -194,11 +194,11 @@ export async function handleMessage(
         console.warn(`[Client] Unknown message type: ${(msg as any).type}`);
     }
   } catch (err) {
-    console.error('[Client] Error handling message:', err);
+    console.error("[Client] Error handling message:", err);
     ws.send(
       JSON.stringify({
-        type: 'error',
-        message: (err as Error).message || 'Internal server error',
+        type: "error",
+        message: (err as Error).message || "Internal server error",
       })
     );
   }

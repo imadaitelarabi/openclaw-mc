@@ -1,6 +1,7 @@
 # Notes Feature Documentation
 
 ## Overview
+
 The Notes feature allows users to store and categorize quick information directly within OpenClaw MC. Notes are persisted locally to `~/.oc-mission-control/notes.json` and synchronized in real-time via WebSocket.
 
 ## Architecture
@@ -8,9 +9,11 @@ The Notes feature allows users to store and categorize quick information directl
 ### Backend Components
 
 #### NotesManager (`server/core/NotesManager.ts`)
+
 Handles persistent storage of notes to the file system.
 
 **Key Methods:**
+
 - `listNotes()` - Returns all notes
 - `listAllTags()` - Returns sorted unique tags from all notes
 - `listTagColors()` - Returns map of tag names to hex colors
@@ -20,15 +23,18 @@ Handles persistent storage of notes to the file system.
 - `deleteNote(id)` - Removes a note
 
 **Storage:**
+
 - File: `~/.oc-mission-control/notes.json`
 - Format: JSON storage including notes, groups, and `tagColors` map
 - Images: `~/.oc-mission-control/notes-images/` for local uploads
 - Auto-creates directories if missing
 
 #### Notes Handler (`server/handlers/notes.handler.ts`)
+
 WebSocket message handlers for notes CRUD operations.
 
 **Supported Messages:**
+
 - `notes.list` - List all notes, groups, tags, and colors
 - `notes.add` - Add a new note
 - `notes.update` - Update a note
@@ -36,6 +42,7 @@ WebSocket message handlers for notes CRUD operations.
 - `notes.tags.color.set` - Set custom color for a tag
 
 **Response Types:**
+
 - `notes.list.response` - Returns array of notes, groups, allTags, and tagColors
 - `notes.add.ack` - Confirms note creation and returns updated tagColors
 - `notes.update.ack` - Confirms note update and returns updated tagColors
@@ -46,9 +53,11 @@ WebSocket message handlers for notes CRUD operations.
 ### Frontend Components
 
 #### NotesPanel (`components/notes/NotesPanel.tsx`)
+
 Main panel component for displaying and managing notes.
 
 **Features:**
+
 - Lists notes filtered by selected group and active tag filters
 - Tag filtering: Click tags to toggle multi-tag filter inclusion
 - Sort by most recent first
@@ -62,6 +71,7 @@ Main panel component for displaying and managing notes.
 - Keyboard shortcut: `Enter` to add note (Shift+Enter for newline)
 
 **Props:**
+
 ```typescript
 interface NotesPanelProps {
   notes: Note[];
@@ -77,18 +87,22 @@ interface NotesPanelProps {
 ```
 
 #### TagInput (`components/notes/TagInput.tsx`)
+
 Inline multi-tag input with autocomplete support.
 
 #### NotesStatusBarItem (`components/notes/NotesStatusBarItem.tsx`)
+
 Status bar component showing notes count with dropdown for group selection.
 
 **Features:**
+
 - Shows total note count
 - Dropdown menu with groups and counts
 - "All Notes" option to show unfiltered view
 - Quick access to open Notes panel
 
 **Props:**
+
 ```typescript
 interface NotesStatusBarItemProps {
   notes: Note[];
@@ -101,15 +115,18 @@ interface NotesStatusBarItemProps {
 ```
 
 #### useNotes Hook (`hooks/useNotes.ts`)
+
 React hook for WebSocket integration with notes backend.
 
 **Features:**
+
 - Auto-loads notes on mount or socket reconnect
 - Real-time updates via WebSocket
 - Promise-based async operations (add, update, delete, tag colors)
 - Error handling and loading states
 
 **Returns:**
+
 ```typescript
 interface UseNotesReturn {
   notes: Note[];
@@ -130,9 +147,11 @@ interface UseNotesReturn {
 ```
 
 #### Native chat mentions (`hooks/useNativeChatInput.ts` + `components/chat/ChatInput.tsx`)
+
 OpenClaw MC also exposes Notes directly in chat input via `#` mentions.
 
 **Behavior:**
+
 - Typing `#` opens native providers (currently Notes)
 - `#notes` shows note groups, then notes within each group
 - Selecting a note inserts its content into the chat input wrapped in `<note>...</note>`
@@ -142,23 +161,25 @@ OpenClaw MC also exposes Notes directly in chat input via `#` mentions.
 ### Type Definitions
 
 #### Note (`types/note.ts`)
+
 ```typescript
 interface Note {
-  id: string;              // UUID
-  content: string;         // Note text
-  group: string;           // Category (e.g., "Commands", "Ideas")
-  tags?: string[];         // Multi-context tags
-  createdAt: number;       // Timestamp (ms)
-  updatedAt: number;       // Timestamp (ms)
-  imageUrl?: string;       // Optional image attachment (local or URL)
+  id: string; // UUID
+  content: string; // Note text
+  group: string; // Category (e.g., "Commands", "Ideas")
+  tags?: string[]; // Multi-context tags
+  createdAt: number; // Timestamp (ms)
+  updatedAt: number; // Timestamp (ms)
+  imageUrl?: string; // Optional image attachment (local or URL)
 }
 ```
 
 #### NoteGroup
+
 ```typescript
 interface NoteGroup {
-  name: string;            // Group name
-  count: number;           // Number of notes in group
+  name: string; // Group name
+  count: number; // Number of notes in group
 }
 ```
 
@@ -167,13 +188,15 @@ interface NoteGroup {
 ### Opening Notes Panel
 
 **From Status Bar:**
+
 1. Click "Notes (X)" in the status bar
 2. Select a group from the dropdown to filter
 3. Click "+" icon to open notes panel with all notes
 
 **From Code:**
+
 ```typescript
-openPanel('notes', { selectedGroup: 'Commands' });
+openPanel("notes", { selectedGroup: "Commands" });
 ```
 
 ### Adding a Note
@@ -215,11 +238,13 @@ This workflow is useful for quickly grounding an agent with structured note cont
 ### Client → Server
 
 **List Notes:**
+
 ```json
 { "type": "notes.list", "requestId": "uuid" }
 ```
 
 **Add Note:**
+
 ```json
 {
   "type": "notes.add",
@@ -232,6 +257,7 @@ This workflow is useful for quickly grounding an agent with structured note cont
 ```
 
 **Set Tag Color:**
+
 ```json
 {
   "type": "notes.tags.color.set",
@@ -242,6 +268,7 @@ This workflow is useful for quickly grounding an agent with structured note cont
 ```
 
 **Update Note:**
+
 ```json
 {
   "type": "notes.update",
@@ -254,6 +281,7 @@ This workflow is useful for quickly grounding an agent with structured note cont
 ```
 
 **Delete Note:**
+
 ```json
 {
   "type": "notes.delete",
@@ -265,6 +293,7 @@ This workflow is useful for quickly grounding an agent with structured note cont
 ### Server → Client
 
 **List Response:**
+
 ```json
 {
   "type": "notes.list.response",
@@ -277,6 +306,7 @@ This workflow is useful for quickly grounding an agent with structured note cont
 ```
 
 **Add/Update Acknowledgment:**
+
 ```json
 {
   "type": "notes.add.ack",
@@ -287,6 +317,7 @@ This workflow is useful for quickly grounding an agent with structured note cont
 ```
 
 **Tag Color Acknowledgment:**
+
 ```json
 {
   "type": "notes.tags.color.set.ack",
@@ -298,6 +329,7 @@ This workflow is useful for quickly grounding an agent with structured note cont
 ```
 
 **Delete Acknowledgment:**
+
 ```json
 {
   "type": "notes.delete.ack",
@@ -307,6 +339,7 @@ This workflow is useful for quickly grounding an agent with structured note cont
 ```
 
 **Error Response:**
+
 ```json
 {
   "type": "notes.*.error",
@@ -347,6 +380,7 @@ openclaw-mc/
 ## Testing
 
 The NotesManager has been tested with the following operations:
+
 - ✅ Instantiation and initialization
 - ✅ Adding notes with content, group, and multiple tags
 - ✅ Image paste and upload support
@@ -359,6 +393,7 @@ The NotesManager has been tested with the following operations:
 ## Future Enhancements
 
 Possible improvements for future versions:
+
 - Rich text / Markdown rendering in note content
 - Note search by text content
 - Tag color picker UI (currently hex via API/manual config)

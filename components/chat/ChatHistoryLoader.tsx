@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 interface ChatHistoryLoaderProps {
   agentId: string;
@@ -12,11 +12,11 @@ interface ChatHistoryLoaderProps {
  * ChatHistoryLoader - Button to load older chat messages
  * Appears at the top of the chat history when scrolled up
  */
-export function ChatHistoryLoader({ 
-  agentId, 
-  loading, 
-  onLoadMore, 
-  disabled = false 
+export function ChatHistoryLoader({
+  agentId,
+  loading,
+  onLoadMore,
+  disabled = false,
 }: ChatHistoryLoaderProps) {
   return (
     <div className="flex items-center justify-center py-3 px-4">

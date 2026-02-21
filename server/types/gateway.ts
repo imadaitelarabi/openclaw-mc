@@ -4,14 +4,14 @@
  */
 
 export interface GatewayRequest {
-  type: 'req';
+  type: "req";
   id: string;
   method: string;
   params: Record<string, unknown>;
 }
 
 export interface GatewayResponse {
-  type: 'res';
+  type: "res";
   id: string;
   ok: boolean;
   payload?: unknown;
@@ -22,14 +22,14 @@ export interface GatewayResponse {
 }
 
 export interface GatewayEvent {
-  type: 'event';
+  type: "event";
   event: string;
   payload: Record<string, unknown>;
 }
 
 // Connect Protocol
 export interface ConnectChallenge {
-  event: 'connect.challenge';
+  event: "connect.challenge";
   payload: Record<string, unknown>;
 }
 

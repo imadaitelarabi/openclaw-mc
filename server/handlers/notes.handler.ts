@@ -3,8 +3,8 @@
  * Handles notes CRUD operations
  */
 
-import type { ExtendedWebSocket, ClientMessage, Note } from '../types/internal';
-import { NotesManager } from '../core/NotesManager';
+import type { ExtendedWebSocket, ClientMessage, Note } from "../types/internal";
+import { NotesManager } from "../core/NotesManager";
 
 // Singleton notes manager
 const notesManager = new NotesManager();
@@ -13,7 +13,7 @@ const notesManager = new NotesManager();
  * List all notes
  */
 export async function handleNotesList(
-  msg: Extract<ClientMessage, { type: 'notes.list' }>,
+  msg: Extract<ClientMessage, { type: "notes.list" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId } = msg;
@@ -25,7 +25,7 @@ export async function handleNotesList(
     const tagColors = notesManager.listTagColors();
     ws.send(
       JSON.stringify({
-        type: 'notes.list.response',
+        type: "notes.list.response",
         requestId,
         notes,
         groups,
@@ -36,9 +36,9 @@ export async function handleNotesList(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.list.error',
+        type: "notes.list.error",
         requestId,
-        error: (err as Error).message || 'Failed to list notes',
+        error: (err as Error).message || "Failed to list notes",
       })
     );
   }
@@ -48,7 +48,7 @@ export async function handleNotesList(
  * List note groups
  */
 export async function handleNotesGroupsList(
-  msg: Extract<ClientMessage, { type: 'notes.groups.list' }>,
+  msg: Extract<ClientMessage, { type: "notes.groups.list" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId } = msg;
@@ -57,7 +57,7 @@ export async function handleNotesGroupsList(
     const groups = notesManager.listGroups();
     ws.send(
       JSON.stringify({
-        type: 'notes.groups.list.response',
+        type: "notes.groups.list.response",
         requestId,
         groups,
       })
@@ -65,9 +65,9 @@ export async function handleNotesGroupsList(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.groups.list.error',
+        type: "notes.groups.list.error",
         requestId,
-        error: (err as Error).message || 'Failed to list groups',
+        error: (err as Error).message || "Failed to list groups",
       })
     );
   }
@@ -77,7 +77,7 @@ export async function handleNotesGroupsList(
  * Add note group
  */
 export async function handleNotesGroupsAdd(
-  msg: Extract<ClientMessage, { type: 'notes.groups.add' }>,
+  msg: Extract<ClientMessage, { type: "notes.groups.add" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, group } = msg;
@@ -85,9 +85,9 @@ export async function handleNotesGroupsAdd(
   if (!group?.trim()) {
     ws.send(
       JSON.stringify({
-        type: 'notes.groups.add.error',
+        type: "notes.groups.add.error",
         requestId,
-        error: 'Group name is required',
+        error: "Group name is required",
       })
     );
     return;
@@ -97,7 +97,7 @@ export async function handleNotesGroupsAdd(
     const groups = notesManager.addGroup(group);
     ws.send(
       JSON.stringify({
-        type: 'notes.groups.add.ack',
+        type: "notes.groups.add.ack",
         requestId,
         groups,
         group: group.trim(),
@@ -106,9 +106,9 @@ export async function handleNotesGroupsAdd(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.groups.add.error',
+        type: "notes.groups.add.error",
         requestId,
-        error: (err as Error).message || 'Failed to add group',
+        error: (err as Error).message || "Failed to add group",
       })
     );
   }
@@ -118,7 +118,7 @@ export async function handleNotesGroupsAdd(
  * Delete note group
  */
 export async function handleNotesGroupsDelete(
-  msg: Extract<ClientMessage, { type: 'notes.groups.delete' }>,
+  msg: Extract<ClientMessage, { type: "notes.groups.delete" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, group } = msg;
@@ -126,9 +126,9 @@ export async function handleNotesGroupsDelete(
   if (!group?.trim()) {
     ws.send(
       JSON.stringify({
-        type: 'notes.groups.delete.error',
+        type: "notes.groups.delete.error",
         requestId,
-        error: 'Group name is required',
+        error: "Group name is required",
       })
     );
     return;
@@ -139,7 +139,7 @@ export async function handleNotesGroupsDelete(
     const notes = notesManager.listNotes();
     ws.send(
       JSON.stringify({
-        type: 'notes.groups.delete.ack',
+        type: "notes.groups.delete.ack",
         requestId,
         groups,
         notes,
@@ -149,9 +149,9 @@ export async function handleNotesGroupsDelete(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.groups.delete.error',
+        type: "notes.groups.delete.error",
         requestId,
-        error: (err as Error).message || 'Failed to delete group',
+        error: (err as Error).message || "Failed to delete group",
       })
     );
   }
@@ -161,7 +161,7 @@ export async function handleNotesGroupsDelete(
  * Upload note image
  */
 export async function handleNotesImageUpload(
-  msg: Extract<ClientMessage, { type: 'notes.image.upload' }>,
+  msg: Extract<ClientMessage, { type: "notes.image.upload" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, media, mimeType, fileName } = msg;
@@ -169,9 +169,9 @@ export async function handleNotesImageUpload(
   if (!media) {
     ws.send(
       JSON.stringify({
-        type: 'notes.image.upload.error',
+        type: "notes.image.upload.error",
         requestId,
-        error: 'Image payload is required',
+        error: "Image payload is required",
       })
     );
     return;
@@ -181,7 +181,7 @@ export async function handleNotesImageUpload(
     const imageUrl = notesManager.saveImage(media, mimeType, fileName);
     ws.send(
       JSON.stringify({
-        type: 'notes.image.upload.ack',
+        type: "notes.image.upload.ack",
         requestId,
         imageUrl,
       })
@@ -189,9 +189,9 @@ export async function handleNotesImageUpload(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.image.upload.error',
+        type: "notes.image.upload.error",
         requestId,
-        error: (err as Error).message || 'Failed to upload image',
+        error: (err as Error).message || "Failed to upload image",
       })
     );
   }
@@ -201,7 +201,7 @@ export async function handleNotesImageUpload(
  * Add a new note
  */
 export async function handleNotesAdd(
-  msg: Extract<ClientMessage, { type: 'notes.add' }>,
+  msg: Extract<ClientMessage, { type: "notes.add" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, content, group, tags, imageUrl } = msg;
@@ -209,9 +209,9 @@ export async function handleNotesAdd(
   if (!content || !group) {
     ws.send(
       JSON.stringify({
-        type: 'notes.add.error',
+        type: "notes.add.error",
         requestId,
-        error: 'Content and group are required',
+        error: "Content and group are required",
       })
     );
     return;
@@ -222,7 +222,7 @@ export async function handleNotesAdd(
     const tagColors = notesManager.listTagColors();
     ws.send(
       JSON.stringify({
-        type: 'notes.add.ack',
+        type: "notes.add.ack",
         requestId,
         note,
         tagColors,
@@ -231,9 +231,9 @@ export async function handleNotesAdd(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.add.error',
+        type: "notes.add.error",
         requestId,
-        error: (err as Error).message || 'Failed to add note',
+        error: (err as Error).message || "Failed to add note",
       })
     );
   }
@@ -243,7 +243,7 @@ export async function handleNotesAdd(
  * Update an existing note
  */
 export async function handleNotesUpdate(
-  msg: Extract<ClientMessage, { type: 'notes.update' }>,
+  msg: Extract<ClientMessage, { type: "notes.update" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, id, content, group, tags, imageUrl } = msg;
@@ -251,16 +251,16 @@ export async function handleNotesUpdate(
   if (!id) {
     ws.send(
       JSON.stringify({
-        type: 'notes.update.error',
+        type: "notes.update.error",
         requestId,
-        error: 'Note ID is required',
+        error: "Note ID is required",
       })
     );
     return;
   }
 
   try {
-    const updates: Partial<Omit<Note, 'id' | 'createdAt'>> = {};
+    const updates: Partial<Omit<Note, "id" | "createdAt">> = {};
     if (content !== undefined) updates.content = content;
     if (group !== undefined) updates.group = group;
     if (tags !== undefined) updates.tags = tags;
@@ -270,7 +270,7 @@ export async function handleNotesUpdate(
     const tagColors = notesManager.listTagColors();
     ws.send(
       JSON.stringify({
-        type: 'notes.update.ack',
+        type: "notes.update.ack",
         requestId,
         note,
         tagColors,
@@ -279,9 +279,9 @@ export async function handleNotesUpdate(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.update.error',
+        type: "notes.update.error",
         requestId,
-        error: (err as Error).message || 'Failed to update note',
+        error: (err as Error).message || "Failed to update note",
       })
     );
   }
@@ -291,7 +291,7 @@ export async function handleNotesUpdate(
  * Delete a note
  */
 export async function handleNotesDelete(
-  msg: Extract<ClientMessage, { type: 'notes.delete' }>,
+  msg: Extract<ClientMessage, { type: "notes.delete" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, id } = msg;
@@ -299,9 +299,9 @@ export async function handleNotesDelete(
   if (!id) {
     ws.send(
       JSON.stringify({
-        type: 'notes.delete.error',
+        type: "notes.delete.error",
         requestId,
-        error: 'Note ID is required',
+        error: "Note ID is required",
       })
     );
     return;
@@ -312,9 +312,9 @@ export async function handleNotesDelete(
     if (!deleted) {
       ws.send(
         JSON.stringify({
-          type: 'notes.delete.error',
+          type: "notes.delete.error",
           requestId,
-          error: 'Note not found',
+          error: "Note not found",
         })
       );
       return;
@@ -322,7 +322,7 @@ export async function handleNotesDelete(
 
     ws.send(
       JSON.stringify({
-        type: 'notes.delete.ack',
+        type: "notes.delete.ack",
         requestId,
         id,
       })
@@ -330,9 +330,9 @@ export async function handleNotesDelete(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.delete.error',
+        type: "notes.delete.error",
         requestId,
-        error: (err as Error).message || 'Failed to delete note',
+        error: (err as Error).message || "Failed to delete note",
       })
     );
   }
@@ -342,7 +342,7 @@ export async function handleNotesDelete(
  * Set a global color for a tag
  */
 export async function handleNotesTagColorSet(
-  msg: Extract<ClientMessage, { type: 'notes.tags.color.set' }>,
+  msg: Extract<ClientMessage, { type: "notes.tags.color.set" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, tag, color } = msg;
@@ -350,9 +350,9 @@ export async function handleNotesTagColorSet(
   if (!tag?.trim() || !color?.trim()) {
     ws.send(
       JSON.stringify({
-        type: 'notes.tags.color.set.error',
+        type: "notes.tags.color.set.error",
         requestId,
-        error: 'Tag and color are required',
+        error: "Tag and color are required",
       })
     );
     return;
@@ -362,7 +362,7 @@ export async function handleNotesTagColorSet(
     const tagColors = notesManager.setTagColor(tag, color);
     ws.send(
       JSON.stringify({
-        type: 'notes.tags.color.set.ack',
+        type: "notes.tags.color.set.ack",
         requestId,
         tag,
         color,
@@ -372,9 +372,9 @@ export async function handleNotesTagColorSet(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.tags.color.set.error',
+        type: "notes.tags.color.set.error",
         requestId,
-        error: (err as Error).message || 'Failed to set tag color',
+        error: (err as Error).message || "Failed to set tag color",
       })
     );
   }
@@ -384,7 +384,7 @@ export async function handleNotesTagColorSet(
  * Create a new tag globally
  */
 export async function handleNotesTagCreate(
-  msg: Extract<ClientMessage, { type: 'notes.tags.create' }>,
+  msg: Extract<ClientMessage, { type: "notes.tags.create" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, tag } = msg;
@@ -392,9 +392,9 @@ export async function handleNotesTagCreate(
   if (!tag?.trim()) {
     ws.send(
       JSON.stringify({
-        type: 'notes.tags.create.error',
+        type: "notes.tags.create.error",
         requestId,
-        error: 'Tag name is required',
+        error: "Tag name is required",
       })
     );
     return;
@@ -404,7 +404,7 @@ export async function handleNotesTagCreate(
     const result = notesManager.createTag(tag);
     ws.send(
       JSON.stringify({
-        type: 'notes.tags.create.ack',
+        type: "notes.tags.create.ack",
         requestId,
         tag: tag.trim(),
         allTags: result.allTags,
@@ -414,15 +414,15 @@ export async function handleNotesTagCreate(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.tags.create.error',
+        type: "notes.tags.create.error",
         requestId,
-        error: (err as Error).message || 'Failed to create tag',
+        error: (err as Error).message || "Failed to create tag",
       })
     );
   }
 }
 export async function handleNotesTagDelete(
-  msg: Extract<ClientMessage, { type: 'notes.tags.delete' }>,
+  msg: Extract<ClientMessage, { type: "notes.tags.delete" }>,
   ws: ExtendedWebSocket
 ): Promise<void> {
   const { requestId, tag } = msg;
@@ -430,9 +430,9 @@ export async function handleNotesTagDelete(
   if (!tag?.trim()) {
     ws.send(
       JSON.stringify({
-        type: 'notes.tags.delete.error',
+        type: "notes.tags.delete.error",
         requestId,
-        error: 'Tag is required',
+        error: "Tag is required",
       })
     );
     return;
@@ -442,7 +442,7 @@ export async function handleNotesTagDelete(
     const result = notesManager.deleteTag(tag);
     ws.send(
       JSON.stringify({
-        type: 'notes.tags.delete.ack',
+        type: "notes.tags.delete.ack",
         requestId,
         tag,
         notes: result.notes,
@@ -453,9 +453,9 @@ export async function handleNotesTagDelete(
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'notes.tags.delete.error',
+        type: "notes.tags.delete.error",
         requestId,
-        error: (err as Error).message || 'Failed to delete tag',
+        error: (err as Error).message || "Failed to delete tag",
       })
     );
   }

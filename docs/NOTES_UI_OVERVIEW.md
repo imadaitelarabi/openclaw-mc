@@ -67,34 +67,40 @@ Clicking a group opens the Notes panel with that group pre-filtered.
 ## Key Features Illustrated
 
 ### 1. **Notes Panel Header**
-   - Shows selected group name and count
-   - Example: "Commands Notes - 3 notes"
+
+- Shows selected group name and count
+- Example: "Commands Notes - 3 notes"
 
 ### 2. **Note Cards**
-   Each note displays:
-   - Group badge (colored pill)
-   - Copy button (📋) - Copies note content to clipboard
-   - Delete button (🗑️) - Removes the note
-   - Note content (text)
-   - Timestamp (relative time, e.g., "5 minutes ago")
-   - Optional: Image attachment (if imageUrl provided)
+
+Each note displays:
+
+- Group badge (colored pill)
+- Copy button (📋) - Copies note content to clipboard
+- Delete button (🗑️) - Removes the note
+- Note content (text)
+- Timestamp (relative time, e.g., "5 minutes ago")
+- Optional: Image attachment (if imageUrl provided)
 
 ### 3. **Note Input Area**
-   - Group selector dropdown
-   - Multi-line text input
-   - Image URL button (🖼️)
-   - Add button
-   - Keyboard hint: "Press Cmd/Ctrl + Enter to add note"
+
+- Group selector dropdown
+- Multi-line text input
+- Image URL button (🖼️)
+- Add button
+- Keyboard hint: "Press Cmd/Ctrl + Enter to add note"
 
 ### 4. **Status Bar Integration**
-   - Shows total note count: "Notes (8)"
-   - Click to open dropdown menu
-   - Groups listed with counts
-   - "All Notes" option to view unfiltered
+
+- Shows total note count: "Notes (8)"
+- Click to open dropdown menu
+- Groups listed with counts
+- "All Notes" option to view unfiltered
 
 ## Interaction Flow
 
 ### Adding a Note
+
 1. User types content in textarea
 2. User selects group from dropdown (or keeps current selection)
 3. (Optional) User clicks 🖼️ to add image URL
@@ -103,6 +109,7 @@ Clicking a group opens the Notes panel with that group pre-filtered.
 6. Input clears, ready for next note
 
 ### Filtering Notes
+
 1. User clicks "Notes (8)" in status bar
 2. Dropdown menu appears with groups
 3. User selects a group (e.g., "Commands")
@@ -110,6 +117,7 @@ Clicking a group opens the Notes panel with that group pre-filtered.
 5. Header shows "Commands Notes - 3 notes"
 
 ### Copying Notes
+
 1. User hovers over a note card
 2. Copy and Delete buttons become visible
 3. User clicks 📋 copy button
@@ -117,6 +125,7 @@ Clicking a group opens the Notes panel with that group pre-filtered.
 5. Toast notification: "Copied to clipboard"
 
 ### Deleting Notes
+
 1. User hovers over a note card
 2. User clicks 🗑️ delete button
 3. Note is immediately removed from list
@@ -126,6 +135,7 @@ Clicking a group opens the Notes panel with that group pre-filtered.
 ## Default Groups
 
 The feature comes with 4 default groups:
+
 - **General** - Miscellaneous notes
 - **Commands** - CLI commands, scripts
 - **Ideas** - Ideas and brainstorming

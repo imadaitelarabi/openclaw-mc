@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { AlertTriangle, Info, AlertCircle, Loader2 } from 'lucide-react';
+import { useEffect, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { AlertTriangle, Info, AlertCircle, Loader2 } from "lucide-react";
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -12,25 +12,25 @@ interface ConfirmationModalProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'danger' | 'warning' | 'info';
+  variant?: "danger" | "warning" | "info";
   loading?: boolean;
 }
 
 const variantStyles = {
   danger: {
     icon: AlertCircle,
-    iconColor: 'text-red-500',
-    buttonBg: 'bg-red-500 hover:bg-red-600',
+    iconColor: "text-red-500",
+    buttonBg: "bg-red-500 hover:bg-red-600",
   },
   warning: {
     icon: AlertTriangle,
-    iconColor: 'text-yellow-500',
-    buttonBg: 'bg-yellow-500 hover:bg-yellow-600',
+    iconColor: "text-yellow-500",
+    buttonBg: "bg-yellow-500 hover:bg-yellow-600",
   },
   info: {
     icon: Info,
-    iconColor: 'text-blue-500',
-    buttonBg: 'bg-blue-500 hover:bg-blue-600',
+    iconColor: "text-blue-500",
+    buttonBg: "bg-blue-500 hover:bg-blue-600",
   },
 };
 
@@ -40,9 +40,9 @@ export function ConfirmationModal({
   onConfirm,
   title,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
-  variant = 'info',
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  variant = "info",
   loading: externalLoading = false,
 }: ConfirmationModalProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -70,7 +70,7 @@ export function ConfirmationModal({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !isProcessing) {
+    if (e.key === "Enter" && !isProcessing) {
       e.preventDefault();
       handleConfirm();
     }

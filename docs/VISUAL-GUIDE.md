@@ -157,6 +157,7 @@ Here's how a typical agent interaction flows:
 ## 🎯 Key Visual Differences
 
 ### Before (Old Format)
+
 - No live reasoning display
 - Tool calls mixed with regular messages
 - No metadata on tool results
@@ -164,6 +165,7 @@ Here's how a typical agent interaction flows:
 - Possible duplicates
 
 ### After (New Format)
+
 - **Live Reasoning**: Purple cards with streaming content
 - **Distinct Tool Cards**: Amber for calls, emerald for results
 - **Rich Metadata**: Exit codes, duration, CWD displayed
@@ -172,27 +174,30 @@ Here's how a typical agent interaction flows:
 
 ## 🎨 Color System
 
-| Type            | Background      | Border          | Icon    |
-|----------------|-----------------|-----------------|---------|
-| Thinking       | purple-500/10   | purple-500/30   | 🧠      |
-| Tool Call      | amber-500/10    | amber-500/30    | Varies  |
-| Tool Result    | emerald-500/10  | emerald-500/30  | ✓       |
-| Assistant      | secondary/80    | secondary       | None    |
-| User           | primary         | primary         | None    |
+| Type        | Background     | Border         | Icon   |
+| ----------- | -------------- | -------------- | ------ |
+| Thinking    | purple-500/10  | purple-500/30  | 🧠     |
+| Tool Call   | amber-500/10   | amber-500/30   | Varies |
+| Tool Result | emerald-500/10 | emerald-500/30 | ✓      |
+| Assistant   | secondary/80   | secondary      | None   |
+| User        | primary        | primary        | None   |
 
 ## 🔄 Animation States
 
 ### Reasoning Card
+
 - **Streaming**: Pulsing dot animation
 - **Cursor**: Blinking block cursor (▊)
 - **Expand**: Smooth height transition
 
 ### Tool Card
+
 - **Active**: Pulsing dot animation
 - **Completing**: Fade to solid
 - **Expand**: Smooth reveal of content
 
 ### Tool Result Card
+
 - **Appearing**: Fade-in animation
 - **Metadata**: Stagger animation for badges
 - **Expand**: Smooth height transition
@@ -200,11 +205,13 @@ Here's how a typical agent interaction flows:
 ## 📐 Responsive Behavior
 
 ### Desktop (≥768px)
+
 - Cards max width: 85% of container
 - Full metadata visible
 - Expanded by default (reasoning)
 
 ### Mobile (<768px)
+
 - Cards max width: 95% of container
 - Metadata wraps to multiple lines
 - Collapsed by default (all)

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from 'react';
-import { Tag, Palette, Plus } from 'lucide-react';
-import { getTagColor, asRgba } from '@/lib/tag-colors';
-import { ConfirmationModal } from '@/components/modals';
+import { useState } from "react";
+import { Tag, Palette, Plus } from "lucide-react";
+import { getTagColor, asRgba } from "@/lib/tag-colors";
+import { ConfirmationModal } from "@/components/modals";
 
 interface TagsSettingsPanelProps {
   allTags: string[];
@@ -13,15 +13,24 @@ interface TagsSettingsPanelProps {
   onCreateTag: (tag: string) => Promise<void>;
 }
 
-export function TagsSettingsPanel({ allTags, tagColors, onSetTagColor, onDeleteTag, onCreateTag }: TagsSettingsPanelProps) {
+export function TagsSettingsPanel({
+  allTags,
+  tagColors,
+  onSetTagColor,
+  onDeleteTag,
+  onCreateTag,
+}: TagsSettingsPanelProps) {
   const [updatingTagColor, setUpdatingTagColor] = useState<string | null>(null);
   const [tagPendingDelete, setTagPendingDelete] = useState<string | null>(null);
   const [isDeletingTag, setIsDeletingTag] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
+  const [newTagName, setNewTagName] = useState("");
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [createTagError, setCreateTagError] = useState<string | null>(null);
 
-  const randomHexColor = () => `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`;
+  const randomHexColor = () =>
+    `#${Math.floor(Math.random() * 0xffffff)
+      .toString(16)
+      .padStart(6, "0")}`;
 
   const handleSetTagColor = async (tag: string, color: string) => {
     setUpdatingTagColor(tag);
@@ -54,16 +63,16 @@ export function TagsSettingsPanel({ allTags, tagColors, onSetTagColor, onDeleteT
     setCreateTagError(null);
     try {
       await onCreateTag(trimmed);
-      setNewTagName('');
+      setNewTagName("");
     } catch (err) {
-      setCreateTagError((err as Error).message || 'Failed to create tag');
+      setCreateTagError((err as Error).message || "Failed to create tag");
     } finally {
       setIsCreatingTag(false);
     }
   };
 
   const handleNewTagKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
+    if (event.key === "Enter") {
       void handleCreateTag();
     }
   };
@@ -72,7 +81,9 @@ export function TagsSettingsPanel({ allTags, tagColors, onSetTagColor, onDeleteT
     <div className="h-full overflow-y-auto bg-background p-4">
       <div className="mb-4">
         <h2 className="text-sm font-medium">Tags Settings</h2>
-        <p className="text-xs text-muted-foreground mt-1">Manage global tag colors and delete tags across all notes.</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Manage global tag colors and delete tags across all notes.
+        </p>
       </div>
 
       <div className="mb-4">
@@ -99,17 +110,18 @@ export function TagsSettingsPanel({ allTags, tagColors, onSetTagColor, onDeleteT
             Create
           </button>
         </div>
-        {createTagError && (
-          <p className="mt-1 text-xs text-destructive">{createTagError}</p>
-        )}
+        {createTagError && <p className="mt-1 text-xs text-destructive">{createTagError}</p>}
       </div>
 
       {allTags.length === 0 ? (
         <div className="text-sm text-muted-foreground">No tags available yet.</div>
       ) : (
         <div className="space-y-2">
-          {allTags.map(tag => (
-            <div key={tag} className="flex items-center gap-2 rounded-lg border border-border bg-secondary/40 p-2">
+          {allTags.map((tag) => (
+            <div
+              key={tag}
+              className="flex items-center gap-2 rounded-lg border border-border bg-secondary/40 p-2"
+            >
               <span
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
                 style={{
@@ -167,7 +179,7 @@ export function TagsSettingsPanel({ allTags, tagColors, onSetTagColor, onDeleteT
         message={
           tagPendingDelete
             ? `Delete tag "${tagPendingDelete}" from all notes? This cannot be undone.`
-            : 'Delete this tag from all notes?'
+            : "Delete this tag from all notes?"
         }
         confirmText="Delete"
         cancelText="Cancel"

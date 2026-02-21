@@ -94,6 +94,7 @@ The production Dockerfile uses a multi-stage build:
 3. **Stage 3 (runner)**: Creates minimal runtime image
 
 Features:
+
 - Optimized for size
 - Non-root user (nextjs:nodejs)
 - Health check built-in
@@ -102,6 +103,7 @@ Features:
 ### Development Docker (Dockerfile.dev)
 
 The development Dockerfile:
+
 - Installs all dependencies (including dev)
 - Uses volume mounts for hot reload
 - Runs `npm run dev` by default
@@ -119,6 +121,7 @@ make docker-up
 ```
 
 Features:
+
 - Persistent configuration volume (`~/.oc-mission-control`)
 - Data volume for activity logs
 - Health checks
@@ -135,6 +138,7 @@ make docker-dev
 ```
 
 Features:
+
 - Source code mounted as volume
 - Hot reload enabled
 - Development environment variables
@@ -144,6 +148,7 @@ Features:
 ### Local Development (Without Docker)
 
 1. **First Time Setup**
+
    ```bash
    make install
    cp .env.local.example .env.local
@@ -151,6 +156,7 @@ Features:
    ```
 
 2. **Start Development Server**
+
    ```bash
    make dev
    ```
@@ -164,6 +170,7 @@ Features:
 ### Docker Development
 
 1. **Start Development Container**
+
    ```bash
    make docker-dev
    ```
@@ -173,6 +180,7 @@ Features:
    - Changes automatically reload in container
 
 3. **View Logs**
+
    ```bash
    make docker-logs
    ```
@@ -187,6 +195,7 @@ Features:
 ### Using Docker Compose
 
 1. **Configure Environment**
+
    ```bash
    # Create .env file
    cat > .env << EOF
@@ -196,6 +205,7 @@ Features:
    ```
 
 2. **Deploy**
+
    ```bash
    make docker-build
    make docker-up
@@ -228,7 +238,8 @@ docker run -d \
 
 **Problem**: Cannot connect to gateway using `host.docker.internal`
 
-**Solution**: 
+**Solution**:
+
 ```bash
 # Option 1: Use Docker bridge gateway IP
 export OPENCLAW_GATEWAY_URL=http://172.17.0.1:18789
@@ -242,6 +253,7 @@ docker run --network host ...
 **Problem**: Permission denied when writing to config
 
 **Solution**: Ensure the volume directory exists and has correct permissions
+
 ```bash
 mkdir -p ~/.oc-mission-control
 chmod 755 ~/.oc-mission-control
@@ -252,6 +264,7 @@ chmod 755 ~/.oc-mission-control
 **Problem**: npm install fails with peer dependency errors
 
 **Solution**: Use `--legacy-peer-deps` flag (already included in Docker builds)
+
 ```bash
 npm install --legacy-peer-deps
 ```
@@ -260,7 +273,8 @@ npm install --legacy-peer-deps
 
 **Problem**: Port 3000 is already in use
 
-**Solution**: 
+**Solution**:
+
 ```bash
 # Option 1: Stop other service on port 3000
 lsof -ti:3000 | xargs kill
@@ -274,6 +288,7 @@ PORT=3001 make dev
 **Problem**: Container health check fails
 
 **Solution**: Check the health endpoint
+
 ```bash
 # Inside container
 curl http://localhost:3000/health
@@ -286,7 +301,8 @@ curl http://localhost:3000/health
 
 **Problem**: Changes not reflecting in development mode
 
-**Solution**: 
+**Solution**:
+
 ```bash
 # Restart development container
 make docker-down
@@ -301,6 +317,7 @@ OpenClaw MC includes health check endpoints:
 - **`/api/health`** - Reverse proxy compatible endpoint
 
 Response format:
+
 ```json
 {
   "status": "ok",
@@ -314,6 +331,7 @@ Response format:
 ```
 
 Health checks are used by:
+
 - Docker HEALTHCHECK directive
 - Docker Compose health checks
 - Monitoring systems
@@ -328,6 +346,7 @@ Health checks are used by:
 ## 🤝 Contributing
 
 When making changes:
+
 1. Test locally with `make dev`
 2. Test Docker build with `make docker-build`
 3. Verify health endpoint works

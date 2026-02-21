@@ -1,14 +1,14 @@
-import type { Agent, ConnectionStatus, CronJob, CronStatus, Note } from '@/types';
-import type { AgentRunStatus } from '@/components/panels/PanelHeader';
-import { AgentSelector } from '../agents';
-import { GatewaySwitcher } from '../gateway/GatewaySwitcher';
-import { ExtensionStatusBarItem } from '../extensions';
-import { CronStatusBarItem } from '../cron';
-import { NotesStatusBarItem } from '../notes';
-import { SettingsDropdown } from './SettingsDropdown';
-import { useExtensionStatusBar } from '@/hooks';
-import { useOptionalExtensions } from '@/contexts/ExtensionContext';
-import { useToast } from '@/hooks/useToast';
+import type { Agent, ConnectionStatus, CronJob, CronStatus, Note } from "@/types";
+import type { AgentRunStatus } from "@/components/panels/PanelHeader";
+import { AgentSelector } from "../agents";
+import { GatewaySwitcher } from "../gateway/GatewaySwitcher";
+import { ExtensionStatusBarItem } from "../extensions";
+import { CronStatusBarItem } from "../cron";
+import { NotesStatusBarItem } from "../notes";
+import { SettingsDropdown } from "./SettingsDropdown";
+import { useExtensionStatusBar } from "@/hooks";
+import { useOptionalExtensions } from "@/contexts/ExtensionContext";
+import { useToast } from "@/hooks/useToast";
 
 interface StatusBarProps {
   agents: Agent[];
@@ -22,7 +22,7 @@ interface StatusBarProps {
   onEditAgent?: (agentId: string) => void;
   onDeleteAgent?: (agentId: string) => void;
   agentStatuses?: Record<string, AgentRunStatus>;
-  
+
   // Gateway management
   gateways: any[];
   activeGatewayId: string | null;
@@ -95,10 +95,10 @@ export function StatusBar({
     }
 
     const enabledExtensionNames = new Set(
-      extensionContext.enabledExtensions.map(ext => ext.manifest.name)
+      extensionContext.enabledExtensions.map((ext) => ext.manifest.name)
     );
 
-    return extensionContext.extensions.map(ext => ({
+    return extensionContext.extensions.map((ext) => ({
       name: ext.manifest.name,
       description: ext.manifest.description,
       enabled: enabledExtensionNames.has(ext.manifest.name),
@@ -108,14 +108,14 @@ export function StatusBar({
   const handleCopy = (value: string) => {
     navigator.clipboard.writeText(value);
     toast({
-      title: 'Copied to clipboard',
+      title: "Copied to clipboard",
       description: value,
-      variant: 'success',
+      variant: "success",
     });
   };
 
   const handleOpen = (url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -196,7 +196,7 @@ export function StatusBar({
 
       {/* Right: System Status */}
       <div className="flex items-center gap-3">
-        <GatewaySwitcher 
+        <GatewaySwitcher
           status={connectionStatus}
           gateways={gateways}
           activeId={activeGatewayId}

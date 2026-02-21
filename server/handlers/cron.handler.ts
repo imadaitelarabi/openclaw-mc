@@ -3,33 +3,34 @@
  * Handles cron job management operations via gateway RPC pass-through
  */
 
-import type { ExtendedWebSocket } from '../types/internal';
-import type { GatewayClient } from '../core/GatewayClient';
+import type { ExtendedWebSocket } from "../types/internal";
+import type { GatewayClient } from "../core/GatewayClient";
 
 function unwrapPayload(value: any): any {
-  if (!value || typeof value !== 'object') {
+  if (!value || typeof value !== "object") {
     return value;
   }
 
   const looksLikeCronJob =
-    'schedule' in value ||
-    'sessionTarget' in value ||
-    'delivery' in value ||
-    'createdAtMs' in value ||
-    'updatedAtMs' in value;
+    "schedule" in value ||
+    "sessionTarget" in value ||
+    "delivery" in value ||
+    "createdAtMs" in value ||
+    "updatedAtMs" in value;
 
   const looksLikeCronRun =
-    'sessionKey' in value ||
-    'startedAtMs' in value ||
-    ('jobId' in value && 'status' in value);
+    "sessionKey" in value || "startedAtMs" in value || ("jobId" in value && "status" in value);
 
-  const looksLikeCronStatus = 'enabled' in value && 'jobs' in value;
-  const looksLikeCronListPayload = Array.isArray((value as any).jobs) || Array.isArray((value as any).entries);
-  const looksLikeGatewayEnvelope = 'ok' in value || ('type' in value && 'id' in value && 'payload' in value);
+  const looksLikeCronStatus = "enabled" in value && "jobs" in value;
+  const looksLikeCronListPayload =
+    Array.isArray((value as any).jobs) || Array.isArray((value as any).entries);
+  const looksLikeGatewayEnvelope =
+    "ok" in value || ("type" in value && "id" in value && "payload" in value);
 
   if (
-    'payload' in value &&
-    (looksLikeGatewayEnvelope || (!looksLikeCronJob && !looksLikeCronRun && !looksLikeCronStatus && !looksLikeCronListPayload))
+    "payload" in value &&
+    (looksLikeGatewayEnvelope ||
+      (!looksLikeCronJob && !looksLikeCronRun && !looksLikeCronStatus && !looksLikeCronListPayload))
   ) {
     return (value as any).payload;
   }
@@ -39,10 +40,10 @@ function unwrapPayload(value: any): any {
 
 function normalizeCronJob(value: any): any {
   const payload = unwrapPayload(value);
-  if (payload && typeof payload === 'object' && payload.id) {
+  if (payload && typeof payload === "object" && payload.id) {
     return payload;
   }
-  if (payload && typeof payload === 'object' && payload.job && payload.job.id) {
+  if (payload && typeof payload === "object" && payload.job && payload.job.id) {
     return payload.job;
   }
   return null;
@@ -68,24 +69,24 @@ export async function handleCronList(
   gateway: GatewayClient
 ): Promise<void> {
   const { requestId } = msg;
-  
+
   try {
-    const result = await gateway.call('cron.list', {});
+    const result = await gateway.call("cron.list", {});
     const payload = unwrapPayload(result);
     const jobs = Array.isArray(payload) ? payload : payload?.jobs || [];
     ws.send(
       JSON.stringify({
-        type: 'cron.list.response',
+        type: "cron.list.response",
         requestId,
-        jobs
+        jobs,
       })
     );
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'cron.list.error',
+        type: "cron.list.error",
         requestId,
-        error: (err as Error).message || 'Failed to list cron jobs'
+        error: (err as Error).message || "Failed to list cron jobs",
       })
     );
   }
@@ -100,24 +101,24 @@ export async function handleCronStatus(
   gateway: GatewayClient
 ): Promise<void> {
   const { requestId } = msg;
-  
+
   try {
-    const result = await gateway.call('cron.status', {});
+    const result = await gateway.call("cron.status", {});
     const payload = unwrapPayload(result);
     const status = payload?.status || payload;
     ws.send(
       JSON.stringify({
-        type: 'cron.status.response',
+        type: "cron.status.response",
         requestId,
-        status
+        status,
       })
     );
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'cron.status.error',
+        type: "cron.status.error",
         requestId,
-        error: (err as Error).message || 'Failed to get cron status'
+        error: (err as Error).message || "Failed to get cron status",
       })
     );
   }
@@ -132,39 +133,39 @@ export async function handleCronAdd(
   gateway: GatewayClient
 ): Promise<void> {
   const { requestId, job } = msg;
-  
+
   if (!job) {
     ws.send(
       JSON.stringify({
-        type: 'cron.add.error',
+        type: "cron.add.error",
         requestId,
-        error: 'Missing job parameter'
+        error: "Missing job parameter",
       })
     );
     return;
   }
 
   try {
-    const result = await gateway.call('cron.add', job);
+    const result = await gateway.call("cron.add", job);
     const createdJob = normalizeCronJob(result);
 
     if (!createdJob) {
-      throw new Error('Gateway returned an invalid cron.add response');
+      throw new Error("Gateway returned an invalid cron.add response");
     }
 
     ws.send(
       JSON.stringify({
-        type: 'cron.add.response',
+        type: "cron.add.response",
         requestId,
-        job: createdJob
+        job: createdJob,
       })
     );
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'cron.add.error',
+        type: "cron.add.error",
         requestId,
-        error: (err as Error).message || 'Failed to add cron job'
+        error: (err as Error).message || "Failed to add cron job",
       })
     );
   }
@@ -179,39 +180,39 @@ export async function handleCronUpdate(
   gateway: GatewayClient
 ): Promise<void> {
   const { requestId, jobId, updates } = msg;
-  
+
   if (!jobId || !updates) {
     ws.send(
       JSON.stringify({
-        type: 'cron.update.error',
+        type: "cron.update.error",
         requestId,
-        error: 'Missing jobId or updates parameter'
+        error: "Missing jobId or updates parameter",
       })
     );
     return;
   }
 
   try {
-    const result = await gateway.call('cron.update', { jobId, patch: updates });
+    const result = await gateway.call("cron.update", { jobId, patch: updates });
     const updatedJob = normalizeCronJob(result);
 
     if (!updatedJob) {
-      throw new Error('Gateway returned an invalid cron.update response');
+      throw new Error("Gateway returned an invalid cron.update response");
     }
 
     ws.send(
       JSON.stringify({
-        type: 'cron.update.response',
+        type: "cron.update.response",
         requestId,
-        job: updatedJob
+        job: updatedJob,
       })
     );
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'cron.update.error',
+        type: "cron.update.error",
         requestId,
-        error: (err as Error).message || 'Failed to update cron job'
+        error: (err as Error).message || "Failed to update cron job",
       })
     );
   }
@@ -226,33 +227,33 @@ export async function handleCronDelete(
   gateway: GatewayClient
 ): Promise<void> {
   const { requestId, jobId } = msg;
-  
+
   if (!jobId) {
     ws.send(
       JSON.stringify({
-        type: 'cron.delete.error',
+        type: "cron.delete.error",
         requestId,
-        error: 'Missing jobId parameter'
+        error: "Missing jobId parameter",
       })
     );
     return;
   }
 
   try {
-    await gateway.call('cron.remove', { jobId });
+    await gateway.call("cron.remove", { jobId });
     ws.send(
       JSON.stringify({
-        type: 'cron.delete.response',
+        type: "cron.delete.response",
         requestId,
-        jobId
+        jobId,
       })
     );
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'cron.delete.error',
+        type: "cron.delete.error",
         requestId,
-        error: (err as Error).message || 'Failed to delete cron job'
+        error: (err as Error).message || "Failed to delete cron job",
       })
     );
   }
@@ -267,34 +268,34 @@ export async function handleCronRuns(
   gateway: GatewayClient
 ): Promise<void> {
   const { requestId, jobId, limit } = msg;
-  
+
   if (!jobId) {
     ws.send(
       JSON.stringify({
-        type: 'cron.runs.error',
+        type: "cron.runs.error",
         requestId,
-        error: 'Missing jobId parameter'
+        error: "Missing jobId parameter",
       })
     );
     return;
   }
 
   try {
-    const result = await gateway.call('cron.runs', { jobId, limit: limit || 10 });
+    const result = await gateway.call("cron.runs", { jobId, limit: limit || 10 });
     const entries = normalizeCronRuns(result);
     ws.send(
       JSON.stringify({
-        type: 'cron.runs.response',
+        type: "cron.runs.response",
         requestId,
-        entries
+        entries,
       })
     );
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'cron.runs.error',
+        type: "cron.runs.error",
         requestId,
-        error: (err as Error).message || 'Failed to get cron runs'
+        error: (err as Error).message || "Failed to get cron runs",
       })
     );
   }
@@ -309,38 +310,38 @@ export async function handleCronRun(
   gateway: GatewayClient
 ): Promise<void> {
   const { requestId, jobId, mode } = msg;
-  
+
   if (!jobId) {
     ws.send(
       JSON.stringify({
-        type: 'cron.run.error',
+        type: "cron.run.error",
         requestId,
-        error: 'Missing jobId parameter'
+        error: "Missing jobId parameter",
       })
     );
     return;
   }
 
   try {
-    const result = await gateway.call('cron.run', { jobId, mode: mode || 'force' });
+    const result = await gateway.call("cron.run", { jobId, mode: mode || "force" });
     const run = unwrapPayload(result)?.run || unwrapPayload(result);
-    if (!run || typeof run !== 'object' || !run.id) {
-      throw new Error('Gateway returned an invalid cron.run response');
+    if (!run || typeof run !== "object" || !run.id) {
+      throw new Error("Gateway returned an invalid cron.run response");
     }
 
     ws.send(
       JSON.stringify({
-        type: 'cron.run.response',
+        type: "cron.run.response",
         requestId,
-        run
+        run,
       })
     );
   } catch (err) {
     ws.send(
       JSON.stringify({
-        type: 'cron.run.error',
+        type: "cron.run.error",
         requestId,
-        error: (err as Error).message || 'Failed to trigger cron run'
+        error: (err as Error).message || "Failed to trigger cron run",
       })
     );
   }

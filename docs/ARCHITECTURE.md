@@ -50,11 +50,13 @@ OpenClaw MC is a Next.js-based web application providing real-time monitoring an
 ### 1. Client Layer (Browser)
 
 #### React Application
+
 - **Framework**: Next.js 15 with React 19 RC
 - **Styling**: Tailwind CSS v4
 - **UI Components**: Radix UI primitives
 
 #### Component Structure
+
 ```
 components/
 ├── agents/           # Agent selection and management
@@ -68,6 +70,7 @@ components/
 ```
 
 #### Context Providers
+
 ```
 contexts/
 ├── PanelContext.tsx        # Panel management
@@ -75,6 +78,7 @@ contexts/
 ```
 
 #### Custom Hooks
+
 ```
 hooks/
 ├── useGatewayWebSocket.ts     # WebSocket connection
@@ -85,6 +89,7 @@ hooks/
 ```
 
 #### State Management
+
 - **Local State**: React useState/useReducer
 - **Persistent State**: IndexedDB (via `idb` library)
 - **Real-time State**: WebSocket events
@@ -92,6 +97,7 @@ hooks/
 #### Data Persistence
 
 ##### IndexedDB (UI State)
+
 ```javascript
 Store: 'openclaw-ui-state' (v4)
 ├── scroll-positions      # Chat scroll positions
@@ -105,6 +111,7 @@ Store: 'openclaw-ui-state' (v4)
 ```
 
 ##### Encrypted Storage (Tokens/Keys)
+
 - **Implementation**: Web Crypto API (AES-GCM)
 - **Storage**: localStorage with encryption
 - **Usage**: Extension API tokens, sensitive credentials
@@ -112,11 +119,13 @@ Store: 'openclaw-ui-state' (v4)
 ### 2. Server Layer (Node.js)
 
 #### Custom Server
+
 - **Runtime**: Node.js with TypeScript
 - **WebSocket**: Native `ws` library
 - **Server File**: `server/index.ts`
 
 #### Gateway Client
+
 ```typescript
 server/core/GatewayClient.ts
 - WebSocket connection to OpenClaw Gateway
@@ -127,6 +136,7 @@ server/core/GatewayClient.ts
 ```
 
 #### RPC Handlers
+
 ```
 server/handlers/
 ├── chat.handler.ts      # Chat send/abort
@@ -136,6 +146,7 @@ server/handlers/
 ```
 
 #### Configuration
+
 ```typescript
 ~/.oc-mission-control/config.json
 {
@@ -175,6 +186,7 @@ server/handlers/
 ```
 
 #### Extension Structure
+
 ```
 extensions/{name}/
 ├── manifest.json       # Metadata and permissions
@@ -191,16 +203,19 @@ extensions/{name}/
 #### Extension Hooks
 
 **Status Bar Hook**
+
 - Provides real-time data for status bar
 - Returns: icon, value, dropdown items
 - Actions: copy, open URL
 
 **Chat Input Hook**
+
 - Provides @ tagging options
 - Triggered on @ character
 - Returns: tag, value, description
 
 **Onboarding Hook**
+
 - Setup wizard for configuration
 - Validates credentials
 - Saves encrypted tokens
@@ -208,6 +223,7 @@ extensions/{name}/
 #### Security Model
 
 **Principles**:
+
 1. Read-only access (no mutations)
 2. Encrypted credential storage
 3. Permission declarations
@@ -215,16 +231,18 @@ extensions/{name}/
 5. Rate limiting awareness
 
 **Token Storage**:
+
 ```typescript
-SecureStorage.setItem(extensionName, key, value)
+SecureStorage.setItem(extensionName, key, value);
 // Uses Web Crypto API for encryption
 // Stored in localStorage with encryption
 ```
 
 **State Persistence**:
+
 ```typescript
-uiStateStore.saveExtensionState(state)
-uiStateStore.saveExtensionConfig(name, config)
+uiStateStore.saveExtensionState(state);
+uiStateStore.saveExtensionConfig(name, config);
 // Stored in IndexedDB
 // Non-sensitive data only
 ```
@@ -234,6 +252,7 @@ uiStateStore.saveExtensionConfig(name, config)
 ### 1. WebSocket Messages (Client ↔ Server)
 
 #### RPC Format
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -247,6 +266,7 @@ uiStateStore.saveExtensionConfig(name, config)
 ```
 
 #### Response Format
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -258,6 +278,7 @@ uiStateStore.saveExtensionConfig(name, config)
 ```
 
 #### Event Format
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -274,11 +295,13 @@ uiStateStore.saveExtensionConfig(name, config)
 ### 2. Gateway Communication (Server ↔ Gateway)
 
 #### Authentication
+
 ```
 Authorization: Bearer {token}
 ```
 
 #### RPC Methods
+
 - `agents` - List agents
 - `sessions.list` - Get sessions
 - `sessions.patch` - Update settings
@@ -287,6 +310,7 @@ Authorization: Bearer {token}
 - `chat.abort` - Stop execution
 
 #### Event Types
+
 - `agent` events - Agent lifecycle, chunks
 - `tool` events - Tool calls, results
 - `reasoning` events - Thinking process
@@ -295,6 +319,7 @@ Authorization: Bearer {token}
 ### 3. Extension Communication
 
 #### Status Bar Updates
+
 ```typescript
 // Extension provides data
 hooks.statusBar() → StatusBarItem
@@ -308,6 +333,7 @@ onOpen(item.openUrl) → window.open()
 ```
 
 #### Chat Input Tagging
+
 ```typescript
 // User types @
 onInput('@PR') → isTagging = true
@@ -325,6 +351,7 @@ onSelect(option) → insertTag(option.tag)
 ## Data Flow
 
 ### Message Sending Flow
+
 ```
 1. User types message in ChatInput
 2. ChatInput calls onSend(message, attachments)
@@ -338,6 +365,7 @@ onSelect(option) → insertTag(option.tag)
 ```
 
 ### Extension Data Flow
+
 ```
 1. Extension registered in registry
 2. Registry calls extension.setup()
@@ -354,6 +382,7 @@ onSelect(option) → insertTag(option.tag)
 ## State Management
 
 ### Panel State
+
 ```typescript
 PanelContext
 ├── panels: Panel[]
@@ -364,6 +393,7 @@ PanelContext
 ```
 
 ### Extension State
+
 ```typescript
 ExtensionContext
 ├── extensions: Extension[]
@@ -374,6 +404,7 @@ ExtensionContext
 ```
 
 ### Agent State
+
 ```typescript
 useAgentEvents
 ├── chatHistory: Message[]
@@ -387,30 +418,31 @@ useAgentEvents
 ## Performance Optimizations
 
 ### 1. Component Memoization
+
 ```typescript
-React.memo(ChatMessageItem, (prev, next) => 
-  prev.id === next.id && 
-  prev.content === next.content
-)
+React.memo(ChatMessageItem, (prev, next) => prev.id === next.id && prev.content === next.content);
 ```
 
 ### 2. Debouncing
+
 ```typescript
 // Chat input height adjustment
 requestAnimationFrame(() => {
-  textarea.style.height = 'auto';
+  textarea.style.height = "auto";
 });
 
 // Extension search queries
-debounce(searchQuery, 300)
+debounce(searchQuery, 300);
 ```
 
 ### 3. Virtual Scrolling
+
 - Auto-scroll only when near bottom
 - Preserve scroll position on updates
 - Smooth scroll to bottom button
 
 ### 4. Extension Caching
+
 ```typescript
 // Cache API responses
 private cache = new Map<string, any>();
@@ -422,22 +454,26 @@ private minInterval = 1000; // ms between requests
 ## Security Considerations
 
 ### 1. Gateway Authentication
+
 - Bearer token authentication
 - Tokens stored in secure config file
 - Never exposed in client code
 
 ### 2. Extension Security
+
 - Encrypted token storage (Web Crypto API)
 - Read-only API permissions
 - Input validation and sanitization
 - No direct DOM manipulation
 
 ### 3. XSS Prevention
+
 - React's built-in escaping
 - Markdown sanitization (react-markdown)
 - Content Security Policy headers
 
 ### 4. CORS Handling
+
 - Gateway must enable CORS for browser access
 - WebSocket connections require proper origins
 - Extensions use browser's fetch API
@@ -445,12 +481,14 @@ private minInterval = 1000; // ms between requests
 ## Deployment
 
 ### Development
+
 ```bash
 npm run dev
 # Runs on http://localhost:3000
 ```
 
 ### Production
+
 ```bash
 npm run build
 npm start
@@ -458,12 +496,14 @@ npm start
 ```
 
 ### Docker
+
 ```bash
 docker build -t mission-control .
 docker run -p 3000:3000 mission-control
 ```
 
 ### Environment Variables
+
 ```env
 OPENCLAW_GATEWAY_URL=http://127.0.0.1:18789
 OPENCLAW_GATEWAY_TOKEN=your_token_here
@@ -475,21 +515,25 @@ DEBUG_GATEWAY_EVENTS=false
 ## Monitoring and Debugging
 
 ### Client-Side Logging
+
 ```javascript
-console.log('[ComponentName] Message', data);
+console.log("[ComponentName] Message", data);
 ```
 
 ### Server-Side Logging
+
 ```javascript
-console.log('[GatewayClient] Connected');
+console.log("[GatewayClient] Connected");
 ```
 
 ### Extension Logging
+
 ```javascript
-console.log('[ExtensionName] Action', result);
+console.log("[ExtensionName] Action", result);
 ```
 
 ### Browser DevTools
+
 - Network tab: WebSocket messages
 - Application tab: IndexedDB inspection
 - Console: All logs and errors
@@ -497,12 +541,14 @@ console.log('[ExtensionName] Action', result);
 ## Testing Strategy
 
 ### Manual Testing
+
 - UI interaction testing
 - WebSocket connection testing
 - Extension integration testing
 - Multi-gateway switching
 
 ### Extension Testing
+
 - Connection validation
 - Data fetching
 - UI rendering
@@ -512,6 +558,7 @@ console.log('[ExtensionName] Action', result);
 ## Future Enhancements
 
 ### Planned Features
+
 - Multiple simultaneous extensions
 - Extension marketplace
 - Extension permissions UI
@@ -519,6 +566,7 @@ console.log('[ExtensionName] Action', result);
 - Extension analytics
 
 ### Extension Ideas
+
 - GitLab integration
 - Jira/Linear integration
 - Dockploy deployments
@@ -528,6 +576,7 @@ console.log('[ExtensionName] Action', result);
 ## Architecture Decisions
 
 ### Why Next.js?
+
 - Server-side rendering support
 - Built-in routing
 - API routes (if needed)
@@ -535,24 +584,28 @@ console.log('[ExtensionName] Action', result);
 - Hot module replacement
 
 ### Why Custom Server?
+
 - Need persistent WebSocket connections
 - Gateway connection management
 - Event streaming
 - File-based configuration
 
 ### Why IndexedDB?
+
 - Browser-native persistence
 - Async API
 - Large storage capacity
 - Structured data storage
 
 ### Why Web Crypto API?
+
 - Browser-native encryption
 - Strong security (AES-GCM)
 - No external dependencies
 - Cross-browser support
 
 ### Why Extension System?
+
 - Modularity and isolation
 - Third-party integrations
 - User customization

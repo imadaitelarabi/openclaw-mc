@@ -1,11 +1,14 @@
 # Changelog
 
 ## [0.2.0] - 2026-02-21
+
 ### Meta
+
 - Bump: minor (score: 134)
 - Range: since 24 hours
 
 ### Features
+
 - make active Stop button red ([3580478](https://github.com/imadaitelarabi/openclaw-mc/commit/3580478))
 - refactor agent session matching logic for improved accuracy and maintainability ([052a4fa](https://github.com/imadaitelarabi/openclaw-mc/commit/052a4fa))
 - enhance token usage tracking with connection status and improve UI feedback ([f98c78a](https://github.com/imadaitelarabi/openclaw-mc/commit/f98c78a))
@@ -15,6 +18,7 @@
 - add scroll functionality to dropdown menus in AgentSelector and CronStatusBarItem ([47bbeca](https://github.com/imadaitelarabi/openclaw-mc/commit/47bbeca))
 
 ### Fixes
+
 - avoid chat input tag option id collisions ([adf735e](https://github.com/imadaitelarabi/openclaw-mc/commit/adf735e))
 - scope github chat input cache to api instance ([6d3d2eb](https://github.com/imadaitelarabi/openclaw-mc/commit/6d3d2eb))
 - improve notes chat menu and caching ([7d721b4](https://github.com/imadaitelarabi/openclaw-mc/commit/7d721b4))
@@ -22,13 +26,16 @@
 - apply tool/reasoning toggles to clicked panel and focus it ([f20d9f1](https://github.com/imadaitelarabi/openclaw-mc/commit/f20d9f1))
 
 ### Docs
+
 - reflect token usage indicator and native #notes mentions ([c4ef728](https://github.com/imadaitelarabi/openclaw-mc/commit/c4ef728))
 - simplify README and highlight core mission control features ([960e502](https://github.com/imadaitelarabi/openclaw-mc/commit/960e502))
 
 ### Chores
+
 - remove unused Convex code and dependency ([abb60a9](https://github.com/imadaitelarabi/openclaw-mc/commit/abb60a9))
 
 ### Other
+
 - Merge pull request [#94](https://github.com/imadaitelarabi/openclaw-mc/pull/94) from imadaitelarabi/fix/notes-chatinput-tags ([30dab58](https://github.com/imadaitelarabi/openclaw-mc/commit/30dab58))
 - Merge pull request [#93](https://github.com/imadaitelarabi/openclaw-mc/pull/93) from imadaitelarabi/copilot/fix-panel-header-session-update ([4af12a5](https://github.com/imadaitelarabi/openclaw-mc/commit/4af12a5))
 - Fix panel header model/thinking dropdown updating the wrong session ([f91d24e](https://github.com/imadaitelarabi/openclaw-mc/commit/f91d24e))
@@ -46,5 +53,3 @@
 - Merge pull request [#80](https://github.com/imadaitelarabi/openclaw-mc/pull/80) from imadaitelarabi/docs/daily-update-2026-02-20 ([c57db9f](https://github.com/imadaitelarabi/openclaw-mc/commit/c57db9f))
 - Merge pull request [#81](https://github.com/imadaitelarabi/openclaw-mc/pull/81) from imadaitelarabi:copilot/add-inline-note-editing ([9a20c7c](https://github.com/imadaitelarabi/openclaw-mc/commit/9a20c7c))
 - Merge pull request [#79](https://github.com/imadaitelarabi/openclaw-mc/pull/79) from imadaitelarabi:copilot/add-inline-note-editing ([dd26e82](https://github.com/imadaitelarabi/openclaw-mc/commit/dd26e82))
-
-

@@ -2,14 +2,14 @@
  * GitHub Extension Setup Logic
  */
 
-import { SecureStorage } from '@/lib/secure-storage';
-import { uiStateStore } from '@/lib/ui-state-db';
-import type { GitHubConfig } from './config';
-import { defaultConfig } from './config';
-import { GitHubAPI } from './api';
-import type { ExtensionConnectionStatus } from '@/types/extension';
+import { SecureStorage } from "@/lib/secure-storage";
+import { uiStateStore } from "@/lib/ui-state-db";
+import type { GitHubConfig } from "./config";
+import { defaultConfig } from "./config";
+import { GitHubAPI } from "./api";
+import type { ExtensionConnectionStatus } from "@/types/extension";
 
-const EXTENSION_NAME = 'github';
+const EXTENSION_NAME = "github";
 
 /**
  * Check if extension setup is complete
@@ -17,14 +17,14 @@ const EXTENSION_NAME = 'github';
 export async function isSetupComplete(): Promise<boolean> {
   try {
     // Check if GitHub token exists in secure storage
-    const token = await SecureStorage.getItem(EXTENSION_NAME, 'token');
+    const token = await SecureStorage.getItem(EXTENSION_NAME, "token");
     if (!token) {
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('[GitHubSetup] Failed to check setup:', error);
+    console.error("[GitHubSetup] Failed to check setup:", error);
     return false;
   }
 }
@@ -39,12 +39,12 @@ export async function saveConfig(config: GitHubConfig, token?: string): Promise<
 
     // Save sensitive token to encrypted storage
     if (token) {
-      await SecureStorage.setItem(EXTENSION_NAME, 'token', token);
+      await SecureStorage.setItem(EXTENSION_NAME, "token", token);
     }
 
     console.log(`[GitHubSetup] Configuration saved`);
   } catch (error) {
-    console.error('[GitHubSetup] Failed to save config:', error);
+    console.error("[GitHubSetup] Failed to save config:", error);
     throw error;
   }
 }
@@ -56,11 +56,11 @@ export async function loadConfig(): Promise<GitHubConfig> {
   try {
     // Load config from IndexedDB
     const config = await uiStateStore.getExtensionConfig(EXTENSION_NAME);
-    
+
     // Merge with defaults
     return { ...defaultConfig, ...config };
   } catch (error) {
-    console.error('[GitHubSetup] Failed to load config:', error);
+    console.error("[GitHubSetup] Failed to load config:", error);
     return defaultConfig;
   }
 }
@@ -70,9 +70,9 @@ export async function loadConfig(): Promise<GitHubConfig> {
  */
 export async function getToken(): Promise<string | null> {
   try {
-    return await SecureStorage.getItem(EXTENSION_NAME, 'token');
+    return await SecureStorage.getItem(EXTENSION_NAME, "token");
   } catch (error) {
-    console.error('[GitHubSetup] Failed to get token:', error);
+    console.error("[GitHubSetup] Failed to get token:", error);
     return null;
   }
 }
@@ -86,24 +86,24 @@ export async function initialize(): Promise<GitHubAPI | null> {
     const token = await getToken();
 
     if (!token) {
-      console.warn('[GitHubSetup] No GitHub token found');
+      console.warn("[GitHubSetup] No GitHub token found");
       return null;
     }
 
     // Create API client
     const api = new GitHubAPI({ ...config, token });
-    
+
     // Test connection
     const connected = await api.testConnection();
     if (!connected) {
-      console.error('[GitHubSetup] Connection test failed');
+      console.error("[GitHubSetup] Connection test failed");
       return null;
     }
 
-    console.log('[GitHubSetup] GitHub extension initialized successfully');
+    console.log("[GitHubSetup] GitHub extension initialized successfully");
     return api;
   } catch (error) {
-    console.error('[GitHubSetup] Initialization failed:', error);
+    console.error("[GitHubSetup] Initialization failed:", error);
     return null;
   }
 }
@@ -114,36 +114,36 @@ export async function initialize(): Promise<GitHubAPI | null> {
 export async function checkConnectionStatus(): Promise<ExtensionConnectionStatus> {
   try {
     const token = await getToken();
-    
+
     if (!token) {
       return {
         isConnected: false,
-        error: 'No GitHub token configured'
+        error: "No GitHub token configured",
       };
     }
 
     // Create API client with the token
     const api = new GitHubAPI({ token });
-    
+
     // Test connection and get user info
     try {
       const user = await api.getUser();
       return {
         isConnected: true,
-        username: user.login
+        username: user.login,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Connection failed';
+      const message = error instanceof Error ? error.message : "Connection failed";
       return {
         isConnected: false,
-        error: message
+        error: message,
       };
     }
   } catch (error) {
-    console.error('[GitHubSetup] Failed to check connection status:', error);
+    console.error("[GitHubSetup] Failed to check connection status:", error);
     return {
       isConnected: false,
-      error: 'Failed to check connection status'
+      error: "Failed to check connection status",
     };
   }
 }
@@ -153,8 +153,8 @@ export async function checkConnectionStatus(): Promise<ExtensionConnectionStatus
  */
 export async function cleanup(): Promise<void> {
   try {
-    console.log('[GitHubSetup] GitHub extension cleaned up');
+    console.log("[GitHubSetup] GitHub extension cleaned up");
   } catch (error) {
-    console.error('[GitHubSetup] Cleanup failed:', error);
+    console.error("[GitHubSetup] Cleanup failed:", error);
   }
 }

@@ -1,27 +1,27 @@
 /**
  * Onboarding Panel Component
- * 
+ *
  * React component for extension setup/configuration.
  * Shown when extension is first enabled or setup is incomplete.
  */
 
-'use client';
+"use client";
 
-import { useState } from 'react';
-import type { OnboardingProps } from '@/types/extension';
-import { saveConfig } from '../setup';
-import { ExtensionAPI } from '../api';
-import type { ExtensionConfig } from '../config';
+import { useState } from "react";
+import type { OnboardingProps } from "@/types/extension";
+import { saveConfig } from "../setup";
+import { ExtensionAPI } from "../api";
+import type { ExtensionConfig } from "../config";
 
 export function OnboardingPanel({ extensionName, onComplete, onCancel }: OnboardingProps) {
-  const [apiToken, setApiToken] = useState('');
-  const [apiUrl, setApiUrl] = useState('https://api.example.com');
+  const [apiToken, setApiToken] = useState("");
+  const [apiUrl, setApiUrl] = useState("https://api.example.com");
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSave = async () => {
     if (!apiToken.trim()) {
-      setError('API token is required');
+      setError("API token is required");
       return;
     }
 
@@ -34,7 +34,7 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel }: Onboard
       const isValid = await api.testConnection();
 
       if (!isValid) {
-        setError('Failed to validate API token. Please check your credentials.');
+        setError("Failed to validate API token. Please check your credentials.");
         return;
       }
 
@@ -50,8 +50,8 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel }: Onboard
       // Complete onboarding
       onComplete();
     } catch (err) {
-      console.error('[Onboarding] Failed to save config:', err);
-      setError('Failed to save configuration. Please try again.');
+      console.error("[Onboarding] Failed to save config:", err);
+      setError("Failed to save configuration. Please try again.");
     } finally {
       setIsValidating(false);
     }
@@ -60,7 +60,7 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel }: Onboard
   return (
     <div className="p-6 max-w-md mx-auto">
       <h2 className="text-xl font-semibold mb-4">Setup {extensionName}</h2>
-      
+
       <div className="space-y-4">
         {/* API Token Input */}
         <div>
@@ -76,9 +76,9 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel }: Onboard
             className="w-full px-3 py-2 border border-border rounded bg-background"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            <a 
-              href="https://example.com/settings/tokens" 
-              target="_blank" 
+            <a
+              href="https://example.com/settings/tokens"
+              target="_blank"
               rel="noopener noreferrer"
               className="underline"
             >
@@ -104,9 +104,7 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel }: Onboard
 
         {/* Error Message */}
         {error && (
-          <div className="p-3 bg-destructive/10 text-destructive text-sm rounded">
-            {error}
-          </div>
+          <div className="p-3 bg-destructive/10 text-destructive text-sm rounded">{error}</div>
         )}
 
         {/* Actions */}
@@ -123,7 +121,7 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel }: Onboard
             disabled={isValidating}
             className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90"
           >
-            {isValidating ? 'Validating...' : 'Validate & Save'}
+            {isValidating ? "Validating..." : "Validate & Save"}
           </button>
         </div>
       </div>

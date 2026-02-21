@@ -1,13 +1,13 @@
 /**
  * Chat Input Tag Dropdown Component
- * 
+ *
  * Renders tag suggestions from extensions.
  */
 
-import { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import type { ChatInputTagOption } from '@/types/extension';
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import type { ChatInputTagOption } from "@/types/extension";
 
 interface ChatInputTagDropdownProps {
   options: ChatInputTagOption[];
@@ -18,13 +18,13 @@ interface ChatInputTagDropdownProps {
   inputRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
-export function ChatInputTagDropdown({ 
-  options, 
-  onSelect, 
+export function ChatInputTagDropdown({
+  options,
+  onSelect,
   onClose,
   isLoading = false,
   position,
-  inputRef
+  inputRef,
 }: ChatInputTagDropdownProps) {
   const PANEL_WIDTH = 280;
   const PANEL_GAP = 8;
@@ -36,7 +36,11 @@ export function ChatInputTagDropdown({
 
   const [currentPath, setCurrentPath] = useState<number[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; positionAbove: boolean } | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    top: number;
+    left: number;
+    positionAbove: boolean;
+  } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const activeItemRef = useRef<HTMLButtonElement>(null);
 
@@ -50,19 +54,19 @@ export function ChatInputTagDropdown({
     const updatePosition = () => {
       if (inputRef?.current) {
         const rect = inputRef.current.getBoundingClientRect();
-        
+
         // Estimate dropdown height based on number of options
         const estimatedDropdownHeight = Math.min(
-          options.length * ESTIMATED_ITEM_HEIGHT + DROPDOWN_PADDING, 
+          options.length * ESTIMATED_ITEM_HEIGHT + DROPDOWN_PADDING,
           MAX_DROPDOWN_HEIGHT
         );
-        
+
         // Determine vertical position: try above first (preferred), fall back to below
         // When positioned above, dropdown extends upward from anchor point due to transform
         const spaceAbove = rect.top - DROPDOWN_GAP;
         let dropdownTop: number;
         let positionAbove: boolean;
-        
+
         if (spaceAbove >= estimatedDropdownHeight) {
           // Enough space above input for dropdown
           dropdownTop = rect.top - DROPDOWN_GAP;
@@ -72,24 +76,24 @@ export function ChatInputTagDropdown({
           dropdownTop = rect.bottom + DROPDOWN_GAP;
           positionAbove = false;
         }
-        
+
         setDropdownPosition({
           top: dropdownTop,
           left: rect.left,
-          positionAbove
+          positionAbove,
         });
       }
     };
 
     updatePosition();
-    
+
     // Update position on window resize or scroll
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
     return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
   }, [inputRef, options.length]);
 
@@ -123,16 +127,16 @@ export function ChatInputTagDropdown({
 
   const getCurrentLabel = (source: ChatInputTagOption[], path: number[]) => {
     if (path.length === 0) {
-      return 'Providers';
+      return "Providers";
     }
 
     const node = getNodeAtPath(source, path);
-    return node?.label ?? 'Providers';
+    return node?.label ?? "Providers";
   };
 
   // Scroll active item into view when activeIndex changes
   useEffect(() => {
-    activeItemRef.current?.scrollIntoView({ block: 'nearest' });
+    activeItemRef.current?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, currentPath]);
 
   // Close on outside click
@@ -143,15 +147,15 @@ export function ChatInputTagDropdown({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (options.length === 0) {
-        if (event.key === 'Escape') {
+        if (event.key === "Escape") {
           event.preventDefault();
           onClose();
         }
@@ -166,45 +170,45 @@ export function ChatInputTagDropdown({
       const clampedActiveIndex = Math.min(activeIndex, currentItems.length - 1);
       const currentNode = currentItems[clampedActiveIndex];
 
-      if (event.key === 'ArrowDown') {
+      if (event.key === "ArrowDown") {
         event.preventDefault();
-        setActiveIndex(prev => (prev + 1) % currentItems.length);
-      } else if (event.key === 'ArrowUp') {
+        setActiveIndex((prev) => (prev + 1) % currentItems.length);
+      } else if (event.key === "ArrowUp") {
         event.preventDefault();
-        setActiveIndex(prev => (prev - 1 + currentItems.length) % currentItems.length);
-      } else if (event.key === 'ArrowRight') {
+        setActiveIndex((prev) => (prev - 1 + currentItems.length) % currentItems.length);
+      } else if (event.key === "ArrowRight") {
         event.preventDefault();
         if (currentNode?.children && currentNode.children.length > 0) {
-          setCurrentPath(prev => [...prev, clampedActiveIndex]);
+          setCurrentPath((prev) => [...prev, clampedActiveIndex]);
           setActiveIndex(0);
         }
-      } else if (event.key === 'ArrowLeft') {
+      } else if (event.key === "ArrowLeft") {
         event.preventDefault();
         if (currentPath.length > 0) {
           const parentIndex = currentPath[currentPath.length - 1];
-          setCurrentPath(prev => prev.slice(0, -1));
+          setCurrentPath((prev) => prev.slice(0, -1));
           setActiveIndex(parentIndex);
         }
-      } else if (event.key === 'Enter' || event.key === 'Tab') {
+      } else if (event.key === "Enter" || event.key === "Tab") {
         event.preventDefault();
         if (!currentNode) {
           return;
         }
 
         if (currentNode.children && currentNode.children.length > 0) {
-          setCurrentPath(prev => [...prev, clampedActiveIndex]);
+          setCurrentPath((prev) => [...prev, clampedActiveIndex]);
           setActiveIndex(0);
         } else {
           onSelect(currentNode);
         }
-      } else if (event.key === 'Escape') {
+      } else if (event.key === "Escape") {
         event.preventDefault();
         onClose();
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [options, currentPath, activeIndex, onSelect, onClose]);
 
   // Reset navigation when options change
@@ -239,13 +243,13 @@ export function ChatInputTagDropdown({
   const canGoBack = currentPath.length > 0;
 
   const dropdown = (
-    <div 
+    <div
       ref={dropdownRef}
       className="fixed"
       style={{
         top: dropdownPosition ? `${dropdownPosition.top}px` : undefined,
         left: dropdownPosition ? `${dropdownPosition.left}px` : undefined,
-        transform: dropdownPosition?.positionAbove ? 'translateY(-100%)' : undefined,
+        transform: dropdownPosition?.positionAbove ? "translateY(-100%)" : undefined,
         zIndex: DROPDOWN_Z_INDEX,
       }}
     >
@@ -266,11 +270,13 @@ export function ChatInputTagDropdown({
               onClick={() => {
                 if (!canGoBack) return;
                 const parentIndex = currentPath[currentPath.length - 1];
-                setCurrentPath(prev => prev.slice(0, -1));
+                setCurrentPath((prev) => prev.slice(0, -1));
                 setActiveIndex(parentIndex);
               }}
               className={`text-xs flex items-center gap-1 ${
-                canGoBack ? 'text-foreground hover:text-foreground/80' : 'text-muted-foreground/60 cursor-default'
+                canGoBack
+                  ? "text-foreground hover:text-foreground/80"
+                  : "text-muted-foreground/60 cursor-default"
               }`}
               disabled={!canGoBack}
             >
@@ -292,14 +298,14 @@ export function ChatInputTagDropdown({
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => {
                     if (hasChildren) {
-                      setCurrentPath(prev => [...prev, index]);
+                      setCurrentPath((prev) => [...prev, index]);
                       setActiveIndex(0);
                       return;
                     }
                     onSelect(option);
                   }}
                   className={`w-full text-left px-3 py-2 text-sm flex items-start gap-2 justify-between ${
-                    isActive ? 'bg-accent' : 'hover:bg-accent/50'
+                    isActive ? "bg-accent" : "hover:bg-accent/50"
                   }`}
                 >
                   <div className="flex-1 min-w-0">
@@ -321,7 +327,9 @@ export function ChatInputTagDropdown({
                     </div>
                   </div>
 
-                  {hasChildren && <ChevronRight className="w-3.5 h-3.5 mt-0.5 text-muted-foreground" />}
+                  {hasChildren && (
+                    <ChevronRight className="w-3.5 h-3.5 mt-0.5 text-muted-foreground" />
+                  )}
                 </button>
               );
             })}
@@ -336,7 +344,7 @@ export function ChatInputTagDropdown({
   );
 
   // Use Portal to render dropdown at document root level to escape panel stacking context
-  if (typeof document !== 'undefined') {
+  if (typeof document !== "undefined") {
     return createPortal(dropdown, document.body);
   }
 

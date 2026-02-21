@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Search, Cpu } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { ChevronDown, Search, Cpu } from "lucide-react";
 
 interface Model {
   id: string;
@@ -16,34 +16,35 @@ interface ModelSelectorProps {
 
 export function ModelSelector({ models, currentModel, onChange, disabled }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [activeModel, setActiveModel] = useState(currentModel || '');
+  const [search, setSearch] = useState("");
+  const [activeModel, setActiveModel] = useState(currentModel || "");
   const [activeIndex, setActiveIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const activeItemRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    setActiveModel(currentModel || '');
+    setActiveModel(currentModel || "");
   }, [currentModel]);
 
-  const currentModelData = models.find(m => m.id === activeModel);
-  const displayName = currentModelData?.alias || activeModel?.split('/').pop() || 'Select Model';
+  const currentModelData = models.find((m) => m.id === activeModel);
+  const displayName = currentModelData?.alias || activeModel?.split("/").pop() || "Select Model";
 
-  const filteredModels = models.filter(m => 
-    m.id.toLowerCase().includes(search.toLowerCase()) ||
-    m.alias?.toLowerCase().includes(search.toLowerCase()) ||
-    m.provider?.toLowerCase().includes(search.toLowerCase())
+  const filteredModels = models.filter(
+    (m) =>
+      m.id.toLowerCase().includes(search.toLowerCase()) ||
+      m.alias?.toLowerCase().includes(search.toLowerCase()) ||
+      m.provider?.toLowerCase().includes(search.toLowerCase())
   );
 
   // Reset active index when list changes
   useEffect(() => {
-    const idx = filteredModels.findIndex(m => m.id === activeModel);
+    const idx = filteredModels.findIndex((m) => m.id === activeModel);
     setActiveIndex(idx >= 0 ? idx : filteredModels.length > 0 ? 0 : -1);
   }, [search, isOpen]);
 
   // Scroll active item into view
   useEffect(() => {
-    activeItemRef.current?.scrollIntoView({ block: 'nearest' });
+    activeItemRef.current?.scrollIntoView({ block: "nearest" });
   }, [activeIndex]);
 
   // Close on click outside
@@ -55,8 +56,8 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isOpen]);
 
@@ -64,28 +65,28 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowDown') {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
-        setActiveIndex(prev => (prev + 1) % filteredModels.length);
-      } else if (e.key === 'ArrowUp') {
+        setActiveIndex((prev) => (prev + 1) % filteredModels.length);
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setActiveIndex(prev => (prev - 1 + filteredModels.length) % filteredModels.length);
-      } else if (e.key === 'Enter') {
+        setActiveIndex((prev) => (prev - 1 + filteredModels.length) % filteredModels.length);
+      } else if (e.key === "Enter") {
         e.preventDefault();
         if (activeIndex >= 0 && activeIndex < filteredModels.length) {
           const model = filteredModels[activeIndex];
           setActiveModel(model.id);
           onChange(model.id, model.provider);
           setIsOpen(false);
-          setSearch('');
+          setSearch("");
         }
-      } else if (e.key === 'Escape') {
+      } else if (e.key === "Escape") {
         e.preventDefault();
         setIsOpen(false);
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, activeIndex, filteredModels, onChange]);
 
   return (
@@ -117,9 +118,7 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
           </div>
           <div className="max-h-64 overflow-y-auto py-1">
             {filteredModels.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-muted-foreground">
-                No models found
-              </div>
+              <div className="px-3 py-2 text-xs text-muted-foreground">No models found</div>
             ) : (
               filteredModels.map((model, index) => (
                 <button
@@ -130,14 +129,20 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
                     setActiveModel(model.id);
                     onChange(model.id, model.provider);
                     setIsOpen(false);
-                    setSearch('');
+                    setSearch("");
                   }}
                   className={`w-full text-left px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground transition-colors ${
-                    index === activeIndex ? 'bg-accent text-accent-foreground' : model.id === activeModel ? 'bg-accent/50 text-primary' : ''
+                    index === activeIndex
+                      ? "bg-accent text-accent-foreground"
+                      : model.id === activeModel
+                        ? "bg-accent/50 text-primary"
+                        : ""
                   }`}
                 >
-                  <div className="font-medium">{model.alias || model.id.split('/').pop()}</div>
-                  <div className="text-[10px] text-muted-foreground">{model.id} ({model.provider})</div>
+                  <div className="font-medium">{model.alias || model.id.split("/").pop()}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {model.id} ({model.provider})
+                  </div>
                 </button>
               ))
             )}

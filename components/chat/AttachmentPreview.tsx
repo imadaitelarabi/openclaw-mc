@@ -3,9 +3,9 @@
  * Displays preview of attached files with remove functionality
  */
 
-import { X } from 'lucide-react';
-import type { ChatAttachment } from '@/types';
-import { formatFileSize, getFileIcon } from '@/lib/file-utils';
+import { X } from "lucide-react";
+import type { ChatAttachment } from "@/types";
+import { formatFileSize, getFileIcon } from "@/lib/file-utils";
 
 interface AttachmentPreviewProps {
   attachments: ChatAttachment[];
@@ -40,9 +40,7 @@ export function AttachmentPreview({ attachments, onRemove }: AttachmentPreviewPr
             <div className="text-sm font-medium truncate" title={attachment.name}>
               {attachment.name}
             </div>
-            <div className="text-xs text-muted-foreground">
-              {formatFileSize(attachment.size)}
-            </div>
+            <div className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</div>
           </div>
 
           {/* Remove button */}

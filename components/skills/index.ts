@@ -1,1 +1,1 @@
-export { SkillsPanel } from './SkillsPanel';
+export { SkillsPanel } from "./SkillsPanel";

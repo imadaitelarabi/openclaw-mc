@@ -1,6 +1,6 @@
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'tool' | 'reasoning';
+  role: "user" | "assistant" | "tool" | "reasoning";
   content: string;
   stopReason?: string;
   errorMessage?: string;
@@ -9,7 +9,7 @@ export interface ChatMessage {
     name: string;
     args?: any;
     result?: any;
-    status?: 'start' | 'end' | 'error';
+    status?: "start" | "end" | "error";
     error?: string;
     duration?: number; // Duration in milliseconds
     exitCode?: number; // Exit code for exec tools

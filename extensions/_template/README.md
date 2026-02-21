@@ -21,6 +21,7 @@ extension-name/
 ## Creating a New Extension
 
 1. **Copy this template directory** to a new folder with your extension name:
+
    ```bash
    cp -r extensions/_template extensions/my-extension
    ```
@@ -62,10 +63,11 @@ extension-name/
 
 8. **Register the extension**:
    In your app initialization code:
+
    ```typescript
-   import { extensionRegistry } from '@/lib/extension-registry';
-   import myExtension from '@/extensions/my-extension';
-   
+   import { extensionRegistry } from "@/lib/extension-registry";
+   import myExtension from "@/extensions/my-extension";
+
    await extensionRegistry.initialize();
    await extensionRegistry.register(myExtension);
    ```
@@ -73,18 +75,21 @@ extension-name/
 ## Extension Rules
 
 ### Security
+
 - **No side effects**: Extensions can only READ data, never WRITE
 - **Encrypted storage**: Use `SecureStorage` for API tokens
 - **Input sanitization**: Validate all user inputs
 - **Permission declarations**: Declare all required permissions
 
 ### Performance
+
 - **Debounce fetches**: Don't overwhelm APIs
 - **Cache results**: Store frequently accessed data
 - **Error handling**: Always catch and log errors
 - **Graceful degradation**: Handle API failures gracefully
 
 ### UX
+
 - **Clear onboarding**: Make setup easy and intuitive
 - **Helpful errors**: Show actionable error messages
 - **Fast responses**: Keep UI responsive
@@ -96,12 +101,12 @@ extension-name/
 // ui/status-bar.tsx
 export async function getStatusBarData(api: ExtensionAPI): Promise<StatusBarItem | null> {
   const data = await api.getStatusData();
-  
+
   return {
-    label: 'PRs',
+    label: "PRs",
     value: data.openPRs.length,
-    icon: 'GitPullRequest',
-    items: data.openPRs.map(pr => ({
+    icon: "GitPullRequest",
+    items: data.openPRs.map((pr) => ({
       id: pr.id,
       text: `#${pr.number}: ${pr.title}`,
       subtext: pr.repository,
@@ -121,8 +126,8 @@ export async function getChatInputOptions(
   query: string
 ): Promise<ChatInputTagOption[]> {
   const prs = await api.searchPRs(query);
-  
-  return prs.map(pr => ({
+
+  return prs.map((pr) => ({
     id: pr.id,
     label: `PR #${pr.number}`,
     tag: `@PR-${pr.number}`,
@@ -138,18 +143,18 @@ export async function getChatInputOptions(
 // ui/onboarding.tsx
 export function OnboardingPanel({ onComplete, onCancel }: OnboardingProps) {
   const [token, setToken] = useState('');
-  
+
   const handleSave = async () => {
     // Validate token
     const api = new ExtensionAPI({ apiToken: token });
     const valid = await api.testConnection();
-    
+
     if (valid) {
       await saveConfig({ enabled: true }, token);
       onComplete();
     }
   };
-  
+
   return (
     <div>
       <input value={token} onChange={e => setToken(e.target.value)} />

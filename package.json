@@ -7,7 +7,10 @@
     "build": "tsc -p tsconfig.server.json && next build",
     "build:server": "tsc -p tsconfig.server.json",
     "start": "NODE_ENV=production node dist/server/index.js",
-    "lint": "next lint"
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.1",
@@ -42,7 +45,9 @@
     "@types/react-dom": "^18",
     "eslint": "^9.39.2",
     "eslint-config-next": "^16.1.6",
+    "oxlint": "^1.49.0",
     "postcss": "^8.4.41",
+    "prettier": "^3.8.1",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.21.0",
     "typescript": "^5"

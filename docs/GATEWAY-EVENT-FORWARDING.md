@@ -9,10 +9,12 @@ OpenClaw MC now implements a **global event forwarding** approach for all Gatewa
 ### 1. Inclusive Event Forwarding
 
 **Before:**
+
 - Only `chat` and `agent` events were forwarded to clients
 - Other events like `tick`, `presence`, and `exec.approval.requested` were silently dropped
 
 **After:**
+
 - **ALL** gateway events are now forwarded to connected clients
 - Events are broadcast immediately after logging
 - Internal processing still occurs for specific events (chat, agent, cron)
@@ -32,6 +34,7 @@ Every gateway event is now logged with structured information:
 ```
 
 **Logged Information:**
+
 - **timestamp**: ISO 8601 formatted server arrival time
 - **event**: Event name (e.g., `chat`, `tick`, `exec.approval.requested`)
 - **runId**: Run identifier when available in payload
@@ -51,6 +54,7 @@ DEBUG_GATEWAY_EVENTS=false
 ```
 
 **When enabled**, the full event payload is logged:
+
 ```
 [Gateway Event Payload] chat: {
   "sessionKey": "agent:test-agent-123:main",
@@ -100,26 +104,26 @@ The frontend will now receive ALL gateway events through the WebSocket connectio
 // Example: Handling a tick event
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  
-  if (data.type === 'event') {
+
+  if (data.type === "event") {
     switch (data.event) {
-      case 'tick':
+      case "tick":
         // Handle tick event
-        console.log('Tick received:', data.payload);
+        console.log("Tick received:", data.payload);
         break;
-        
-      case 'presence':
+
+      case "presence":
         // Handle presence event
         updatePresenceIndicator(data.payload);
         break;
-        
-      case 'exec.approval.requested':
+
+      case "exec.approval.requested":
         // Show approval dialog
         showApprovalDialog(data.payload);
         break;
-        
-      case 'chat':
-      case 'agent':
+
+      case "chat":
+      case "agent":
         // These still receive enhanced processing
         handleChatOrAgentEvent(data);
         break;
@@ -131,12 +135,14 @@ ws.onmessage = (event) => {
 ### Server Console Output
 
 **Normal Mode** (DEBUG_GATEWAY_EVENTS=false):
+
 ```
 [Gateway Event] {"timestamp":"2026-02-16T01:40:01.512Z","event":"chat","runId":"run-abc123","sessionKey":"agent:test-agent-123:main","payloadSize":"103 bytes"}
 [Gateway Event] {"timestamp":"2026-02-16T01:40:01.513Z","event":"tick","runId":null,"sessionKey":null,"payloadSize":"27 bytes"}
 ```
 
 **Debug Mode** (DEBUG_GATEWAY_EVENTS=true):
+
 ```
 [Gateway Event] {"timestamp":"2026-02-16T01:40:01.512Z","event":"chat","runId":"run-abc123","sessionKey":"agent:test-agent-123:main","payloadSize":"103 bytes"}
 [Gateway Event Payload] chat: {

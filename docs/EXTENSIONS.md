@@ -11,24 +11,30 @@ OpenClaw MC's extensions system enables modular, read-only integrations with ext
 ## Core Principles
 
 ### 1. Modularity
+
 Extensions are self-contained packages with no tight coupling to OpenClaw MC's core.
 
 ### 2. No Side Effects
+
 Extensions only provide data and output. They cannot:
+
 - Trigger actions or mutations
 - Write to external systems
 - Modify OpenClaw MC state directly
 
 ### 3. Read-Only Focus
+
 Fetch and display information. Let users or agents decide next steps.
 
 ### 4. Security First
+
 - Encrypted credential storage
 - Permission declarations
 - Input sanitization
 - Read-only API access
 
 ### 5. UX Excellence
+
 - Seamless onboarding
 - Intuitive interactions
 - Fast, responsive UI
@@ -47,7 +53,9 @@ Fetch and display information. Let users or agents decide next steps.
 ## Architecture
 
 ### Extension Registry
+
 Central registry managing all extensions:
+
 - **Location**: `lib/extension-registry.ts`
 - **Responsibilities**:
   - Extension registration
@@ -56,7 +64,9 @@ Central registry managing all extensions:
   - Hook access
 
 ### Extension Context
+
 React Context for extension state:
+
 - **Location**: `contexts/ExtensionContext.tsx`
 - **Provides**:
   - List of enabled extensions
@@ -65,14 +75,18 @@ React Context for extension state:
   - Hook access methods
 
 ### Secure Storage
+
 Encrypted storage for sensitive data:
+
 - **Location**: `lib/secure-storage.ts`
 - **Uses**: Web Crypto API (AES-GCM)
 - **Storage**: localStorage with encryption
 - **Methods**: `setItem()`, `getItem()`, `removeItem()`
 
 ### State Persistence
+
 IndexedDB for extension state:
+
 - **Location**: `lib/ui-state-db.ts`
 - **Stores**:
   - Extension states (enabled, onboarded)
@@ -138,7 +152,7 @@ export interface MyExtensionConfig {
 }
 
 export const defaultConfig: MyExtensionConfig = {
-  apiUrl: 'https://api.example.com',
+  apiUrl: "https://api.example.com",
   refreshInterval: 60000,
 };
 ```
@@ -149,16 +163,16 @@ export const defaultConfig: MyExtensionConfig = {
 // api.ts
 export class MyAPI {
   private config: MyExtensionConfig;
-  
+
   constructor(config: MyExtensionConfig) {
     this.config = config;
   }
-  
+
   async testConnection(): Promise<boolean> {
     // Test API connectivity
     return true;
   }
-  
+
   async fetchData(): Promise<any> {
     // Fetch data from API
     return [];
@@ -170,34 +184,35 @@ export class MyAPI {
 
 ```typescript
 // setup.ts
-import { SecureStorage } from '@/lib/secure-storage';
-import { uiStateStore } from '@/lib/ui-state-db';
+import { SecureStorage } from "@/lib/secure-storage";
+import { uiStateStore } from "@/lib/ui-state-db";
 
 export async function isSetupComplete(): Promise<boolean> {
-  const config = await uiStateStore.getExtensionConfig('my-extension');
-  const token = await SecureStorage.getItem('my-extension', 'apiToken');
+  const config = await uiStateStore.getExtensionConfig("my-extension");
+  const token = await SecureStorage.getItem("my-extension", "apiToken");
   return !!(config && token);
 }
 
 export async function saveConfig(config: MyExtensionConfig, token: string) {
-  await uiStateStore.saveExtensionConfig('my-extension', config);
-  await SecureStorage.setItem('my-extension', 'apiToken', token);
+  await uiStateStore.saveExtensionConfig("my-extension", config);
+  await SecureStorage.setItem("my-extension", "apiToken", token);
 }
 ```
 
 ### 7. Implement UI Components
 
 #### Status Bar
+
 ```typescript
 // ui/status-bar.tsx
 export async function getStatusBarData(api: MyAPI): Promise<StatusBarItem | null> {
   const data = await api.fetchData();
-  
+
   return {
-    label: 'My Extension',
+    label: "My Extension",
     value: data.count,
-    icon: 'Box',
-    items: data.items.map(item => ({
+    icon: "Box",
+    items: data.items.map((item) => ({
       id: item.id,
       text: item.title,
       copyValue: item.url,
@@ -208,6 +223,7 @@ export async function getStatusBarData(api: MyAPI): Promise<StatusBarItem | null
 ```
 
 #### Chat Input
+
 ```typescript
 // ui/chat-input.tsx
 export async function getChatInputOptions(
@@ -215,8 +231,8 @@ export async function getChatInputOptions(
   query: string
 ): Promise<ChatInputTagOption[]> {
   const items = await api.search(query);
-  
-  return items.map(item => ({
+
+  return items.map((item) => ({
     id: item.id,
     label: item.title,
     tag: `@TAG-${item.id}`,
@@ -227,20 +243,21 @@ export async function getChatInputOptions(
 ```
 
 #### Onboarding
+
 ```tsx
 // ui/onboarding.tsx
 export function OnboardingPanel({ onComplete, onCancel }: OnboardingProps) {
-  const [token, setToken] = useState('');
-  
+  const [token, setToken] = useState("");
+
   const handleSave = async () => {
     // Validate and save
-    await saveConfig({ apiUrl: '...' }, token);
+    await saveConfig({ apiUrl: "..." }, token);
     onComplete();
   };
-  
+
   return (
     <div>
-      <input value={token} onChange={e => setToken(e.target.value)} />
+      <input value={token} onChange={(e) => setToken(e.target.value)} />
       <button onClick={handleSave}>Save</button>
     </div>
   );
@@ -251,8 +268,8 @@ export function OnboardingPanel({ onComplete, onCancel }: OnboardingProps) {
 
 ```typescript
 // index.ts
-import type { Extension } from '@/types/extension';
-import manifest from './manifest.json';
+import type { Extension } from "@/types/extension";
+import manifest from "./manifest.json";
 
 let apiInstance: MyAPI | null = null;
 
@@ -297,8 +314,8 @@ In your app initialization:
 
 ```typescript
 // app/page.tsx or similar
-import { extensionRegistry } from '@/lib/extension-registry';
-import myExtension from '@/extensions/my-extension';
+import { extensionRegistry } from "@/lib/extension-registry";
+import myExtension from "@/extensions/my-extension";
 
 // Initialize registry
 await extensionRegistry.initialize();
@@ -314,11 +331,13 @@ await extensionRegistry.register(myExtension);
 **Purpose**: Display real-time data in the status bar
 
 **Interface**:
+
 ```typescript
 statusBar?: () => Promise<StatusBarItem | null>
 ```
 
 **Returns**:
+
 ```typescript
 {
   label: string;          // Display label
@@ -329,6 +348,7 @@ statusBar?: () => Promise<StatusBarItem | null>
 ```
 
 **Dropdown Item**:
+
 ```typescript
 {
   id: string;
@@ -341,21 +361,22 @@ statusBar?: () => Promise<StatusBarItem | null>
 ```
 
 **Example**:
+
 ```typescript
 statusBar: async () => ({
-  label: 'GitHub',
+  label: "GitHub",
   value: 5,
-  icon: 'Github',
+  icon: "Github",
   items: [
     {
-      id: 'pr-123',
-      text: 'PR #123: Fix bug',
-      subtext: 'by @user',
-      copyValue: 'https://github.com/...',
-      openUrl: 'https://github.com/...',
-    }
-  ]
-})
+      id: "pr-123",
+      text: "PR #123: Fix bug",
+      subtext: "by @user",
+      copyValue: "https://github.com/...",
+      openUrl: "https://github.com/...",
+    },
+  ],
+});
 ```
 
 ### Chat Input Hook
@@ -363,14 +384,17 @@ statusBar: async () => ({
 **Purpose**: Provide @ tagging options in chat
 
 **Interface**:
+
 ```typescript
 chatInput?: (query: string) => Promise<ChatInputTagOption[]>
 ```
 
 **Parameters**:
+
 - `query`: Search string (without @ prefix)
 
 **Returns**:
+
 ```typescript
 {
   id: string;
@@ -383,17 +407,18 @@ chatInput?: (query: string) => Promise<ChatInputTagOption[]>
 ```
 
 **Example**:
+
 ```typescript
 chatInput: async (query) => {
   const prs = await api.searchPRs(query);
-  return prs.map(pr => ({
+  return prs.map((pr) => ({
     id: pr.id,
     label: `PR #${pr.number}`,
     tag: `@PR-${pr.number}`,
     value: pr.url,
     description: pr.title,
   }));
-}
+};
 ```
 
 ### Onboarding Hook
@@ -401,6 +426,7 @@ chatInput: async (query) => {
 **Purpose**: Setup wizard for first-time configuration
 
 **Interface**:
+
 ```typescript
 onboarding?: {
   isRequired: () => Promise<boolean>;
@@ -409,6 +435,7 @@ onboarding?: {
 ```
 
 **Component Props**:
+
 ```typescript
 {
   extensionName: string;
@@ -418,6 +445,7 @@ onboarding?: {
 ```
 
 **Example**:
+
 ```tsx
 onboarding: {
   isRequired: async () => {
@@ -431,18 +459,23 @@ onboarding: {
 ## Security Guidelines
 
 ### Token Storage
+
 ✅ **DO**: Use `SecureStorage` for tokens
+
 ```typescript
-await SecureStorage.setItem('my-ext', 'apiToken', token);
+await SecureStorage.setItem("my-ext", "apiToken", token);
 ```
 
 ❌ **DON'T**: Store tokens in plain text
+
 ```typescript
-localStorage.setItem('apiToken', token); // WRONG
+localStorage.setItem("apiToken", token); // WRONG
 ```
 
 ### API Calls
+
 ✅ **DO**: Read-only operations
+
 ```typescript
 async getPullRequests() {
   return this.request('/pulls'); // GET request
@@ -450,6 +483,7 @@ async getPullRequests() {
 ```
 
 ❌ **DON'T**: Write operations
+
 ```typescript
 async closePullRequest(id) {
   return this.request('/pulls/' + id, { method: 'DELETE' }); // WRONG
@@ -457,30 +491,36 @@ async closePullRequest(id) {
 ```
 
 ### Input Validation
+
 ✅ **DO**: Validate all inputs
+
 ```typescript
 if (!token.trim() || token.length < 10) {
-  throw new Error('Invalid token');
+  throw new Error("Invalid token");
 }
 ```
 
 ❌ **DON'T**: Trust user input
+
 ```typescript
 await saveConfig({ token }); // WRONG - no validation
 ```
 
 ### Error Handling
+
 ✅ **DO**: Catch and log errors
+
 ```typescript
 try {
   const data = await api.fetch();
 } catch (error) {
-  console.error('[Extension] Fetch failed:', error);
+  console.error("[Extension] Fetch failed:", error);
   return null; // Graceful fallback
 }
 ```
 
 ❌ **DON'T**: Let errors crash the app
+
 ```typescript
 const data = await api.fetch(); // WRONG - unhandled error
 ```
@@ -488,7 +528,9 @@ const data = await api.fetch(); // WRONG - unhandled error
 ## Performance Guidelines
 
 ### Caching
+
 ✅ **DO**: Cache frequently accessed data
+
 ```typescript
 private cache: Map<string, any> = new Map();
 
@@ -496,7 +538,7 @@ async fetchData() {
   if (this.cache.has('data')) {
     return this.cache.get('data');
   }
-  
+
   const data = await this.request('/data');
   this.cache.set('data', data);
   return data;
@@ -504,9 +546,11 @@ async fetchData() {
 ```
 
 ### Debouncing
+
 ✅ **DO**: Debounce search queries
+
 ```typescript
-import { debounce } from '@/lib/utils';
+import { debounce } from "@/lib/utils";
 
 const debouncedSearch = debounce(async (query) => {
   return await api.search(query);
@@ -514,7 +558,9 @@ const debouncedSearch = debounce(async (query) => {
 ```
 
 ### Rate Limiting
+
 ✅ **DO**: Respect API rate limits
+
 ```typescript
 private lastRequest = 0;
 private minInterval = 1000; // 1 request per second
@@ -522,11 +568,11 @@ private minInterval = 1000; // 1 request per second
 async request(endpoint: string) {
   const now = Date.now();
   const elapsed = now - this.lastRequest;
-  
+
   if (elapsed < this.minInterval) {
     await new Promise(r => setTimeout(r, this.minInterval - elapsed));
   }
-  
+
   this.lastRequest = Date.now();
   return fetch(endpoint);
 }
@@ -538,17 +584,17 @@ async request(endpoint: string) {
 
 ```typescript
 // Test connection
-const api = new MyAPI({ token: 'test-token' });
+const api = new MyAPI({ token: "test-token" });
 const connected = await api.testConnection();
-console.log('Connected:', connected);
+console.log("Connected:", connected);
 
 // Test data fetching
 const data = await api.fetchData();
-console.log('Data:', data);
+console.log("Data:", data);
 
 // Test status bar
 const statusItem = await getStatusBarData(api);
-console.log('Status item:', statusItem);
+console.log("Status item:", statusItem);
 ```
 
 ### 2. Integration Testing
@@ -563,6 +609,7 @@ console.log('Status item:', statusItem);
 ### 3. Error Scenarios
 
 Test these cases:
+
 - Invalid API token
 - Network failures
 - Rate limit exceeded
@@ -572,24 +619,28 @@ Test these cases:
 ## Troubleshooting
 
 ### Extension Not Loading
+
 - Check manifest.json syntax
 - Verify all required files exist
 - Check browser console for errors
 - Ensure extension is registered
 
 ### Status Bar Not Updating
+
 - Check if hook returns valid data
 - Verify API calls succeed
 - Check for JavaScript errors
 - Ensure extension is enabled
 
 ### Onboarding Fails
+
 - Validate API credentials
 - Check network connectivity
 - Verify API endpoint URLs
 - Check for CORS issues
 
 ### Tags Not Appearing
+
 - Verify chatInput hook is implemented
 - Check query parameter is passed
 - Ensure API search returns results
@@ -598,24 +649,28 @@ Test these cases:
 ## Best Practices
 
 ### Code Organization
+
 - Keep files focused and single-purpose
 - Use TypeScript for type safety
 - Follow existing code patterns
 - Add JSDoc comments
 
 ### Error Messages
+
 - Be specific about what failed
 - Provide actionable solutions
 - Don't expose sensitive data
 - Use user-friendly language
 
 ### Documentation
+
 - Document all public functions
 - Add usage examples
 - Explain configuration options
 - Include troubleshooting tips
 
 ### Versioning
+
 - Follow semantic versioning
 - Document breaking changes
 - Maintain backwards compatibility
@@ -624,6 +679,7 @@ Test these cases:
 ## Examples
 
 See these example extensions:
+
 - [`extensions/github`](../extensions/github) - GitHub PR/issue integration
 - [`extensions/_template`](../extensions/_template) - Template with examples
 
@@ -638,6 +694,7 @@ See these example extensions:
 ## Support
 
 For questions or issues:
+
 1. Check this documentation
 2. Review example extensions
 3. Check GitHub issues
