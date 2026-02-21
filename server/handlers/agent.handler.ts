@@ -218,6 +218,143 @@ export async function handleAgentUpdate(
   }
 }
 
+export async function handleAgentFilesGet(
+  msg: any,
+  ws: ExtendedWebSocket,
+  gateway: GatewayClient
+): Promise<void> {
+  try {
+    const { requestId, agentId, name } = msg;
+
+    const trimmedAgentId = typeof agentId === "string" ? agentId.trim() : "";
+    const trimmedName = typeof name === "string" ? name.trim() : "";
+
+    if (!trimmedAgentId) {
+      ws.send(
+        JSON.stringify({
+          type: "agents.files.get.error",
+          requestId,
+          error: "agentId is required",
+        })
+      );
+      return;
+    }
+
+    if (!trimmedName) {
+      ws.send(
+        JSON.stringify({
+          type: "agents.files.get.error",
+          requestId,
+          error: "File name is required",
+        })
+      );
+      return;
+    }
+
+    let content = "";
+    let exists = true;
+
+    try {
+      const result = await gateway.request("agents.files.get", {
+        agentId: trimmedAgentId,
+        name: trimmedName,
+      });
+      content =
+        typeof result?.content === "string"
+          ? result.content
+          : typeof result === "string"
+            ? result
+            : "";
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/not found|does not exist|no such/i.test(message)) {
+        exists = false;
+      } else {
+        throw err;
+      }
+    }
+
+    ws.send(
+      JSON.stringify({
+        type: "agents.files.get.response",
+        requestId,
+        agentId: trimmedAgentId,
+        name: trimmedName,
+        content,
+        exists,
+      })
+    );
+  } catch (err) {
+    console.error("[Client] Agent file get failed:", err);
+    ws.send(
+      JSON.stringify({
+        type: "agents.files.get.error",
+        requestId: msg.requestId,
+        error: err instanceof Error ? err.message : "Failed to get agent file",
+      })
+    );
+  }
+}
+
+export async function handleAgentFilesSet(
+  msg: any,
+  ws: ExtendedWebSocket,
+  gateway: GatewayClient
+): Promise<void> {
+  try {
+    const { requestId, agentId, name, content } = msg;
+
+    const trimmedAgentId = typeof agentId === "string" ? agentId.trim() : "";
+    const trimmedName = typeof name === "string" ? name.trim() : "";
+
+    if (!trimmedAgentId) {
+      ws.send(
+        JSON.stringify({
+          type: "agents.files.set.error",
+          requestId,
+          error: "agentId is required",
+        })
+      );
+      return;
+    }
+
+    if (!trimmedName) {
+      ws.send(
+        JSON.stringify({
+          type: "agents.files.set.error",
+          requestId,
+          error: "File name is required",
+        })
+      );
+      return;
+    }
+
+    await gateway.request("agents.files.set", {
+      agentId: trimmedAgentId,
+      name: trimmedName,
+      content: typeof content === "string" ? content : "",
+    });
+
+    ws.send(
+      JSON.stringify({
+        type: "agents.files.set.response",
+        requestId,
+        agentId: trimmedAgentId,
+        name: trimmedName,
+      })
+    );
+  } catch (err) {
+    console.error("[Client] Agent file set failed:", err);
+    ws.send(
+      JSON.stringify({
+        type: "agents.files.set.error",
+        requestId: msg.requestId,
+        error: err instanceof Error ? err.message : "Failed to save agent file",
+      })
+    );
+  }
+}
+
 export async function handleAgentDelete(
   msg: any,
   ws: ExtendedWebSocket,
