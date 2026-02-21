@@ -48,6 +48,38 @@ function flattenToLeaves(
   return leaves;
 }
 
+/**
+ * Scores a leaf option against a normalized query for relevance sorting.
+ * Returns 2 if the leaf's own content matches directly,
+ * 1 if only the ancestor breadcrumb path matches,
+ * 0 if there is no match at all.
+ */
+function scoreLeafRelevance(option: ChatInputTagOption, normalizedQuery: string): number {
+  if (!normalizedQuery) {
+    return 1;
+  }
+
+  const selfHaystack = [option.label, option.tag, option.description, option.value]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (selfHaystack.includes(normalizedQuery)) {
+    return 2;
+  }
+
+  const pathHaystack = [option.source?.name, option.source?.subLevel]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (pathHaystack.includes(normalizedQuery)) {
+    return 1;
+  }
+
+  return 0;
+}
+
 function optionMatchesQuery(option: ChatInputTagOption, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -299,7 +331,13 @@ export function useExtensionChatInput() {
         })
       );
 
-      return resultsPerExt.flat();
+      const normalizedQuery = searchTerm.toLowerCase();
+      return resultsPerExt
+        .flat()
+        .map(leaf => ({ leaf, score: scoreLeafRelevance(leaf, normalizedQuery) }))
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(({ leaf }) => leaf);
     } finally {
       setIsLoading(false);
     }
