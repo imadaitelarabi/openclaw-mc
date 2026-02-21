@@ -28,7 +28,13 @@ interface UpdateCronPanelProps {
   defaultModel?: string;
 }
 
-export function UpdateCronPanel({ job, onUpdateCronJob, onClose, models = [], defaultModel }: UpdateCronPanelProps) {
+export function UpdateCronPanel({
+  job,
+  onUpdateCronJob,
+  onClose,
+  models = [],
+  defaultModel,
+}: UpdateCronPanelProps) {
   const hasKnownPreset = CRON_SCHEDULE_PRESETS.some(
     (preset) => preset.expr === (job.schedule.expr || "")
   );

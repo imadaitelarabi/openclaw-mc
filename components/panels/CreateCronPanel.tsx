@@ -22,7 +22,12 @@ interface CreateCronPanelProps {
   defaultModel?: string;
 }
 
-export function CreateCronPanel({ onCreateCronJob, onClose, models = [], defaultModel }: CreateCronPanelProps) {
+export function CreateCronPanel({
+  onCreateCronJob,
+  onClose,
+  models = [],
+  defaultModel,
+}: CreateCronPanelProps) {
   const [formData, setFormData] = useState({
     name: "Daily Brief",
     expr: CRON_SCHEDULE_PRESETS[2].expr,
