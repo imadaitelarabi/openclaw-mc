@@ -285,6 +285,8 @@ export function PanelContainer({
               <CreateCronPanel
                 onCreateCronJob={onCreateCronJob}
                 onClose={() => onPanelClose(panel.id)}
+                models={models}
+                defaultModel={sessionSettings.model || models[0]?.id}
               />
             )}
 
@@ -306,6 +308,8 @@ export function PanelContainer({
                     job={job}
                     onUpdateCronJob={onUpdateCronJob}
                     onClose={() => onPanelClose(panel.id)}
+                    models={models}
+                    defaultModel={sessionSettings.model || models[0]?.id}
                   />
                 );
               })()}

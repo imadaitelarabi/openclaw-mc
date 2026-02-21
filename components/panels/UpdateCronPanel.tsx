@@ -3,8 +3,15 @@
 import { useState } from "react";
 import type { CronJob } from "@/types";
 import { CRON_SCHEDULE_PRESETS } from "@/lib/cron-schedule";
+import { ModelSelector } from "@/components/statusbar/ModelSelector";
 
 type SupportedSessionTarget = "isolated" | "shared";
+
+interface Model {
+  id: string;
+  alias?: string;
+  provider?: string;
+}
 
 function normalizeSessionTarget(
   target: CronJob["sessionTarget"] | string | undefined
@@ -17,9 +24,17 @@ interface UpdateCronPanelProps {
   job: CronJob;
   onUpdateCronJob: (payload: { jobId: string; updates: Partial<CronJob> }) => Promise<CronJob>;
   onClose?: () => void;
+  models?: Model[];
+  defaultModel?: string;
 }
 
-export function UpdateCronPanel({ job, onUpdateCronJob, onClose }: UpdateCronPanelProps) {
+export function UpdateCronPanel({
+  job,
+  onUpdateCronJob,
+  onClose,
+  models = [],
+  defaultModel,
+}: UpdateCronPanelProps) {
   const hasKnownPreset = CRON_SCHEDULE_PRESETS.some(
     (preset) => preset.expr === (job.schedule.expr || "")
   );
@@ -31,6 +46,7 @@ export function UpdateCronPanel({ job, onUpdateCronJob, onClose }: UpdateCronPan
     enabled: job.enabled,
     sessionTarget: normalizeSessionTarget(job.sessionTarget),
     deliveryMode: job.delivery.mode,
+    model: job.payload.model || defaultModel || models[0]?.id || "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +63,11 @@ export function UpdateCronPanel({ job, onUpdateCronJob, onClose }: UpdateCronPan
 
     if (!name || !expr || !message) {
       setError("Name, schedule, and message are required.");
+      return;
+    }
+
+    if (!formData.model) {
+      setError("Model is required.");
       return;
     }
 
@@ -67,6 +88,7 @@ export function UpdateCronPanel({ job, onUpdateCronJob, onClose }: UpdateCronPan
             kind: "agentTurn",
             message,
             agentId: job.payload.agentId,
+            model: formData.model,
           },
           delivery: {
             mode: formData.deliveryMode,
@@ -140,6 +162,23 @@ export function UpdateCronPanel({ job, onUpdateCronJob, onClose }: UpdateCronPan
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-2">Model</label>
+              {models.length === 0 ? (
+                <div className="px-4 py-2 bg-destructive/10 border border-destructive rounded-lg text-destructive text-sm">
+                  No models available. Cannot submit.
+                </div>
+              ) : (
+                <div className="w-full px-4 py-2 bg-secondary border border-border rounded-lg">
+                  <ModelSelector
+                    models={models}
+                    currentModel={formData.model}
+                    onChange={(modelId) => setFormData({ ...formData, model: modelId })}
+                  />
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium mb-2">Session Target</label>
@@ -199,7 +238,7 @@ export function UpdateCronPanel({ job, onUpdateCronJob, onClose }: UpdateCronPan
             <div className="flex gap-3 pt-2">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || models.length === 0}
                 className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 {isSubmitting ? "Saving..." : "Save Changes"}
