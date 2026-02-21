@@ -453,7 +453,11 @@ export function ChatInput({
           <button
             onClick={handleButtonClick}
             disabled={Boolean(disabled) || (!isRunning && !value.trim() && attachments.length === 0)}
-            className="bg-primary text-primary-foreground p-2.5 md:px-4 md:py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            className={`p-2.5 md:px-4 md:py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ${
+              isRunning
+                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            }`}
             title={isRunning ? 'Stop generation' : 'Send message'}
           >
             {isRunning ? <Square className="w-5 h-5" /> : <Send className="w-5 h-5" />}
