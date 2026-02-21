@@ -70,6 +70,8 @@ OPENCLAW_GATEWAY_TOKEN=your_gateway_token_here
 - Thinking level controls (`off`, `low`, `medium`, `high`)
 - Tool visibility toggle (verbose)
 - Reasoning visibility toggle
+- Panel-aware tool/reasoning toggles (applies to the panel you click/focus)
+- Token usage indicator above chat input (`used/context`, color-coded) with unlimited-context awareness
 
 ### 5) Cron jobs
 - List/create/update/delete cron jobs
@@ -81,6 +83,9 @@ OPENCLAW_GATEWAY_TOKEN=your_gateway_token_here
 - Persistent notes stored locally (`~/.oc-mission-control/notes.json`)
 - Groups + tags + custom tag colors
 - Image upload/paste support
+- Native `#` mentions in chat (`#notes ...`) to browse groups/notes and insert note content
+- Inserted note content is wrapped in `<note>...</note>` for cleaner context
+- Selecting a note can auto-attach its note image to the outgoing message
 - Quick filtering and copy actions
 
 ### 7) Extensions framework
@@ -92,6 +97,7 @@ OPENCLAW_GATEWAY_TOKEN=your_gateway_token_here
 ### 8) UX and resilience
 - Desktop + mobile-optimized controls
 - Multi-panel workspace with persisted state
+- Scrollable dropdowns for long Agent/Cron lists
 - Stream state recovery across refreshes
 - Activity history persisted across restarts
 
