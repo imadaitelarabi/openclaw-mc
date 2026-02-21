@@ -40,6 +40,13 @@ function normalizeQuery(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
+function toSlug(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function buildNoteLabel(note: Note): string {
   const firstLine = note.content
     .split(/\r?\n/)
@@ -62,6 +69,23 @@ function buildNoteDescription(note: Note): string {
     parts.push('Includes image');
   }
   return parts.join(' • ');
+}
+
+function buildNoteOptions(notes: Note[]): ChatInputTagOption[] {
+  return [...notes]
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .map((note) => ({
+      id: `native-note-${note.id}`,
+      label: buildNoteLabel(note),
+      tag: `#note ${note.id.slice(0, 8)}`,
+      value: note.content,
+      description: buildNoteDescription(note) || undefined,
+      meta: {
+        kind: 'native-note',
+        noteId: note.id,
+        imageUrl: note.imageUrl,
+      },
+    }));
 }
 
 function buildNotesProvider(
@@ -92,31 +116,84 @@ function buildNotesProvider(
             group.toLowerCase().includes(normalizedFilter)
             || haystack.includes(normalizedFilter)
           );
-        })
-        .sort((a, b) => b.updatedAt - a.updatedAt);
+        });
 
       if (groupNotes.length === 0) {
         return null;
       }
 
+      const groupSlug = toSlug(group);
+      const noteOptions = buildNoteOptions(groupNotes);
+      const tagBuckets = new Map<string, { label: string; notes: Note[] }>();
+      const untaggedNotes: Note[] = [];
+
+      groupNotes.forEach((note) => {
+        const tags = Array.isArray(note.tags)
+          ? note.tags.map((tag) => tag.trim()).filter(Boolean)
+          : [];
+
+        if (tags.length === 0) {
+          untaggedNotes.push(note);
+          return;
+        }
+
+        tags.forEach((tag) => {
+          const key = tag.toLowerCase();
+          const entry = tagBuckets.get(key);
+          if (entry) {
+            entry.notes.push(note);
+          } else {
+            tagBuckets.set(key, { label: tag, notes: [note] });
+          }
+        });
+      });
+
+      const tagEntries = Array.from(tagBuckets.values()).sort((a, b) =>
+        a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+      );
+
+      const tagOptions: ChatInputTagOption[] = tagEntries.map((entry) => ({
+        id: `native-notes-tag-${groupSlug}-${toSlug(entry.label)}`,
+        label: `#${entry.label}`,
+        tag: `#notes ${group} #${entry.label}`,
+        value: entry.label,
+        description: `${entry.notes.length} note${entry.notes.length === 1 ? '' : 's'}`,
+        children: buildNoteOptions(entry.notes),
+      }));
+
+      const hasTags = tagEntries.length > 0;
+      if (hasTags && untaggedNotes.length > 0) {
+        tagOptions.push({
+          id: `native-notes-tag-${groupSlug}-untagged`,
+          label: 'Untagged',
+          tag: `#notes ${group} untagged`,
+          value: 'untagged',
+          description: `${untaggedNotes.length} note${untaggedNotes.length === 1 ? '' : 's'}`,
+          children: buildNoteOptions(untaggedNotes),
+        });
+      }
+
+      const children = hasTags
+        ? [
+            {
+              id: `native-notes-group-${groupSlug}-all`,
+              label: 'All notes',
+              tag: `#notes ${group}`,
+              value: group,
+              description: `${groupNotes.length} note${groupNotes.length === 1 ? '' : 's'}`,
+              children: noteOptions,
+            },
+            ...tagOptions,
+          ]
+        : noteOptions;
+
       return {
-        id: `native-notes-group-${group.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        id: `native-notes-group-${groupSlug}`,
         label: group,
         tag: `#notes ${group}`,
         value: group,
         description: `${groupNotes.length} note${groupNotes.length === 1 ? '' : 's'}`,
-        children: groupNotes.map((note) => ({
-          id: `native-note-${note.id}`,
-          label: buildNoteLabel(note),
-          tag: `#note ${note.id.slice(0, 8)}`,
-          value: note.content,
-          description: buildNoteDescription(note) || undefined,
-          meta: {
-            kind: 'native-note',
-            noteId: note.id,
-            imageUrl: note.imageUrl,
-          },
-        })),
+        children,
       };
     })
     .filter((entry): entry is ChatInputTagOption => Boolean(entry));

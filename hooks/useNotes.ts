@@ -61,6 +61,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
   const [tagColors, setTagColors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const ws = wsRef.current;
 
   const requestNotesBootstrap = useCallback(() => {
     const ws = wsRef.current;
@@ -75,7 +76,6 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
 
   // Load notes and groups on mount / socket open
   useEffect(() => {
-    const ws = wsRef.current;
     if (!ws) return;
 
     if (ws.readyState === WebSocket.OPEN) {
@@ -89,11 +89,10 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
 
     ws.addEventListener('open', handleOpen);
     return () => ws.removeEventListener('open', handleOpen);
-  }, [requestNotesBootstrap, wsRef]);
+  }, [requestNotesBootstrap, ws]);
 
   // Listen for notes messages
   useEffect(() => {
-    const ws = wsRef.current;
     if (!ws) return;
 
     const handleMessage = (event: MessageEvent) => {
@@ -178,7 +177,7 @@ export function useNotes({ wsRef }: UseNotesProps): UseNotesReturn {
 
     ws.addEventListener('message', handleMessage);
     return () => ws.removeEventListener('message', handleMessage);
-  }, [wsRef]);
+  }, [ws]);
 
   const addNote = useCallback(
     async (content: string, group: string, tags?: string[], imageUrl?: string): Promise<Note> => {

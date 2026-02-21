@@ -5,6 +5,9 @@
 import type { ChatInputTagOption } from '@/types/extension';
 import { GitHubAPI } from '../api';
 
+const CHAT_INPUT_CACHE_TTL = 5 * 60 * 1000;
+const chatInputCache = new Map<string, { data: ChatInputTagOption[]; timestamp: number }>();
+
 /**
  * Get tag options based on query
  */
@@ -12,6 +15,12 @@ export async function getChatInputOptions(
   api: GitHubAPI,
   query: string
 ): Promise<ChatInputTagOption[]> {
+  const normalizedQuery = query.trim().toLowerCase();
+  const cached = chatInputCache.get(normalizedQuery);
+  if (cached && Date.now() - cached.timestamp < CHAT_INPUT_CACHE_TTL) {
+    return cached.data;
+  }
+
   try {
     const toTimestamp = (dateValue?: string) => (dateValue ? new Date(dateValue).getTime() : 0);
     const toRepoOption = (repoOwner: string, repoName: string, repoUrl: string): ChatInputTagOption => ({
@@ -378,6 +387,7 @@ export async function getChatInputOptions(
       options.push(...sortedOrgGroups);
     }
 
+    chatInputCache.set(normalizedQuery, { data: options, timestamp: Date.now() });
     return options;
   } catch (error) {
     console.error('[GitHub ChatInput] Failed to get tag options:', error);
