@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CronJob } from "@/types";
 import { CRON_SCHEDULE_PRESETS } from "@/lib/cron-schedule";
+import { ModelSelector } from "@/components/statusbar/ModelSelector";
 
 type SupportedSessionTarget = "isolated" | "shared";
 
@@ -162,18 +163,13 @@ export function UpdateCronPanel({ job, onUpdateCronJob, onClose, models = [], de
                   No models available. Cannot submit.
                 </div>
               ) : (
-                <select
-                  value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  required
-                >
-                  {models.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.alias || m.id.split("/").pop()} ({m.id})
-                    </option>
-                  ))}
-                </select>
+                <div className="w-full px-4 py-2 bg-secondary border border-border rounded-lg">
+                  <ModelSelector
+                    models={models}
+                    currentModel={formData.model}
+                    onChange={(modelId) => setFormData({ ...formData, model: modelId })}
+                  />
+                </div>
               )}
             </div>
 
