@@ -14,6 +14,7 @@ export interface CronPayload {
   kind: "agentTurn";
   message: string;
   agentId?: string;
+  model: string;
 }
 
 export interface CronDelivery {

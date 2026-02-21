@@ -6,14 +6,22 @@ import { CRON_SCHEDULE_PRESETS } from "@/lib/cron-schedule";
 
 type SupportedSessionTarget = "isolated" | "shared";
 
+interface Model {
+  id: string;
+  alias?: string;
+  provider?: string;
+}
+
 interface CreateCronPanelProps {
   onCreateCronJob: (
     payload: Omit<CronJob, "id" | "createdAtMs" | "updatedAtMs">
   ) => Promise<CronJob>;
   onClose?: () => void;
+  models?: Model[];
+  defaultModel?: string;
 }
 
-export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelProps) {
+export function CreateCronPanel({ onCreateCronJob, onClose, models = [], defaultModel }: CreateCronPanelProps) {
   const [formData, setFormData] = useState({
     name: "Daily Brief",
     expr: CRON_SCHEDULE_PRESETS[2].expr,
@@ -22,6 +30,7 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
     enabled: true,
     sessionTarget: "shared" as SupportedSessionTarget,
     deliveryMode: "announce" as "announce" | "silent",
+    model: defaultModel ?? models[0]?.id ?? "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +49,11 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
       return;
     }
 
+    if (!formData.model) {
+      setError("Model is required.");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       const job = await onCreateCronJob({
@@ -55,6 +69,7 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
         payload: {
           kind: "agentTurn",
           message,
+          model: formData.model,
         },
         delivery: {
           mode: formData.deliveryMode,
@@ -153,6 +168,33 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-2">Model</label>
+              {models.length === 0 ? (
+                <div className="px-4 py-2 bg-destructive/10 border border-destructive rounded-lg text-destructive text-sm">
+                  No models available. Cannot submit.
+                </div>
+              ) : (
+                <select
+                  value={formData.model}
+                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  required
+                >
+                  {models.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.alias || m.id.split("/").pop()} ({m.id})
+                    </option>
+                  ))}
+                </select>
+              )}
+              {formData.sessionTarget === "shared" && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Note: model selection affects the shared session.
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium mb-2">Session Target</label>
@@ -206,7 +248,7 @@ export function CreateCronPanel({ onCreateCronJob, onClose }: CreateCronPanelPro
             <div className="flex gap-3 pt-2">
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || models.length === 0}
                 className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
               >
                 {isSubmitting ? "Creating..." : "Create Cron Job"}
