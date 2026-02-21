@@ -6,7 +6,16 @@ import type { ChatInputTagOption } from '@/types/extension';
 import { GitHubAPI } from '../api';
 
 const CHAT_INPUT_CACHE_TTL = 5 * 60 * 1000;
-const chatInputCache = new Map<string, { data: ChatInputTagOption[]; timestamp: number }>();
+const chatInputCache = new WeakMap<GitHubAPI, Map<string, { data: ChatInputTagOption[]; timestamp: number }>>();
+
+function getCacheBucket(api: GitHubAPI) {
+  let bucket = chatInputCache.get(api);
+  if (!bucket) {
+    bucket = new Map<string, { data: ChatInputTagOption[]; timestamp: number }>();
+    chatInputCache.set(api, bucket);
+  }
+  return bucket;
+}
 
 /**
  * Get tag options based on query
@@ -16,7 +25,8 @@ export async function getChatInputOptions(
   query: string
 ): Promise<ChatInputTagOption[]> {
   const normalizedQuery = query.trim().toLowerCase();
-  const cached = chatInputCache.get(normalizedQuery);
+  const cacheBucket = getCacheBucket(api);
+  const cached = cacheBucket.get(normalizedQuery);
   if (cached && Date.now() - cached.timestamp < CHAT_INPUT_CACHE_TTL) {
     return cached.data;
   }
@@ -387,7 +397,7 @@ export async function getChatInputOptions(
       options.push(...sortedOrgGroups);
     }
 
-    chatInputCache.set(normalizedQuery, { data: options, timestamp: Date.now() });
+    cacheBucket.set(normalizedQuery, { data: options, timestamp: Date.now() });
     return options;
   } catch (error) {
     console.error('[GitHub ChatInput] Failed to get tag options:', error);
