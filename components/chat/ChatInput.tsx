@@ -69,6 +69,18 @@ export function ChatInput({
     : isExtensionTagLoading;
   const isTagDropdownOpen = isTagging && (isTagLoading || tagOptions.length > 0);
 
+  // Increment this key each time the dropdown transitions from closed → open so that
+  // ChatInputTagDropdown is always remounted with fresh state (currentPath / activeIndex
+  // reset to their defaults) on every new dropdown session.
+  const [tagDropdownKey, setTagDropdownKey] = useState(0);
+  const prevIsTagDropdownOpenRef = useRef(false);
+  useEffect(() => {
+    if (isTagDropdownOpen && !prevIsTagDropdownOpenRef.current) {
+      setTagDropdownKey(k => k + 1);
+    }
+    prevIsTagDropdownOpenRef.current = isTagDropdownOpen;
+  }, [isTagDropdownOpen]);
+
   // Reset height when value is empty
   useEffect(() => {
     if (!value && textareaRef.current) {
@@ -445,6 +457,7 @@ export function ChatInput({
 
           {isTagDropdownOpen && (
             <ChatInputTagDropdown
+              key={tagDropdownKey}
               options={tagOptions}
               onSelect={handleSelectTagOption}
               onClose={handleCloseTagDropdown}
