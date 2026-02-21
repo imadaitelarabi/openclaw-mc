@@ -246,10 +246,27 @@ export function useExtensionChatInput() {
       return [];
     }
 
-    // If no specific extension matched, filter extension list by query
+    // Generic query – run parallel search across all enabled extensions
     setIsLoading(true);
     try {
-      return await getExtensionOptionsWithChildren(searchTerm);
+      const chatInputExtensions = enabledExtensions.filter(
+        ext => ext.manifest.hooks.includes('chat-input') && ext.hooks.chatInput
+      );
+
+      const resultsPerExt = await Promise.all(
+        chatInputExtensions.map(async (ext): Promise<ChatInputTagOption[]> => {
+          try {
+            const options = await ext.hooks.chatInput!(searchTerm);
+            const sourceName = ext.manifest.name.charAt(0).toUpperCase() + ext.manifest.name.slice(1);
+            return options.map(option => ({ ...option, source: { name: sourceName } }));
+          } catch (error) {
+            console.error(`[ChatInputHook] Error searching ${ext.manifest.name}:`, error);
+            return [];
+          }
+        })
+      );
+
+      return resultsPerExt.flat();
     } finally {
       setIsLoading(false);
     }
