@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Tag, Palette } from 'lucide-react';
+import { Tag, Palette, Plus } from 'lucide-react';
 import { getTagColor, asRgba } from '@/lib/tag-colors';
 import { ConfirmationModal } from '@/components/modals';
 
@@ -10,12 +10,16 @@ interface TagsSettingsPanelProps {
   tagColors: Record<string, string>;
   onSetTagColor: (tag: string, color: string) => Promise<void>;
   onDeleteTag: (tag: string) => Promise<void>;
+  onCreateTag: (tag: string) => Promise<void>;
 }
 
-export function TagsSettingsPanel({ allTags, tagColors, onSetTagColor, onDeleteTag }: TagsSettingsPanelProps) {
+export function TagsSettingsPanel({ allTags, tagColors, onSetTagColor, onDeleteTag, onCreateTag }: TagsSettingsPanelProps) {
   const [updatingTagColor, setUpdatingTagColor] = useState<string | null>(null);
   const [tagPendingDelete, setTagPendingDelete] = useState<string | null>(null);
   const [isDeletingTag, setIsDeletingTag] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [isCreatingTag, setIsCreatingTag] = useState(false);
+  const [createTagError, setCreateTagError] = useState<string | null>(null);
 
   const randomHexColor = () => `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`;
 
@@ -42,11 +46,62 @@ export function TagsSettingsPanel({ allTags, tagColors, onSetTagColor, onDeleteT
     }
   };
 
+  const handleCreateTag = async () => {
+    const trimmed = newTagName.trim();
+    if (!trimmed) return;
+
+    setIsCreatingTag(true);
+    setCreateTagError(null);
+    try {
+      await onCreateTag(trimmed);
+      setNewTagName('');
+    } catch (err) {
+      setCreateTagError((err as Error).message || 'Failed to create tag');
+    } finally {
+      setIsCreatingTag(false);
+    }
+  };
+
+  const handleNewTagKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      void handleCreateTag();
+    }
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-background p-4">
       <div className="mb-4">
         <h2 className="text-sm font-medium">Tags Settings</h2>
         <p className="text-xs text-muted-foreground mt-1">Manage global tag colors and delete tags across all notes.</p>
+      </div>
+
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={newTagName}
+            onChange={(event) => {
+              setNewTagName(event.target.value);
+              setCreateTagError(null);
+            }}
+            onKeyDown={handleNewTagKeyDown}
+            placeholder="New tag name…"
+            className="flex-1 rounded border border-border bg-secondary/40 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+            disabled={isCreatingTag}
+          />
+          <button
+            type="button"
+            onClick={() => void handleCreateTag()}
+            disabled={isCreatingTag || !newTagName.trim()}
+            className="inline-flex items-center gap-1 rounded border border-border bg-secondary/40 px-2 py-1 text-xs hover:bg-secondary transition-colors disabled:opacity-50"
+          >
+            <Plus className="w-3 h-3" />
+            Create
+          </button>
+        </div>
+        {createTagError && (
+          <p className="mt-1 text-xs text-destructive">{createTagError}</p>
+        )}
       </div>
 
       {allTags.length === 0 ? (

@@ -13,6 +13,7 @@ interface NotesStorage {
   notes: Note[];
   groups: string[];
   tagColors?: Record<string, string>;
+  tags?: string[];
 }
 
 const DEFAULT_NOTE_GROUPS = ['General', 'Commands', 'Ideas', 'Snippets'];
@@ -25,6 +26,7 @@ export class NotesManager {
   private notes: Note[] = [];
   private groups: string[] = [...DEFAULT_NOTE_GROUPS];
   private tagColors: Record<string, string> = {};
+  private explicitTags: string[] = [];
 
   constructor() {
     this.configDir = path.join(os.homedir(), '.oc-mission-control');
@@ -58,6 +60,7 @@ export class NotesManager {
           this.tagColors = (parsed.tagColors && typeof parsed.tagColors === 'object')
             ? parsed.tagColors
             : {};
+          this.explicitTags = Array.isArray(parsed.tags) ? parsed.tags.filter(t => typeof t === 'string' && t.trim()) : [];
         }
 
         this.ensureTagColors(this.listAllTags());
@@ -80,6 +83,7 @@ export class NotesManager {
         notes: this.notes,
         groups: this.groups,
         tagColors: this.tagColors,
+        tags: this.explicitTags,
       };
 
       fs.writeFileSync(this.notesPath, JSON.stringify(payload, null, 2), 'utf-8');
@@ -236,16 +240,27 @@ export class NotesManager {
   }
 
   public listAllTags(): string[] {
-    const tagSet = new Set<string>();
+    const tagMap = new Map<string, string>();
+
+    // Include explicitly created tags
+    for (const tag of this.explicitTags) {
+      const trimmed = tag.trim();
+      if (trimmed) tagMap.set(trimmed.toLowerCase(), trimmed);
+    }
+
+    // Include tags from notes
     for (const note of this.notes) {
       if (Array.isArray(note.tags)) {
         for (const tag of note.tags) {
           const trimmed = tag.trim();
-          if (trimmed) tagSet.add(trimmed);
+          if (trimmed && !tagMap.has(trimmed.toLowerCase())) {
+            tagMap.set(trimmed.toLowerCase(), trimmed);
+          }
         }
       }
     }
-    return Array.from(tagSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+    return Array.from(tagMap.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   }
 
   private normalizeHexColor(color: string): string {
@@ -396,6 +411,10 @@ export class NotesManager {
 
     delete this.tagColors[canonicalTag];
 
+    this.explicitTags = this.explicitTags.filter(
+      t => t.toLowerCase() !== canonicalTag.toLowerCase()
+    );
+
     this.saveNotes();
 
     const remainingTags = this.listAllTags();
@@ -404,6 +423,29 @@ export class NotesManager {
       notes: this.notes,
       allTags: remainingTags,
       tagColors,
+    };
+  }
+
+  public createTag(tag: string): { allTags: string[]; tagColors: Record<string, string> } {
+    const normalizedTag = tag.trim();
+    if (!normalizedTag) {
+      throw new Error('Tag name is required');
+    }
+
+    const allTags = this.listAllTags();
+    const alreadyExists = allTags.some(
+      existing => existing.toLowerCase() === normalizedTag.toLowerCase()
+    );
+
+    if (!alreadyExists) {
+      this.explicitTags.push(normalizedTag);
+      this.ensureTagColors([normalizedTag]);
+      this.saveNotes();
+    }
+
+    return {
+      allTags: this.listAllTags(),
+      tagColors: this.listTagColors(),
     };
   }
 

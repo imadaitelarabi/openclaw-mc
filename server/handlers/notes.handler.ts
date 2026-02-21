@@ -381,8 +381,46 @@ export async function handleNotesTagColorSet(
 }
 
 /**
- * Delete a tag globally from all notes
+ * Create a new tag globally
  */
+export async function handleNotesTagCreate(
+  msg: Extract<ClientMessage, { type: 'notes.tags.create' }>,
+  ws: ExtendedWebSocket
+): Promise<void> {
+  const { requestId, tag } = msg;
+
+  if (!tag?.trim()) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.create.error',
+        requestId,
+        error: 'Tag name is required',
+      })
+    );
+    return;
+  }
+
+  try {
+    const result = notesManager.createTag(tag);
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.create.ack',
+        requestId,
+        tag: tag.trim(),
+        allTags: result.allTags,
+        tagColors: result.tagColors,
+      })
+    );
+  } catch (err) {
+    ws.send(
+      JSON.stringify({
+        type: 'notes.tags.create.error',
+        requestId,
+        error: (err as Error).message || 'Failed to create tag',
+      })
+    );
+  }
+}
 export async function handleNotesTagDelete(
   msg: Extract<ClientMessage, { type: 'notes.tags.delete' }>,
   ws: ExtendedWebSocket

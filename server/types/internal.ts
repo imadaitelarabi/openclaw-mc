@@ -99,6 +99,7 @@ export type ClientMessage =
   | { type: 'notes.update'; requestId?: string; id: string; content?: string; group?: string; tags?: string[]; imageUrl?: string }
   | { type: 'notes.tags.color.set'; requestId?: string; tag: string; color: string }
   | { type: 'notes.tags.delete'; requestId?: string; tag: string }
+  | { type: 'notes.tags.create'; requestId?: string; tag: string }
   | { type: 'notes.delete'; requestId?: string; id: string };
 
 // Server to Client Messages
@@ -134,6 +135,7 @@ export type ServerMessage =
   | { type: 'notes.update.ack'; requestId?: string; note: Note; tagColors: Record<string, string> }
   | { type: 'notes.tags.color.set.ack'; requestId?: string; tag: string; color: string; tagColors: Record<string, string> }
   | { type: 'notes.tags.delete.ack'; requestId?: string; tag: string; notes: Note[]; allTags: string[]; tagColors: Record<string, string> }
+  | { type: 'notes.tags.create.ack'; requestId?: string; tag: string; allTags: string[]; tagColors: Record<string, string> }
   | { type: 'notes.delete.ack'; requestId?: string; id: string }
   | { type: 'notes.list.error'; requestId?: string; error: string }
   | { type: 'notes.groups.list.error'; requestId?: string; error: string }
@@ -144,6 +146,7 @@ export type ServerMessage =
   | { type: 'notes.update.error'; requestId?: string; error: string }
   | { type: 'notes.tags.color.set.error'; requestId?: string; error: string }
   | { type: 'notes.tags.delete.error'; requestId?: string; error: string }
+  | { type: 'notes.tags.create.error'; requestId?: string; error: string }
   | { type: 'notes.delete.error'; requestId?: string; error: string }
   | { type: 'event'; event: string; payload: Record<string, unknown> };
 
