@@ -2,7 +2,7 @@
  * Extension System Types
  * 
  * Core type definitions for the modular extensions system.
- * Extensions are read-only plugins that provide data to Mission Control.
+ * Extensions are read-only plugins that provide data to OpenClaw MC.
  */
 
 /**

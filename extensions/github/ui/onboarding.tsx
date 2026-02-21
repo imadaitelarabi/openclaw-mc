@@ -147,7 +147,7 @@ export function OnboardingPanel({ extensionName, onComplete, onCancel, connectio
     <div className="p-6 max-w-md mx-auto">
       <h2 className="text-xl font-semibold mb-2">Setup GitHub Integration</h2>
       <p className="text-sm text-muted-foreground mb-6">
-        Connect to GitHub to browse organizations, repositories, pull requests, and issues directly from Mission Control.
+        Connect to GitHub to browse organizations, repositories, pull requests, and issues directly from OpenClaw MC.
       </p>
       
       <div className="space-y-4">

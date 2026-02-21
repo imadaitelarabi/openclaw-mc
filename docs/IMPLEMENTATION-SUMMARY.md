@@ -2,7 +2,7 @@
 
 ## ✅ Completed Implementation
 
-This implementation successfully delivers a structured pipeline for processing chat and agent events in Mission Control, providing the responsiveness and clarity needed for enhanced user experience.
+This implementation successfully delivers a structured pipeline for processing chat and agent events in OpenClaw MC, providing the responsiveness and clarity needed for enhanced user experience.
 
 ## 🎯 Success Criteria - Status
 

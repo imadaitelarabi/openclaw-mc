@@ -3,6 +3,7 @@
  * Shows notes count with dropdown menu for group selection
  */
 
+import { useRef, useEffect, useState } from 'react';
 import { StickyNote, ChevronDown, Plus } from 'lucide-react';
 import type { Note, NoteGroup } from '@/types';
 
@@ -45,8 +46,52 @@ export function NotesStatusBarItem({
     return a.name.localeCompare(b.name);
   });
 
+  // items: index 0 = "All Notes", indices 1..n = sortedGroups
+  const totalItems = 1 + sortedGroups.length;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeItemRef = useRef<HTMLButtonElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Reset active index when menu opens
+  useEffect(() => {
+    if (isOpen) setActiveIndex(0);
+  }, [isOpen]);
+
+  // Scroll active item into view
+  useEffect(() => {
+    activeItemRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIndex(prev => (prev + 1) % totalItems);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIndex(prev => (prev - 1 + totalItems) % totalItems);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (activeIndex === 0) {
+          onSelectGroup(null);
+          onToggle();
+        } else {
+          onSelectGroup(sortedGroups[activeIndex - 1].name);
+          onToggle();
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onToggle();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, activeIndex, totalItems, sortedGroups, onSelectGroup, onToggle]);
+
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         onClick={onToggle}
         className="flex items-center gap-2 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors"
@@ -76,11 +121,13 @@ export function NotesStatusBarItem({
           <div className="max-h-64 overflow-y-auto py-1">
             {/* All Notes Option */}
             <button
+              ref={activeIndex === 0 ? activeItemRef : null}
+              onMouseEnter={() => setActiveIndex(0)}
               onClick={() => {
                 onSelectGroup(null);
                 onToggle();
               }}
-              className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+              className={`w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors ${activeIndex === 0 ? 'bg-accent text-accent-foreground' : ''}`}
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium">All Notes</span>
@@ -94,14 +141,16 @@ export function NotesStatusBarItem({
                 No notes yet
               </div>
             ) : (
-              sortedGroups.map(group => (
+              sortedGroups.map((group, index) => (
                 <button
                   key={group.name}
+                  ref={activeIndex === index + 1 ? activeItemRef : null}
+                  onMouseEnter={() => setActiveIndex(index + 1)}
                   onClick={() => {
                     onSelectGroup(group.name);
                     onToggle();
                   }}
-                  className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className={`w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground transition-colors ${activeIndex === index + 1 ? 'bg-accent text-accent-foreground' : ''}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{group.name}</span>

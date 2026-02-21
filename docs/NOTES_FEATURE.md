@@ -1,7 +1,7 @@
 # Notes Feature Documentation
 
 ## Overview
-The Notes feature allows users to store and categorize quick information directly within Mission Control. Notes are persisted locally to `~/.oc-mission-control/notes.json` and synchronized in real-time via WebSocket.
+The Notes feature allows users to store and categorize quick information directly within OpenClaw MC. Notes are persisted locally to `~/.oc-mission-control/notes.json` and synchronized in real-time via WebSocket.
 
 ## Architecture
 
@@ -130,13 +130,13 @@ interface UseNotesReturn {
 ```
 
 #### Native chat mentions (`hooks/useNativeChatInput.ts` + `components/chat/ChatInput.tsx`)
-Mission Control also exposes Notes directly in chat input via `#` mentions.
+OpenClaw MC also exposes Notes directly in chat input via `#` mentions.
 
 **Behavior:**
 - Typing `#` opens native providers (currently Notes)
 - `#notes` shows note groups, then notes within each group
 - Selecting a note inserts its content into the chat input wrapped in `<note>...</note>`
-- If the note includes an image, Mission Control attempts to fetch and attach that image automatically
+- If the note includes an image, OpenClaw MC attempts to fetch and attach that image automatically
 - The textarea auto-resizes after mention insertion for cleaner UX
 
 ### Type Definitions
@@ -200,7 +200,7 @@ openPanel('notes', { selectedGroup: 'Commands' });
 1. In any chat panel, type `#` to open native mention providers.
 2. Select `Notes`, then optionally narrow by group (for example: `#notes Ideas`).
 3. Pick a note from the dropdown.
-4. Mission Control inserts:
+4. OpenClaw MC inserts:
    ```text
    <note>
    ...note content...

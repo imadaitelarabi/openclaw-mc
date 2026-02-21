@@ -1,6 +1,6 @@
-# Contributing to Mission Control
+# Contributing to OpenClaw MC
 
-Thank you for your interest in contributing to Mission Control! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to OpenClaw MC! This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ Thank you for your interest in contributing to Mission Control! This document pr
 
 ## Getting Started
 
-Mission Control is a Next.js-based web application that provides a real-time monitoring and management interface for OpenClaw Gateway. Before contributing, please:
+OpenClaw MC is a Next.js-based web application that provides a real-time monitoring and management interface for OpenClaw Gateway. Before contributing, please:
 
 1. Read the [README.md](./README.md) to understand the project
 2. Check existing [issues](https://github.com/imadaitelarabi/openclaw-mc/issues) and [pull requests](https://github.com/imadaitelarabi/openclaw-mc/pulls)
@@ -326,8 +326,8 @@ If you're contributing an extension, please review:
 
 ## License
 
-By contributing to Mission Control, you agree that your contributions will be licensed under the same license as the project (MIT License).
+By contributing to OpenClaw MC, you agree that your contributions will be licensed under the same license as the project (MIT License).
 
 ---
 
-Thank you for contributing to Mission Control! 🚀
+Thank you for contributing to OpenClaw MC! 🚀

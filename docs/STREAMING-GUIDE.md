@@ -1,4 +1,4 @@
-# Mission Control - Streaming & Thinking Implementation Guide
+# OpenClaw MC - Streaming & Thinking Implementation Guide
 
 Based on OpenClaw Gateway documentation analysis.
 

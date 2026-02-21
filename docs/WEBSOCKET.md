@@ -105,7 +105,7 @@ Real-time events come as:
 - `exec.approval.requested` - Command approval needed
 - `device.pair.requested` - Device pairing
 
-## Why SSE Is Simpler for Mission Control
+## Why SSE Is Simpler for OpenClaw MC
 
 1. No complex authentication handshake
 2. Works through standard HTTP proxies

@@ -1,6 +1,6 @@
 # Extension Template
 
-This is a template for creating Mission Control extensions.
+This is a template for creating OpenClaw MC extensions.
 
 ## Structure
 

@@ -8,7 +8,7 @@ This tutorial will guide you through creating a simple extension that displays G
 
 - Basic TypeScript/React knowledge
 - GitHub Personal Access Token
-- Mission Control running locally
+- OpenClaw MC running locally
 
 ## Step 1: Set Up Extension Structure (5 minutes)
 
@@ -480,7 +480,7 @@ useEffect(() => {
 
 ## Step 10: Test Your Extension (10 minutes)
 
-1. **Start Mission Control:**
+1. **Start OpenClaw MC:**
    ```bash
    npm run dev
    ```
@@ -570,7 +570,7 @@ useEffect(() => {
 
 ## Congratulations!
 
-You've built a complete Mission Control extension in under an hour! 🎉
+You've built a complete OpenClaw MC extension in under an hour! 🎉
 
 ### What You've Learned
 

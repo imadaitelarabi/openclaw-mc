@@ -42,7 +42,7 @@ export function OnboardingWizard({ onConnectGateway, onComplete, onSkip }: Onboa
             <Sparkles className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="font-bold text-lg">Welcome to Mission Control</h1>
+            <h1 className="font-bold text-lg">Welcome to OpenClaw MC</h1>
             <p className="text-xs text-muted-foreground">Let's get you set up</p>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Mission Control now implements a **global event forwarding** approach for all Gateway events, replacing the previous selective filtering system. This enhancement improves debugging capabilities and enables new features without requiring server-side code changes.
+OpenClaw MC now implements a **global event forwarding** approach for all Gateway events, replacing the previous selective filtering system. This enhancement improves debugging capabilities and enables new features without requiring server-side code changes.
 
 ## Key Changes
 

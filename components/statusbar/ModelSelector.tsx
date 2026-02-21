@@ -18,7 +18,9 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [activeModel, setActiveModel] = useState(currentModel || '');
+  const [activeIndex, setActiveIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const activeItemRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setActiveModel(currentModel || '');
@@ -33,6 +35,17 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
     m.provider?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Reset active index when list changes
+  useEffect(() => {
+    const idx = filteredModels.findIndex(m => m.id === activeModel);
+    setActiveIndex(idx >= 0 ? idx : filteredModels.length > 0 ? 0 : -1);
+  }, [search, isOpen]);
+
+  // Scroll active item into view
+  useEffect(() => {
+    activeItemRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
+
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -46,6 +59,34 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIndex(prev => (prev + 1) % filteredModels.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIndex(prev => (prev - 1 + filteredModels.length) % filteredModels.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (activeIndex >= 0 && activeIndex < filteredModels.length) {
+          const model = filteredModels[activeIndex];
+          setActiveModel(model.id);
+          onChange(model.id, model.provider);
+          setIsOpen(false);
+          setSearch('');
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, activeIndex, filteredModels, onChange]);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -80,9 +121,11 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
                 No models found
               </div>
             ) : (
-              filteredModels.map(model => (
+              filteredModels.map((model, index) => (
                 <button
                   key={`${model.provider}:${model.id}`}
+                  ref={index === activeIndex ? activeItemRef : null}
+                  onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => {
                     setActiveModel(model.id);
                     onChange(model.id, model.provider);
@@ -90,7 +133,7 @@ export function ModelSelector({ models, currentModel, onChange, disabled }: Mode
                     setSearch('');
                   }}
                   className={`w-full text-left px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground transition-colors ${
-                    model.id === activeModel ? 'bg-accent/50 text-primary' : ''
+                    index === activeIndex ? 'bg-accent text-accent-foreground' : model.id === activeModel ? 'bg-accent/50 text-primary' : ''
                   }`}
                 >
                   <div className="font-medium">{model.alias || model.id.split('/').pop()}</div>

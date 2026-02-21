@@ -1,8 +1,8 @@
-# ✅ Mission Control - Status Bar Enhancements COMPLETE!
+# ✅ OpenClaw MC - Status Bar Enhancements COMPLETE!
 
 ## Summary
 
-Successfully added comprehensive status bar controls for model selection, thinking mode, and verbose mode per agent in Mission Control.
+Successfully added comprehensive status bar controls for model selection, thinking mode, and verbose mode per agent in OpenClaw MC.
 
 ---
 
@@ -144,7 +144,7 @@ Opens to:
 ## 🧪 Next: Testing
 
 ### Manual Testing Checklist
-- [ ] Open Mission Control in browser
+- [ ] Open OpenClaw MC in browser
 - [ ] Select an agent
 - [ ] Verify model dropdown appears
 - [ ] Search for a model

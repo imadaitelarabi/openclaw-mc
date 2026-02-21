@@ -157,12 +157,12 @@ build_and_run() {
   log "Building production bundle..."
   npm run build
 
-  log "Starting Mission Control in production mode (Ctrl+C to stop)..."
+  log "Starting OpenClaw MC in production mode (Ctrl+C to stop)..."
   exec npm start
 }
 
 main() {
-  log "Preparing Mission Control installer"
+  log "Preparing OpenClaw MC installer"
   ensure_cmds
   fetch_repo
   build_and_run

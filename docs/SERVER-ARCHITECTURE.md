@@ -2,14 +2,14 @@
 
 ## Overview
 
-Mission Control's backend follows a **"Thin Proxy" architecture** that transparently forwards OpenClaw Gateway events to the UI without server-side interpretation or formatting. The server is built with modular TypeScript components that separate concerns into logical layers: Next.js integration, WebSocket client connections, and Gateway communication.
+OpenClaw MC's backend follows a **"Thin Proxy" architecture** that transparently forwards OpenClaw Gateway events to the UI without server-side interpretation or formatting. The server is built with modular TypeScript components that separate concerns into logical layers: Next.js integration, WebSocket client connections, and Gateway communication.
 
 ## Architectural Pattern: Thin Proxy
 
 The server acts as a **transparent WebSocket bridge** between the OpenClaw Gateway and UI clients:
 
 ```
-OpenClaw Gateway <-> Mission Control Server <-> UI Client
+OpenClaw Gateway <-> OpenClaw MC Server <-> UI Client
                      (Thin Proxy - No Event Processing)
 ```
 

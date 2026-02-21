@@ -1,4 +1,4 @@
-# Mission Control - Status Bar Enhancements
+# OpenClaw MC - Status Bar Enhancements
 
 ## Features to Add
 

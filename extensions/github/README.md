@@ -1,6 +1,6 @@
 # GitHub Extension
 
-GitHub integration for Mission Control - quick access to pull requests and issues.
+GitHub integration for OpenClaw MC - quick access to pull requests and issues.
 
 ## Features
 
@@ -21,10 +21,10 @@ GitHub integration for Mission Control - quick access to pull requests and issue
 
 ## Setup
 
-1. **Enable the extension** in Mission Control
+1. **Enable the extension** in OpenClaw MC
 2. **Create a GitHub Personal Access Token**:
    - Go to [GitHub Settings → Tokens](https://github.com/settings/tokens/new)
-   - Add description: "Mission Control"
+   - Add description: "OpenClaw MC"
    - Select scope: `repo` (Full control of private repositories)
    - Generate token
 3. **Configure the extension**:

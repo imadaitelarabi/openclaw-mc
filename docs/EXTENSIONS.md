@@ -2,7 +2,7 @@
 
 ## Overview
 
-Mission Control's extensions system enables modular, read-only integrations with external services. Extensions can provide:
+OpenClaw MC's extensions system enables modular, read-only integrations with external services. Extensions can provide:
 
 - **Status Bar Items**: Display real-time data with dropdown actions
 - **Chat Input Tagging**: Enable @ mentions for external resources
@@ -11,13 +11,13 @@ Mission Control's extensions system enables modular, read-only integrations with
 ## Core Principles
 
 ### 1. Modularity
-Extensions are self-contained packages with no tight coupling to Mission Control's core.
+Extensions are self-contained packages with no tight coupling to OpenClaw MC's core.
 
 ### 2. No Side Effects
 Extensions only provide data and output. They cannot:
 - Trigger actions or mutations
 - Write to external systems
-- Modify Mission Control state directly
+- Modify OpenClaw MC state directly
 
 ### 3. Read-Only Focus
 Fetch and display information. Let users or agents decide next steps.

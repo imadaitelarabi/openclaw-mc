@@ -1,6 +1,6 @@
 # Visual Guide: Pattern-Based Event Handling
 
-This guide illustrates how the new pattern-based event handling appears in the Mission Control UI.
+This guide illustrates how the new pattern-based event handling appears in the OpenClaw MC UI.
 
 ## 🎨 UI Components
 

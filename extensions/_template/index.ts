@@ -1,7 +1,7 @@
 /**
  * Extension Entry Point
  * 
- * Main file that registers the extension with Mission Control.
+ * Main file that registers the extension with OpenClaw MC.
  * Export a setup function that returns the Extension object.
  */
 

@@ -1,6 +1,6 @@
 # Docker & Makefile Setup Guide
 
-This guide explains how to use the Docker and Makefile setup for Mission Control.
+This guide explains how to use the Docker and Makefile setup for OpenClaw MC.
 
 ## 📋 Table of Contents
 
@@ -295,7 +295,7 @@ make docker-dev
 
 ## 🔍 Health Checks
 
-Mission Control includes health check endpoints:
+OpenClaw MC includes health check endpoints:
 
 - **`/health`** - Main health endpoint
 - **`/api/health`** - Reverse proxy compatible endpoint

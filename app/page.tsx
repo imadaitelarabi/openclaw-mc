@@ -879,7 +879,7 @@ function MissionControlInner() {
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
           <span className="font-bold text-sm tracking-tight truncate max-w-[150px]">
-            {activePanelAgent?.name || "Mission Control"}
+            {activePanelAgent?.name || "OpenClaw MC"}
           </span>
         </div>
         <div className="flex items-center gap-3">
