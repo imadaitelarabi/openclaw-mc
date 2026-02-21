@@ -80,7 +80,11 @@ interface PanelContainerProps {
   skillsLoading?: boolean;
   skillsError?: string | null;
   skillsFilter?: string;
+  skillsWorkspaceFilter?: string;
+  skillsStatusFilter?: string;
   onSkillsFilterChange?: (next: string) => void;
+  onSkillsWorkspaceFilterChange?: (next: string) => void;
+  onSkillsStatusFilterChange?: (next: string) => void;
   onRefreshSkills?: () => void;
 }
 
@@ -134,7 +138,11 @@ export function PanelContainer({
   skillsLoading = false,
   skillsError = null,
   skillsFilter = '',
+  skillsWorkspaceFilter = 'all',
+  skillsStatusFilter = 'all',
   onSkillsFilterChange,
+  onSkillsWorkspaceFilterChange,
+  onSkillsStatusFilterChange,
   onRefreshSkills,
 }: PanelContainerProps) {
   if (panels.length === 0) {
@@ -318,7 +326,11 @@ export function PanelContainer({
                 loading={skillsLoading}
                 error={skillsError}
                 filter={skillsFilter}
+                workspaceFilter={skillsWorkspaceFilter}
+                statusFilter={skillsStatusFilter}
                 onFilterChange={onSkillsFilterChange}
+                onWorkspaceFilterChange={onSkillsWorkspaceFilterChange ?? onSkillsFilterChange}
+                onStatusFilterChange={onSkillsStatusFilterChange ?? onSkillsFilterChange}
                 onRefresh={onRefreshSkills}
               />
             )}

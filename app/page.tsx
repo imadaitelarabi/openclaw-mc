@@ -114,12 +114,35 @@ function MissionControlInner() {
   } = useNotes({ wsRef });
 
   const [skillsFilter, setSkillsFilter] = useState('');
+  const [skillsWorkspaceFilter, setSkillsWorkspaceFilter] = useState('all');
+  const [skillsStatusFilter, setSkillsStatusFilter] = useState('all');
   const {
     report: skillsReport,
     loading: skillsLoading,
     error: skillsError,
     refresh: refreshSkills,
   } = useSkills({ wsRef, connectionStatus });
+
+  useEffect(() => {
+    let mounted = true;
+    uiStateStore.getSkillsFilters().then((saved) => {
+      if (!mounted || !saved) return;
+      setSkillsFilter(saved.filter ?? '');
+      setSkillsWorkspaceFilter(saved.workspace ?? 'all');
+      setSkillsStatusFilter(saved.status ?? 'all');
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    uiStateStore.saveSkillsFilters({
+      filter: skillsFilter,
+      workspace: skillsWorkspaceFilter,
+      status: skillsStatusFilter,
+    });
+  }, [skillsFilter, skillsWorkspaceFilter, skillsStatusFilter]);
 
   // Get the active panel and its settings
   const activePanel = getActivePanel();
@@ -939,7 +962,11 @@ function MissionControlInner() {
             skillsLoading={skillsLoading}
             skillsError={skillsError}
             skillsFilter={skillsFilter}
+            skillsWorkspaceFilter={skillsWorkspaceFilter}
+            skillsStatusFilter={skillsStatusFilter}
             onSkillsFilterChange={setSkillsFilter}
+            onSkillsWorkspaceFilterChange={setSkillsWorkspaceFilter}
+            onSkillsStatusFilterChange={setSkillsStatusFilter}
             onRefreshSkills={refreshSkills}
           />
         )}

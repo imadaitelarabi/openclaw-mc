@@ -82,6 +82,15 @@ interface UIStateDB extends DBSchema {
       skipped?: boolean;
     };
   };
+  'skills-filters': {
+    key: string; // 'global'
+    value: {
+      filter: string;
+      workspace: string;
+      status: string;
+      timestamp: number;
+    };
+  };
 }
 
 class UIStateStore {
@@ -96,7 +105,8 @@ class UIStateStore {
     if (!this.dbPromise) {
       // Version 7 adds onboarding-state store to track first-time user onboarding completion
       // (isOnboarded, completedAt, skipped) across sessions. This is a non-breaking change.
-      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 7, {
+      // Version 8 adds skills-filters store for persisting skills panel filters.
+      this.dbPromise = openDB<UIStateDB>('openclaw-ui-state', 8, {
         upgrade(db, oldVersion) {
           // Create object stores if they don't exist
           if (!db.objectStoreNames.contains('scroll-positions')) {
@@ -143,6 +153,12 @@ class UIStateStore {
           if (oldVersion < 7) {
             if (!db.objectStoreNames.contains('onboarding-state')) {
               db.createObjectStore('onboarding-state');
+            }
+          }
+          // Add skills filters in version 8
+          if (oldVersion < 8) {
+            if (!db.objectStoreNames.contains('skills-filters')) {
+              db.createObjectStore('skills-filters');
             }
           }
         },
@@ -514,6 +530,33 @@ class UIStateStore {
       return null;
     } catch (err) {
       console.error('[UIState] Failed to get panel settings:', err);
+      return null;
+    }
+  }
+
+  async saveSkillsFilters(filters: { filter: string; workspace: string; status: string }): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.put('skills-filters', { ...filters, timestamp: Date.now() }, 'global');
+    } catch (err) {
+      console.error('[UIState] Failed to save skills filters:', err);
+    }
+  }
+
+  async getSkillsFilters(): Promise<{ filter: string; workspace: string; status: string } | null> {
+    try {
+      const db = await this.getDB();
+      const filters = await db.get('skills-filters', 'global');
+      if (!filters) {
+        return null;
+      }
+      return {
+        filter: filters.filter ?? '',
+        workspace: filters.workspace ?? 'all',
+        status: filters.status ?? 'all',
+      };
+    } catch (err) {
+      console.error('[UIState] Failed to get skills filters:', err);
       return null;
     }
   }
