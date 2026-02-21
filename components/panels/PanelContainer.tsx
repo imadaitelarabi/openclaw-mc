@@ -36,10 +36,10 @@ interface PanelContainerProps {
   updateSetting: (sessionKey: string, settings: any) => void;
   onAbortRun?: (agentId: string) => void;
   onResetSession?: (agentId: string) => void;
-  onModelChange?: (modelId: string, provider?: string) => void;
-  onThinkingChange?: (thinking: 'off' | 'low' | 'medium' | 'high') => void;
-  onShowToolsChange?: (show: boolean) => void;
-  onShowReasoningChange?: (show: boolean) => void;
+  onModelChange?: (panelId: string, modelId: string, provider?: string) => void;
+  onThinkingChange?: (panelId: string, thinking: 'off' | 'low' | 'medium' | 'high') => void;
+  onShowToolsChange?: (panelId: string, show: boolean) => void;
+  onShowReasoningChange?: (panelId: string, show: boolean) => void;
   onRefreshChat?: (agentId: string) => void;
   onCreateAgent: (payload: {
     id?: string;
@@ -148,13 +148,13 @@ export function PanelContainer({
             onResetSession={panel.type === 'chat' && panel.agentId ? () => onResetSession?.(panel.agentId!) : undefined}
             showTools={panel.type === 'chat' ? panel.settings?.showTools ?? false : undefined}
             showReasoning={panel.type === 'chat' ? panel.settings?.showReasoning ?? true : undefined}
-            onShowToolsChange={panel.type === 'chat' ? onShowToolsChange : undefined}
-            onShowReasoningChange={panel.type === 'chat' ? onShowReasoningChange : undefined}
+            onShowToolsChange={panel.type === 'chat' ? (show) => onShowToolsChange?.(panel.id, show) : undefined}
+            onShowReasoningChange={panel.type === 'chat' ? (show) => onShowReasoningChange?.(panel.id, show) : undefined}
             models={panel.type === 'chat' ? models : undefined}
             currentModel={panel.type === 'chat' ? panel.model : undefined}
-            onModelChange={panel.type === 'chat' ? onModelChange : undefined}
+            onModelChange={panel.type === 'chat' ? (modelId, provider) => onModelChange?.(panel.id, modelId, provider) : undefined}
             thinkingMode={panel.type === 'chat' ? (panel.thinking || 'low') : undefined}
-            onThinkingChange={panel.type === 'chat' ? onThinkingChange : undefined}
+            onThinkingChange={panel.type === 'chat' ? (thinking) => onThinkingChange?.(panel.id, thinking) : undefined}
             onRefreshChat={panel.type === 'chat' && panel.agentId ? () => onRefreshChat?.(panel.agentId!) : undefined}
             activeRunStatus={panel.type === 'chat' && panel.agentId ? (agentStatuses[panel.agentId] ?? 'idle') : 'idle'}
             onRunAcknowledged={panel.type === 'chat' && panel.agentId ? () => onClearCompletedRun?.(panel.agentId!) : undefined}
