@@ -70,6 +70,7 @@ interface PanelContainerProps {
   onUpdateNote?: (id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>) => Promise<void>;
   onSetTagColor?: (tag: string, color: string) => Promise<void>;
   onDeleteTag?: (tag: string) => Promise<void>;
+  onCreateTag?: (tag: string) => Promise<void>;
   onCreateNoteGroup?: (group: string) => Promise<void>;
   onDeleteNoteGroup?: (group: string) => Promise<void>;
   onUploadNoteImage?: (file: File) => Promise<string>;
@@ -130,6 +131,7 @@ export function PanelContainer({
   onUpdateNote,
   onSetTagColor,
   onDeleteTag,
+  onCreateTag,
   onCreateNoteGroup,
   onDeleteNoteGroup,
   onUploadNoteImage,
@@ -336,12 +338,13 @@ export function PanelContainer({
               />
             )}
 
-            {panel.type === 'tags-settings' && onSetTagColor && onDeleteTag && (
+            {panel.type === 'tags-settings' && onSetTagColor && onDeleteTag && onCreateTag && (
               <TagsSettingsPanel
                 allTags={allTags}
                 tagColors={tagColors}
                 onSetTagColor={onSetTagColor}
                 onDeleteTag={onDeleteTag}
+                onCreateTag={onCreateTag}
               />
             )}
           </div>

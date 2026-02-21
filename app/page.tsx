@@ -105,6 +105,7 @@ function MissionControlInner() {
     addNote,
     setTagColor,
     deleteTag,
+    createTag,
     addGroup,
     deleteGroup,
     uploadNoteImage,
@@ -706,6 +707,19 @@ function MissionControlInner() {
     }
   }, [deleteTag, toast]);
 
+  const handleCreateTag = useCallback(async (tag: string) => {
+    try {
+      await createTag(tag);
+    } catch (err) {
+      toast({
+        title: 'Failed to create tag',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
+      throw err;
+    }
+  }, [createTag, toast]);
+
   const handleCreateAgentRequest = useCallback(async (payload: {
     id?: string;
     name: string;
@@ -954,6 +968,7 @@ function MissionControlInner() {
             onUpdateNote={handleUpdateNote}
             onSetTagColor={handleSetTagColor}
             onDeleteTag={handleDeleteTag}
+            onCreateTag={handleCreateTag}
             onCreateNoteGroup={handleCreateNoteGroup}
             onDeleteNoteGroup={handleDeleteNoteGroup}
             onUploadNoteImage={handleUploadNoteImage}

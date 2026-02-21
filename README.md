@@ -148,4 +148,4 @@ PORT=3001 npm start
 ## Links
 - OpenClaw Docs: https://docs.openclaw.ai
 - OpenClaw GitHub: https://github.com/openclaw/openclaw
-- Community: https://discord.com/invite/clawd
+- Changelog: [CHANGELOG.md](./CHANGELOG.md)
