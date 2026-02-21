@@ -5,7 +5,7 @@
 
 ## Overview
 
-Successfully implemented a complete modular extensions system for Mission Control that enables read-only integrations with external services through status bar displays and chat input tagging.
+Successfully implemented a complete modular extensions system for OpenClaw MC that enables read-only integrations with external services through status bar displays and chat input tagging.
 
 ## Implementation Statistics
 

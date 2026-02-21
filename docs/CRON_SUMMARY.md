@@ -2,7 +2,7 @@
 
 ## What Was Built
 
-This PR implements native cron job integration for Mission Control, adding the ability to manage, monitor, and view execution history of scheduled jobs directly in the UI.
+This PR implements native cron job integration for OpenClaw MC, adding the ability to manage, monitor, and view execution history of scheduled jobs directly in the UI.
 
 ## Statistics
 - **Files Added**: 8 new files

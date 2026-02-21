@@ -1091,7 +1091,7 @@ export function useAgentEvents() {
    * Load chat history from Gateway
    */
   const loadChatHistory = useCallback((agentId: string, messages: any[]) => {
-    console.log(`[Mission Control] Loading ${messages.length} history messages for agent ${agentId}`);
+    console.log(`[OpenClaw MC] Loading ${messages.length} history messages for agent ${agentId}`);
     const transformedMessages = transformGatewayHistoryMessages(messages);
 
     dispatch({
@@ -1107,7 +1107,7 @@ export function useAgentEvents() {
   const prependChatHistory = useCallback((agentId: string, messages: any[]) => {
     const transformedMessages = transformGatewayHistoryMessages(messages);
 
-    console.log(`[Mission Control] Prepending ${transformedMessages.length} messages (before deduplication) for agent ${agentId}`);
+    console.log(`[OpenClaw MC] Prepending ${transformedMessages.length} messages (before deduplication) for agent ${agentId}`);
     
     dispatch({
       type: 'PREPEND_CHAT_HISTORY',
@@ -1203,7 +1203,7 @@ export function useAgentEvents() {
     // Deduplication: Check if we've already processed this event
     const eventKey = `${runId}:${stream}:${seq || 0}`;
     if (seenEventsRef.current.has(eventKey)) {
-      console.log('[Mission Control] Skipping duplicate event:', eventKey);
+      console.log('[OpenClaw MC] Skipping duplicate event:', eventKey);
       return;
     }
     
@@ -1218,7 +1218,7 @@ export function useAgentEvents() {
 
     const streamKey = getStreamKey(agentId, runId);
 
-    console.log('[Mission Control] Agent event:', { stream, agentId, runId, seq, data });
+    console.log('[OpenClaw MC] Agent event:', { stream, agentId, runId, seq, data });
 
     // Active runs are tracked via SET_ACTIVE_RUN dispatch in lifecycle 'start' events
 
@@ -1440,7 +1440,7 @@ export function useAgentEvents() {
 
     // Handle lifecycle events
     if (stream === 'lifecycle') {
-      console.log('[Mission Control] Lifecycle event:', data?.phase, 'runId:', runId);
+      console.log('[OpenClaw MC] Lifecycle event:', data?.phase, 'runId:', runId);
       
       if (data?.phase === 'start') {
         dispatch({
@@ -1452,7 +1452,7 @@ export function useAgentEvents() {
       
       if (data?.phase === 'end' || data?.phase === 'error') {
         const accumulatedText = latestTextRef.current[streamKey] || '';
-        console.log('[Mission Control] Finalizing:', { 
+        console.log('[OpenClaw MC] Finalizing:', { 
           streamKey, 
           textLength: accumulatedText.length, 
           preview: accumulatedText.substring(0, 50) 
@@ -1462,7 +1462,7 @@ export function useAgentEvents() {
         
         // Use FINALIZE_ASSISTANT_MESSAGE action which checks for duplicates in the reducer
         if (accumulatedText) {
-          console.log('[Mission Control] Adding finalized message to history');
+          console.log('[OpenClaw MC] Adding finalized message to history');
           updates.push({
             type: 'FINALIZE_ASSISTANT_MESSAGE',
             agentId,
@@ -1614,7 +1614,7 @@ export function useAgentEvents() {
     return () => {
       // Clear event tracking on unmount
       seenEventsRef.current.clear();
-      console.log('[Mission Control] Cleared event deduplication cache on unmount');
+      console.log('[OpenClaw MC] Cleared event deduplication cache on unmount');
     };
   }, []);
 

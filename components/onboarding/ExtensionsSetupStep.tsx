@@ -52,7 +52,7 @@ export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
         <div className="text-center space-y-3">
           <h2 className="text-3xl font-bold">Enhance Your Workflow</h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Connect extensions to supercharge Mission Control. You can always set these up later from the status bar.
+            Connect extensions to supercharge OpenClaw MC. You can always set these up later from the status bar.
           </p>
         </div>
 
@@ -64,7 +64,7 @@ export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
               onClick={onComplete}
               className="px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-all"
             >
-              Continue to Mission Control
+              Continue to OpenClaw MC
             </button>
           </div>
         ) : (
@@ -122,7 +122,7 @@ export function ExtensionsSetupStep({ onComplete }: ExtensionsSetupStepProps) {
                 onClick={onComplete}
                 className="px-8 py-4 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-all text-lg"
               >
-                Continue to Mission Control
+                Continue to OpenClaw MC
               </button>
             </div>
           </>

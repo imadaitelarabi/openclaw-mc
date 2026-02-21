@@ -1,7 +1,7 @@
 /**
  * Native Chat Input Mentions
  *
- * Provides #mention options for built-in Mission Control data sources.
+ * Provides #mention options for built-in OpenClaw MC data sources.
  * Initial provider: Notes
  */
 

@@ -240,7 +240,7 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
                 <div className="flex-1 space-y-2">
                   <p className="text-sm font-medium text-amber-500">Insecure Context Detected</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Mission Control is running over HTTP (not HTTPS). Device identity generation may be blocked by your browser, 
+                    OpenClaw MC is running over HTTP (not HTTPS). Device identity generation may be blocked by your browser, 
                     preventing remote gateway authentication.
                   </p>
                   <button
@@ -259,7 +259,7 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
                   <div>
                     <p className="font-medium text-foreground mb-1">Option 1: Use HTTPS (Recommended)</p>
                     <ul className="space-y-1 list-disc list-inside ml-2">
-                      <li>Deploy Mission Control behind a reverse proxy (nginx, Caddy) with SSL</li>
+                      <li>Deploy OpenClaw MC behind a reverse proxy (nginx, Caddy) with SSL</li>
                       <li>Use Tailscale for secure remote access with automatic HTTPS</li>
                       <li>This ensures browser security features work correctly</li>
                     </ul>
@@ -278,7 +278,7 @@ export function GatewayConnectionStep({ onConnectGateway, onComplete }: GatewayC
                   
                   <div>
                     <p className="font-medium text-foreground mb-1">Allowed Origins</p>
-                    <p>Ensure Mission Control's URL is in your Gateway's <code className="bg-background/50 px-1 rounded">allowedOrigins</code> list:</p>
+                    <p>Ensure OpenClaw MC's URL is in your Gateway's <code className="bg-background/50 px-1 rounded">allowedOrigins</code> list:</p>
                     <pre className="bg-background/50 rounded p-2 font-mono text-xs mt-1 whitespace-pre overflow-x-auto">
 {`gateway:
   controlUi:

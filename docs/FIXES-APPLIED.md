@@ -1,4 +1,4 @@
-# Mission Control - Streaming Fixes Applied ✅
+# OpenClaw MC - Streaming Fixes Applied ✅
 
 ## Changes Implemented
 

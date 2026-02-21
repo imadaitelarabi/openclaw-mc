@@ -16,9 +16,17 @@ const THINKING_MODES = [
 
 export function ThinkingToggle({ value, onChange, disabled }: ThinkingSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(() => THINKING_MODES.findIndex(m => m.value === value));
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const currentMode = THINKING_MODES.find(m => m.value === value) || THINKING_MODES[0];
+
+  // Sync activeIndex when menu opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveIndex(THINKING_MODES.findIndex(m => m.value === value));
+    }
+  }, [isOpen, value]);
 
   // Close on click outside
   useEffect(() => {
@@ -33,6 +41,31 @@ export function ThinkingToggle({ value, onChange, disabled }: ThinkingSelectorPr
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIndex(prev => (prev + 1) % THINKING_MODES.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIndex(prev => (prev - 1 + THINKING_MODES.length) % THINKING_MODES.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (activeIndex >= 0 && activeIndex < THINKING_MODES.length) {
+          onChange(THINKING_MODES[activeIndex].value);
+          setIsOpen(false);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, activeIndex, onChange]);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -51,15 +84,16 @@ export function ThinkingToggle({ value, onChange, disabled }: ThinkingSelectorPr
       {isOpen && (
         <div className="absolute top-full left-0 mt-2 w-48 bg-popover border border-border rounded shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-[130]">
           <div className="py-1">
-            {THINKING_MODES.map(mode => (
+            {THINKING_MODES.map((mode, index) => (
               <button
                 key={mode.value}
+                onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => {
                   onChange(mode.value);
                   setIsOpen(false);
                 }}
                 className={`w-full text-left px-3 py-2 text-xs hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between ${
-                  value === mode.value ? 'bg-accent/50 text-primary' : ''
+                  index === activeIndex ? 'bg-accent text-accent-foreground' : value === mode.value ? 'bg-accent/50 text-primary' : ''
                 }`}
               >
                 <div>

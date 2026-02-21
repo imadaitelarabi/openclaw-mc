@@ -59,7 +59,7 @@ export function MobileControlPanel({
   return (
     <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-md flex flex-col animate-in fade-in duration-200">
       <div className="flex items-center justify-between p-4 border-b border-border">
-        <h2 className="text-lg font-bold">Mission Control</h2>
+        <h2 className="text-lg font-bold">OpenClaw MC</h2>
         <button 
           onClick={onClose}
           className="p-2 hover:bg-white/10 rounded-full"

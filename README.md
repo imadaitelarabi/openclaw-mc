@@ -1,6 +1,6 @@
-# Mission Control
+# OpenClaw MC
 
-Mission Control is the real-time control UI for OpenClaw Gateway.
+OpenClaw MC is the real-time control UI for OpenClaw Gateway.
 It gives you a single place to monitor agents, run chats, manage sessions, and operate automation features.
 
 ---
@@ -35,7 +35,7 @@ Run in development:
 npm run dev
 ```
 
-Mission Control runs on `http://localhost:3000` by default.
+OpenClaw MC runs on `http://localhost:3000` by default.
 
 ### Gateway setup
 You can configure the gateway from the in-app setup flow (recommended), or via `.env.local`:
@@ -125,7 +125,7 @@ No active gateway is configured.
 
 ### Chat not updating or partial streams
 - Ensure WebSocket connection is stable
-- Reload Mission Control (stream recovery is supported)
+- Reload OpenClaw MC (stream recovery is supported)
 - Verify gateway is receiving `chat.send` and emitting agent events
 
 ### Build fails

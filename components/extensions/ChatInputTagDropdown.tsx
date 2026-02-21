@@ -38,6 +38,7 @@ export function ChatInputTagDropdown({
   const [activeIndex, setActiveIndex] = useState(0);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; positionAbove: boolean } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const activeItemRef = useRef<HTMLButtonElement>(null);
 
   // Calculate dropdown position based on input ref
   // Note: Tracks options.length for performance - position only updates when number of options changes
@@ -128,6 +129,11 @@ export function ChatInputTagDropdown({
     const node = getNodeAtPath(source, path);
     return node?.label ?? 'Providers';
   };
+
+  // Scroll active item into view when activeIndex changes
+  useEffect(() => {
+    activeItemRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, currentPath]);
 
   // Close on outside click
   useEffect(() => {
@@ -282,6 +288,7 @@ export function ChatInputTagDropdown({
               return (
                 <button
                   key={option.id}
+                  ref={isActive ? activeItemRef : null}
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => {
                     if (hasChildren) {

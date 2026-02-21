@@ -6,7 +6,7 @@ import { Providers } from "./providers";
 // const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Mission Control - OpenClaw",
+  title: "OpenClaw MC",
   description: "Real-time agent monitoring dashboard",
 };
 

@@ -2,7 +2,7 @@
 
 ## Summary
 
-Successfully implemented global gateway event forwarding and comprehensive logging as specified in the issue requirements. The Mission Control server now follows an **inclusive-by-default** approach for all OpenClaw Gateway events.
+Successfully implemented global gateway event forwarding and comprehensive logging as specified in the issue requirements. The OpenClaw MC server now follows an **inclusive-by-default** approach for all OpenClaw Gateway events.
 
 ## Changes Implemented
 
@@ -212,4 +212,4 @@ The implementation successfully achieves all requirements specified in the issue
 - ✅ Documentation complete
 - ✅ Code review and security checks passed
 
-The Mission Control server is now ready to handle any new event types from the OpenClaw Gateway without requiring code changes, significantly improving the development velocity for new features.
+The OpenClaw MC server is now ready to handle any new event types from the OpenClaw Gateway without requiring code changes, significantly improving the development velocity for new features.

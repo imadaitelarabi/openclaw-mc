@@ -1,6 +1,6 @@
 # Pattern-Based Event Handling
 
-This document describes the pattern-based event handling system for thinking and tool events in Mission Control.
+This document describes the pattern-based event handling system for thinking and tool events in OpenClaw MC.
 
 ## Overview
 

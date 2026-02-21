@@ -1,7 +1,7 @@
 # Notes Feature Implementation Summary
 
 ## Overview
-Successfully implemented a complete Notes feature for OpenClaw Mission Control that allows users to store and categorize quick information with real-time synchronization via WebSocket.
+Successfully implemented a complete Notes feature for OpenClaw MC that allows users to store and categorize quick information with real-time synchronization via WebSocket.
 
 ## Implementation Details
 
@@ -44,7 +44,7 @@ Successfully implemented a complete Notes feature for OpenClaw Mission Control t
 
 ### User Experience
 ✅ **Status bar integration** with note count and groups dropdown
-✅ **Panel-based UI** that integrates with Mission Control's layout system
+✅ **Panel-based UI** that integrates with OpenClaw MC's layout system
 ✅ **Copy to clipboard** with toast notification
 ✅ **Group filtering** - Commands, General, Ideas, Snippets + custom
 ✅ **Image attachments** via URL
@@ -211,4 +211,4 @@ This implementation establishes a clear pattern for adding persistent features:
 
 ## Conclusion
 
-The Notes feature is **production-ready** and fully integrated into OpenClaw Mission Control. It provides users with a convenient way to store quick information organized by groups, with persistent storage and real-time updates. The implementation follows best practices and establishes patterns for future feature development.
+The Notes feature is **production-ready** and fully integrated into OpenClaw MC. It provides users with a convenient way to store quick information organized by groups, with persistent storage and real-time updates. The implementation follows best practices and establishes patterns for future feature development.

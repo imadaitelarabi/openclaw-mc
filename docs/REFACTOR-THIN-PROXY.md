@@ -2,7 +2,7 @@
 
 ## 🎯 Overview
 
-This document describes the major architectural refactoring that transformed Mission Control from a server-side event processing architecture to a "Thin Proxy" pattern. The refactoring simplifies the codebase, removes unused components, and establishes a scalable architecture for streaming Gateway events directly to the UI.
+This document describes the major architectural refactoring that transformed OpenClaw MC from a server-side event processing architecture to a "Thin Proxy" pattern. The refactoring simplifies the codebase, removes unused components, and establishes a scalable architecture for streaming Gateway events directly to the UI.
 
 ## 📋 Objectives Achieved
 
@@ -291,7 +291,7 @@ if (msg.type === 'gateway.call.response') {
 
 ## 🙏 Acknowledgments
 
-This refactoring was completed to simplify the Mission Control codebase and establish a scalable foundation for future development. The Thin Proxy pattern is inspired by modern API Gateway architectures and follows the principle of "do one thing well."
+This refactoring was completed to simplify the OpenClaw MC codebase and establish a scalable foundation for future development. The Thin Proxy pattern is inspired by modern API Gateway architectures and follows the principle of "do one thing well."
 
 ---
 

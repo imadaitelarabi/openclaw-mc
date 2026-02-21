@@ -1,8 +1,8 @@
-# Mission Control Architecture
+# OpenClaw MC Architecture
 
 ## Overview
 
-Mission Control is a Next.js-based web application providing real-time monitoring and management for OpenClaw Gateway agents. The architecture emphasizes modularity, real-time communication, and extensibility.
+OpenClaw MC is a Next.js-based web application providing real-time monitoring and management for OpenClaw Gateway agents. The architecture emphasizes modularity, real-time communication, and extensibility.
 
 ## High-Level Architecture
 

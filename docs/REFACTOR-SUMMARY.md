@@ -1,4 +1,4 @@
-# Mission Control - Refactored Architecture
+# OpenClaw MC - Refactored Architecture
 
 ## 📊 Before & After
 

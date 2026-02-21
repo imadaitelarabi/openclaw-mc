@@ -1,7 +1,7 @@
 # Cron Job Integration - Implementation Documentation
 
 ## Overview
-This document describes the implementation of native cron job integration in Mission Control, following the requirements specified in the feature request.
+This document describes the implementation of native cron job integration in OpenClaw MC, following the requirements specified in the feature request.
 
 ## Architecture
 
