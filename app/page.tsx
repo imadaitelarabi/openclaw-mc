@@ -752,25 +752,27 @@ function MissionControlInner() {
   // Use the active panel's agent for session key
   const sessionKey = activePanelAgentId ? `agent:${activePanelAgentId}:main` : null;
 
-  // Handler for model change from panel header
-  const handleModelChange = useCallback((modelId: string, provider?: string) => {
-    if (sessionKey && activePanel?.id) {
-      // Update the session on the server
-      updateSetting(sessionKey, { model: modelId, modelProvider: provider });
-      // Update the panel state immediately for responsive UI
-      updatePanelSessionSettings(activePanel.id, { model: modelId, modelProvider: provider });
-    }
-  }, [sessionKey, activePanel?.id, updateSetting, updatePanelSessionSettings]);
+  // Handler for model change from panel header - panel-aware to avoid updating wrong session
+  const handleModelChange = useCallback((panelId: string, modelId: string, provider?: string) => {
+    const panel = layout.panels.find(p => p.id === panelId);
+    if (!panel?.agentId) return;
+    const panelSessionKey = `agent:${panel.agentId}:main`;
+    // Update the session on the server
+    updateSetting(panelSessionKey, { model: modelId, modelProvider: provider });
+    // Update the panel state immediately for responsive UI
+    updatePanelSessionSettings(panelId, { model: modelId, modelProvider: provider });
+  }, [layout.panels, updateSetting, updatePanelSessionSettings]);
 
-  // Handler for thinking level change from panel header
-  const handleThinkingChange = useCallback((thinking: 'off' | 'low' | 'medium' | 'high') => {
-    if (sessionKey && activePanel?.id) {
-      // Update the session on the server
-      updateSetting(sessionKey, { thinking });
-      // Update the panel state immediately for responsive UI
-      updatePanelSessionSettings(activePanel.id, { thinking });
-    }
-  }, [sessionKey, activePanel?.id, updateSetting, updatePanelSessionSettings]);
+  // Handler for thinking level change from panel header - panel-aware to avoid updating wrong session
+  const handleThinkingChange = useCallback((panelId: string, thinking: 'off' | 'low' | 'medium' | 'high') => {
+    const panel = layout.panels.find(p => p.id === panelId);
+    if (!panel?.agentId) return;
+    const panelSessionKey = `agent:${panel.agentId}:main`;
+    // Update the session on the server
+    updateSetting(panelSessionKey, { thinking });
+    // Update the panel state immediately for responsive UI
+    updatePanelSessionSettings(panelId, { thinking });
+  }, [layout.panels, updateSetting, updatePanelSessionSettings]);
 
   // Handler to refresh chat history for a specific agent
   const handleRefreshChat = useCallback((agentId: string) => {
