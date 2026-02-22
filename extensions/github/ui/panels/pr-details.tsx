@@ -67,8 +67,7 @@ export function GitHubPrDetailsPanel({ owner, repo, number, htmlUrl }: GitHubPrD
   const [issueComments, setIssueComments] = useState<GitHubComment[]>([]);
   const [issueCommentsLoading, setIssueCommentsLoading] = useState(false);
   const [issueCommentsError, setIssueCommentsError] = useState<string | null>(null);
-  const [displayedIssueCommentCount, setDisplayedIssueCommentCount] =
-    useState(COMMENTS_PAGE_SIZE);
+  const [displayedIssueCommentCount, setDisplayedIssueCommentCount] = useState(COMMENTS_PAGE_SIZE);
 
   const [reviewComments, setReviewComments] = useState<GitHubReviewComment[]>([]);
   const [reviewCommentsLoading, setReviewCommentsLoading] = useState(false);
@@ -141,9 +140,7 @@ export function GitHubPrDetailsPanel({ owner, repo, number, htmlUrl }: GitHubPrD
       })
       .catch((e) => {
         if (!cancelled) {
-          setReviewCommentsError(
-            e instanceof Error ? e.message : "Failed to load review comments"
-          );
+          setReviewCommentsError(e instanceof Error ? e.message : "Failed to load review comments");
         }
       })
       .finally(() => {
