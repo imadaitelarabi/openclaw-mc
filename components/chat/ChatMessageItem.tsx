@@ -5,9 +5,8 @@ import { ReasoningCard } from "./ReasoningCard";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Copy, Check } from "lucide-react";
-import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { usePanels } from "@/contexts/PanelContext";
-import { parseGitHubUrl } from "@/extensions/github/url";
+import { chatLinkMatcherRegistry } from "@/lib/chat-link-matcher-registry";
 
 interface ChatMessageItemProps {
   message: ChatMessage;
@@ -17,9 +16,7 @@ interface ChatMessageItemProps {
 export const ChatMessageItem = memo(
   function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
     const [copied, setCopied] = useState(false);
-    const extensionContext = useOptionalExtensions();
     const { openPanel } = usePanels();
-    const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
     const content =
       typeof message.content === "string"
         ? message.content
@@ -48,29 +45,15 @@ export const ChatMessageItem = memo(
         if (e.metaKey || e.ctrlKey) return;
 
         const href = e.currentTarget.href;
-        if (!href || !isGitHubEnabled) return;
+        if (!href) return;
 
-        const info = parseGitHubUrl(href);
-        if (!info) return;
+        const result = chatLinkMatcherRegistry.match(href);
+        if (!result) return;
 
         e.preventDefault();
-        if (info.type === "issue") {
-          openPanel("github-issue-details", {
-            owner: info.owner,
-            repo: info.repo,
-            number: info.number,
-            htmlUrl: info.htmlUrl,
-          });
-        } else {
-          openPanel("github-pr-details", {
-            owner: info.owner,
-            repo: info.repo,
-            number: info.number,
-            htmlUrl: info.htmlUrl,
-          });
-        }
+        openPanel(result.panelType, result.panelData);
       },
-      [isGitHubEnabled, openPanel]
+      [openPanel]
     );
 
     if (message.role === "tool") {
