@@ -35,67 +35,92 @@ export function AgentFilePanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState(false);
-  const pendingRef = useRef<Map<string, { resolve: (v: any) => void; reject: (e: Error) => void }>>(
-    new Map()
-  );
+  const saveMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDirty = content !== savedContent;
 
-  const sendRequest = useCallback(
-    (type: string, extra: Record<string, unknown>) => {
-      return new Promise<any>((resolve, reject) => {
-        const ws = wsRef.current;
-        if (!ws || ws.readyState !== WebSocket.OPEN) {
-          reject(new Error("Not connected"));
-          return;
+  const waitForOpenWebSocket = useCallback(() => {
+    return new Promise<WebSocket>((resolve, reject) => {
+      const timeoutMs = 30000;
+      const startedAt = Date.now();
+      let pollId: ReturnType<typeof setInterval> | null = null;
+
+      const stopPolling = () => {
+        if (pollId) {
+          clearInterval(pollId);
+          pollId = null;
         }
-        const requestId = uuidv4();
-        const timeoutId = setTimeout(() => {
-          pendingRef.current.delete(requestId);
-          reject(new Error("Request timed out"));
-        }, 30000);
-        pendingRef.current.set(requestId, {
-          resolve: (v) => {
-            clearTimeout(timeoutId);
-            resolve(v);
-          },
-          reject: (e) => {
-            clearTimeout(timeoutId);
-            reject(e);
-          },
-        });
-        ws.send(JSON.stringify({ type, requestId, ...extra }));
+      };
+
+      const tryResolve = () => {
+        const ws = wsRef.current;
+        if (ws?.readyState === WebSocket.OPEN) {
+          stopPolling();
+          resolve(ws);
+          return true;
+        }
+        return false;
+      };
+
+      if (tryResolve()) return;
+
+      pollId = setInterval(() => {
+        if (tryResolve()) return;
+        if (Date.now() - startedAt >= timeoutMs) {
+          stopPolling();
+          reject(new Error("Not connected"));
+        }
+      }, 100);
+    });
+  }, [wsRef]);
+
+  const sendRequest = useCallback(
+    async (type: string, extra: Record<string, unknown>) => {
+      return new Promise<any>((resolve, reject) => {
+        waitForOpenWebSocket()
+          .then((ws) => {
+            const requestId = uuidv4();
+
+            const cleanup = () => {
+              clearTimeout(timeoutId);
+              ws.removeEventListener("message", handleMessage);
+            };
+
+            const handleMessage = (event: MessageEvent) => {
+              try {
+                const msg = JSON.parse(event.data);
+                if (msg.requestId !== requestId) return;
+
+                if (msg.type === `${type}.response`) {
+                  cleanup();
+                  resolve(msg);
+                  return;
+                }
+
+                if (msg.type === `${type}.error`) {
+                  cleanup();
+                  reject(new Error(msg.error || "Unknown error"));
+                }
+              } catch {
+                // ignore parse errors
+              }
+            };
+
+            const timeoutId = setTimeout(() => {
+              cleanup();
+              reject(new Error("Request timed out"));
+            }, 30000);
+
+            ws.addEventListener("message", handleMessage);
+            ws.send(JSON.stringify({ type, requestId, ...extra }));
+          })
+          .catch((err) => {
+            reject(err instanceof Error ? err : new Error("Not connected"));
+          });
       });
     },
-    [wsRef]
+    [waitForOpenWebSocket]
   );
-
-  // Listen for responses
-  useEffect(() => {
-    const ws = wsRef.current;
-    if (!ws) return;
-
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const msg = JSON.parse(event.data);
-        const pending = msg.requestId ? pendingRef.current.get(msg.requestId) : undefined;
-        if (!pending) return;
-
-        if (msg.type === "agents.files.get.response" || msg.type === "agents.files.set.response") {
-          pendingRef.current.delete(msg.requestId);
-          pending.resolve(msg);
-        } else if (msg.type === "agents.files.get.error" || msg.type === "agents.files.set.error") {
-          pendingRef.current.delete(msg.requestId);
-          pending.reject(new Error(msg.error || "Unknown error"));
-        }
-      } catch {
-        // ignore parse errors
-      }
-    };
-
-    ws.addEventListener("message", handleMessage);
-    return () => ws.removeEventListener("message", handleMessage);
-  }, [wsRef]);
 
   // Load file on mount
   useEffect(() => {
@@ -131,13 +156,24 @@ export function AgentFilePanel({
       setSavedContent(content);
       setExists(true);
       setSavedMessage(true);
-      setTimeout(() => setSavedMessage(false), 3000);
+      if (saveMessageTimeoutRef.current) {
+        clearTimeout(saveMessageTimeoutRef.current);
+      }
+      saveMessageTimeoutRef.current = setTimeout(() => setSavedMessage(false), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save file");
     } finally {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (saveMessageTimeoutRef.current) {
+        clearTimeout(saveMessageTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-background">
