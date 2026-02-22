@@ -1098,6 +1098,7 @@ function MissionControlInner() {
             onShowToolsChange={handlePanelShowToolsChange}
             onShowReasoningChange={handlePanelShowReasoningChange}
             onRefreshChat={handleRefreshChat}
+            onOpenAgentSettings={handleEditAgent}
             onCreateAgent={handleCreateAgentRequest}
             onUpdateAgent={handleUpdateAgentRequest}
             onOpenAgentFile={handleOpenAgentFile}

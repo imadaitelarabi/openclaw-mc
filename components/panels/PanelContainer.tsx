@@ -43,6 +43,7 @@ interface PanelContainerProps {
   onShowToolsChange?: (panelId: string, show: boolean) => void;
   onShowReasoningChange?: (panelId: string, show: boolean) => void;
   onRefreshChat?: (agentId: string) => void;
+  onOpenAgentSettings?: (agentId: string) => void;
   onCreateAgent: (payload: {
     id?: string;
     name: string;
@@ -121,6 +122,7 @@ export function PanelContainer({
   onShowToolsChange,
   onShowReasoningChange,
   onRefreshChat,
+  onOpenAgentSettings,
   onCreateAgent,
   onUpdateAgent,
   onOpenAgentFile,
@@ -209,6 +211,11 @@ export function PanelContainer({
             onRefreshChat={
               panel.type === "chat" && panel.agentId
                 ? () => onRefreshChat?.(panel.agentId!)
+                : undefined
+            }
+            onOpenSettings={
+              panel.type === "chat" && panel.agentId
+                ? () => onOpenAgentSettings?.(panel.agentId!)
                 : undefined
             }
             activeRunStatus={
