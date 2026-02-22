@@ -12,6 +12,7 @@ import { RefreshCw, ExternalLink, AlertCircle, Loader2, Search } from "lucide-re
 import type { ExtensionPanelProps } from "@/types/extension";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubIssue, GitHubRepoRef, IssueFilters } from "../../api";
+import { FilterDropdown } from "@/components/panels/FilterDropdown";
 
 function formatRelativeTime(dateStr: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -147,6 +148,26 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
     [items]
   );
 
+  const repoOptions = useMemo(
+    () => repos.map((repo) => ({ value: repo.fullName, label: repo.fullName })),
+    [repos]
+  );
+
+  const labelDropdownOptions = useMemo(
+    () => labelOptions.map((label) => ({ value: label, label })),
+    [labelOptions]
+  );
+
+  const authorDropdownOptions = useMemo(
+    () => authorOptions.map((author) => ({ value: author, label: author })),
+    [authorOptions]
+  );
+
+  const assigneeDropdownOptions = useMemo(
+    () => assigneeOptions.map((assignee) => ({ value: assignee, label: assignee })),
+    [assigneeOptions]
+  );
+
   useEffect(() => {
     setLabelFilter("");
     setAuthorFilter("");
@@ -186,57 +207,37 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
 
         {/* Row 2: filters */}
         <div className="flex gap-2 flex-wrap">
-          <select
+          <FilterDropdown
             value={selectedRepo}
-            onChange={(e) => setSelectedRepo(e.target.value)}
-            className={`${inputCls} min-w-[130px] max-w-[200px]`}
-          >
-            <option value="" disabled>
-              Select repo
-            </option>
-            {repos.map((r) => (
-              <option key={r.fullName} value={r.fullName}>
-                {r.fullName}
-              </option>
-            ))}
-          </select>
+            onChange={setSelectedRepo}
+            placeholder="Select repo"
+            options={repoOptions}
+            includeEmptyOption={false}
+            disabled={repoOptions.length === 0}
+            widthClassName="min-w-[170px] max-w-[240px]"
+          />
 
-          <select
+          <FilterDropdown
             value={labelFilter}
-            onChange={(e) => setLabelFilter(e.target.value)}
-            className={`${inputCls} min-w-[110px] max-w-[170px]`}
-          >
-            <option value="">All labels</option>
-            {labelOptions.map((label) => (
-              <option key={label} value={label}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <select
+            onChange={setLabelFilter}
+            placeholder="All labels"
+            options={labelDropdownOptions}
+            widthClassName="min-w-[120px] max-w-[180px]"
+          />
+          <FilterDropdown
             value={authorFilter}
-            onChange={(e) => setAuthorFilter(e.target.value)}
-            className={`${inputCls} min-w-[110px] max-w-[170px]`}
-          >
-            <option value="">All authors</option>
-            {authorOptions.map((author) => (
-              <option key={author} value={author}>
-                {author}
-              </option>
-            ))}
-          </select>
-          <select
+            onChange={setAuthorFilter}
+            placeholder="All authors"
+            options={authorDropdownOptions}
+            widthClassName="min-w-[120px] max-w-[180px]"
+          />
+          <FilterDropdown
             value={assigneeFilter}
-            onChange={(e) => setAssigneeFilter(e.target.value)}
-            className={`${inputCls} min-w-[110px] max-w-[170px]`}
-          >
-            <option value="">All assignees</option>
-            {assigneeOptions.map((assignee) => (
-              <option key={assignee} value={assignee}>
-                {assignee}
-              </option>
-            ))}
-          </select>
+            onChange={setAssigneeFilter}
+            placeholder="All assignees"
+            options={assigneeDropdownOptions}
+            widthClassName="min-w-[120px] max-w-[180px]"
+          />
         </div>
       </div>
 

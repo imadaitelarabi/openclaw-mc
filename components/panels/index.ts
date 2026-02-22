@@ -8,4 +8,5 @@ export { CreateCronPanel } from "./CreateCronPanel";
 export { UpdateCronPanel } from "./UpdateCronPanel";
 export { ExtensionOnboardingPanel } from "./ExtensionOnboardingPanel";
 export { ExtensionPanel } from "./ExtensionPanel";
+export { FilterDropdown } from "./FilterDropdown";
 export { TagsSettingsPanel } from "./TagsSettingsPanel";

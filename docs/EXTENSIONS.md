@@ -753,6 +753,20 @@ interface ExtensionPanelProps {
 
 Your panel body is automatically wrapped in a `bg-background text-foreground` container. Use standard Tailwind utility classes and theme tokens (`text-muted-foreground`, `border-border`, etc.) to ensure your panel respects the active application theme.
 
+### Shared Panel Components
+
+When panel UI primitives are reusable across extensions, place them in the host panel components folder:
+
+- `components/panels/FilterDropdown.tsx`
+
+This keeps extension code focused on domain logic and allows consistent panel UX across integrations.
+
+Example usage from an extension panel:
+
+```typescript
+import { FilterDropdown } from "@/components/panels/FilterDropdown";
+```
+
 ### Write Consent Gate
 
 If a panel has `requiresWrite: true`, the host shows a one-time confirmation dialog before opening the panel:
