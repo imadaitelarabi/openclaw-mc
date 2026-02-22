@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0] - 2026-02-22
+### Meta
+- Bump: none (score: 0)
+- Range: 174a5614e2266b7015d4403e5dec7a6e3afb77b4..174a5614e2266b7015d4403e5dec7a6e3afb77b4
+
+### Other
+- No changes
+
+
+
 ## [0.2.0] - 2026-02-21
 
 ### Meta
