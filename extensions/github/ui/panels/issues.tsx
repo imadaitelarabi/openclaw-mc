@@ -74,6 +74,12 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
       return;
     }
 
+    if (!selectedRepo) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -85,10 +91,8 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
       assignee: assigneeFilter || undefined,
     };
 
-    const repoScope = selectedRepo ? [selectedRepo] : repos.map((repo) => repo.fullName);
-
     api
-      .searchIssuesPanel(filters, repoScope)
+      .searchIssuesPanel(filters, selectedRepo)
       .then((results) => {
         if (!cancelled) setItems(results);
       })
@@ -111,7 +115,10 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
     if (!api) return;
     api
       .listAllRepos()
-      .then(setRepos)
+      .then((repoList) => {
+        setRepos(repoList);
+        setSelectedRepo((current) => current || repoList[0]?.fullName || "");
+      })
       .catch(() => {});
   }, []);
 
@@ -139,6 +146,12 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
       ).sort((a, b) => a.localeCompare(b)),
     [items]
   );
+
+  useEffect(() => {
+    setLabelFilter("");
+    setAuthorFilter("");
+    setAssigneeFilter("");
+  }, [selectedRepo]);
 
   return (
     <div className="flex flex-col h-full">
@@ -178,7 +191,9 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
             onChange={(e) => setSelectedRepo(e.target.value)}
             className={`${inputCls} min-w-[130px] max-w-[200px]`}
           >
-            <option value="">All accessible repos</option>
+            <option value="" disabled>
+              Select repo
+            </option>
             {repos.map((r) => (
               <option key={r.fullName} value={r.fullName}>
                 {r.fullName}
@@ -241,7 +256,19 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
           </div>
         )}
 
-        {!loading && !error && items.length === 0 && (
+        {!loading && !error && repos.length === 0 && (
+          <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+            No accessible repositories found
+          </div>
+        )}
+
+        {!loading && !error && repos.length > 0 && !selectedRepo && (
+          <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+            Select a repository to load issues
+          </div>
+        )}
+
+        {!loading && !error && selectedRepo && items.length === 0 && (
           <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
             No open issues found
           </div>
