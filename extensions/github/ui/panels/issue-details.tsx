@@ -8,13 +8,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ExternalLink, AlertCircle, Loader2, CircleDot, CircleCheck } from "lucide-react";
+import {
+  ExternalLink,
+  AlertCircle,
+  Loader2,
+  CircleDot,
+  CircleCheck,
+  ChevronDown,
+  ChevronRight,
+  MessageSquare,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ExtensionPanelProps } from "@/types/extension";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { getApiInstance } from "../../api-instance";
-import type { GitHubIssue } from "../../api";
+import type { GitHubIssue, GitHubComment } from "../../api";
+
+const COMMENTS_PAGE_SIZE = 5;
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -55,6 +66,13 @@ export function GitHubIssueDetailsPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [bodyExpanded, setBodyExpanded] = useState(false);
+
+  const [comments, setComments] = useState<GitHubComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [displayedCommentCount, setDisplayedCommentCount] = useState(COMMENTS_PAGE_SIZE);
+
   useEffect(() => {
     if (!owner || !repo || !number) return;
 
@@ -78,6 +96,9 @@ export function GitHubIssueDetailsPanel({
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setCommentsError(null);
+    setCommentsLoading(true);
+    setDisplayedCommentCount(COMMENTS_PAGE_SIZE);
 
     api
       .getIssueDetails(owner, repo, number)
@@ -91,6 +112,20 @@ export function GitHubIssueDetailsPanel({
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+
+    api
+      .getIssueComments(owner, repo, number)
+      .then((result) => {
+        if (!cancelled) setComments(result);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setCommentsError(e instanceof Error ? e.message : "Failed to load comments");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCommentsLoading(false);
       });
 
     return () => {
@@ -157,6 +192,10 @@ export function GitHubIssueDetailsPanel({
   const statusColor = isOpen ? "text-green-500" : "text-purple-500";
   const statusLabel = isOpen ? "Open" : "Closed";
 
+  // Show newest N comments in chronological order; "Load more" reveals older ones
+  const visibleComments = comments.slice(Math.max(0, comments.length - displayedCommentCount));
+  const hasMoreComments = displayedCommentCount < comments.length;
+
   return (
     <div className="flex flex-col h-full overflow-auto p-4 space-y-4">
       {/* Header */}
@@ -175,6 +214,19 @@ export function GitHubIssueDetailsPanel({
           </span>
         </div>
         <h2 className="text-base font-semibold text-foreground leading-snug">{issue.title}</h2>
+      </div>
+
+      {/* Open in GitHub */}
+      <div>
+        <a
+          href={issue.html_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+        >
+          <ExternalLink className="w-3 h-3" />
+          Open in GitHub
+        </a>
       </div>
 
       {/* Meta */}
@@ -218,24 +270,83 @@ export function GitHubIssueDetailsPanel({
 
       {/* Body */}
       {issue.body && (
-        <div className="border border-border rounded p-3 max-h-96 overflow-auto bg-muted/20">
-          <div className="markdown-content break-words select-text max-w-none text-xs">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{issue.body}</ReactMarkdown>
-          </div>
+        <div className="border border-border rounded bg-muted/20">
+          <button
+            onClick={() => setBodyExpanded((v) => !v)}
+            className="flex items-center gap-1.5 w-full px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {bodyExpanded ? (
+              <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+            )}
+            {bodyExpanded ? "Hide description" : "Show description"}
+          </button>
+          {bodyExpanded && (
+            <div className="px-3 pb-3 max-h-96 overflow-auto border-t border-border">
+              <div className="markdown-content break-words select-text max-w-none text-xs pt-2">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{issue.body}</ReactMarkdown>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Open in GitHub */}
-      <div>
-        <a
-          href={issue.html_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-        >
-          <ExternalLink className="w-3 h-3" />
-          Open in GitHub
-        </a>
+      {/* Comments */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+          <MessageSquare className="w-3.5 h-3.5" />
+          Comments
+          {comments.length > 0 && (
+            <span className="text-muted-foreground">({comments.length})</span>
+          )}
+        </div>
+
+        {commentsLoading && (
+          <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Loading comments…
+          </div>
+        )}
+
+        {commentsError && (
+          <div className="flex items-start gap-2 p-2 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded">
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+            <span>{commentsError}</span>
+          </div>
+        )}
+
+        {!commentsLoading && !commentsError && comments.length === 0 && (
+          <p className="text-xs text-muted-foreground">No comments yet.</p>
+        )}
+
+        {hasMoreComments && (
+          <button
+            onClick={() => setDisplayedCommentCount((c) => c + COMMENTS_PAGE_SIZE)}
+            className="text-xs text-primary hover:underline"
+          >
+            Load more ({comments.length - displayedCommentCount} older)
+          </button>
+        )}
+
+        <div className="space-y-2">
+          {visibleComments.map((comment) => (
+            <div
+              key={comment.id}
+              className="border border-border rounded p-2.5 bg-muted/10 space-y-1.5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-foreground">{comment.user.login}</span>
+                <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                  {formatDate(comment.created_at)}
+                </span>
+              </div>
+              <div className="markdown-content break-words select-text max-w-none text-xs">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.body}</ReactMarkdown>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

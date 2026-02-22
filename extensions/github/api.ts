@@ -37,6 +37,26 @@ export interface GitHubIssue {
   body?: string | null;
 }
 
+export interface GitHubComment {
+  id: number;
+  user: { login: string };
+  body: string;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
+}
+
+export interface GitHubReviewComment {
+  id: number;
+  user: { login: string };
+  body: string;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
+  path?: string;
+  diff_hunk?: string;
+}
+
 export interface GitHubOrganization {
   login: string;
   type: "Organization" | "User";
@@ -280,6 +300,28 @@ export class GitHubAPI {
    */
   async getIssueDetails(owner: string, repo: string, number: number): Promise<GitHubIssue> {
     return this.request<GitHubIssue>(`/repos/${owner}/${repo}/issues/${number}`);
+  }
+
+  /**
+   * Get comments for an issue (or PR conversation comments).
+   */
+  async getIssueComments(owner: string, repo: string, number: number): Promise<GitHubComment[]> {
+    return this.request<GitHubComment[]>(
+      `/repos/${owner}/${repo}/issues/${number}/comments?per_page=100`
+    );
+  }
+
+  /**
+   * Get review (inline) comments for a pull request.
+   */
+  async getPRReviewComments(
+    owner: string,
+    repo: string,
+    number: number
+  ): Promise<GitHubReviewComment[]> {
+    return this.request<GitHubReviewComment[]>(
+      `/repos/${owner}/${repo}/pulls/${number}/comments?per_page=100`
+    );
   }
 
   /**
