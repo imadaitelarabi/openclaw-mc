@@ -81,16 +81,10 @@ export function AgentFilePanel({
         const pending = msg.requestId ? pendingRef.current.get(msg.requestId) : undefined;
         if (!pending) return;
 
-        if (
-          msg.type === "agents.files.get.response" ||
-          msg.type === "agents.files.set.response"
-        ) {
+        if (msg.type === "agents.files.get.response" || msg.type === "agents.files.set.response") {
           pendingRef.current.delete(msg.requestId);
           pending.resolve(msg);
-        } else if (
-          msg.type === "agents.files.get.error" ||
-          msg.type === "agents.files.set.error"
-        ) {
+        } else if (msg.type === "agents.files.get.error" || msg.type === "agents.files.set.error") {
           pendingRef.current.delete(msg.requestId);
           pending.reject(new Error(msg.error || "Unknown error"));
         }
