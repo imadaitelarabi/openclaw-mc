@@ -16,6 +16,8 @@ import {
   GitMerge,
   GitPullRequestClosed,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ExtensionPanelProps } from "@/types/extension";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubPR } from "../../api";
@@ -37,8 +39,6 @@ function labelTextColor(hex: string): string {
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return luminance > 0.5 ? "#000000" : "#ffffff";
 }
-
-const MAX_BODY_PREVIEW_LENGTH = 1000;
 
 interface GitHubPrDetailsPanelProps extends ExtensionPanelProps {
   owner?: string;
@@ -212,8 +212,10 @@ export function GitHubPrDetailsPanel({
 
       {/* Body */}
       {pr.body && (
-        <div className="border border-border rounded p-3 text-xs text-foreground whitespace-pre-wrap break-words max-h-60 overflow-auto bg-muted/20">
-          {pr.body.length > MAX_BODY_PREVIEW_LENGTH ? `${pr.body.slice(0, MAX_BODY_PREVIEW_LENGTH)}…` : pr.body}
+        <div className="border border-border rounded p-3 max-h-96 overflow-auto bg-muted/20">
+          <div className="markdown-content break-words select-text max-w-none text-xs">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{pr.body}</ReactMarkdown>
+          </div>
         </div>
       )}
 
