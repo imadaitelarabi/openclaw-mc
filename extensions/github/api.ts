@@ -282,14 +282,21 @@ export class GitHubAPI {
       return [];
     }
 
-    const perRepo = Math.min(Math.max(Math.ceil((totalLimit * 2) / repoFullNames.length), 1), 50);
+    const CHUNK_SIZE = 10;
+    const chunks: string[][] = [];
+    for (let index = 0; index < repoFullNames.length; index += CHUNK_SIZE) {
+      chunks.push(repoFullNames.slice(index, index + CHUNK_SIZE));
+    }
+
+    const perChunk = Math.min(Math.max(Math.ceil((totalLimit * 2) / chunks.length), 1), 50);
 
     const results = await Promise.all(
-      repoFullNames.map(async (repoFullName) => {
-        const q = encodeURIComponent([...parts, `repo:${repoFullName}`].join(" "));
+      chunks.map(async (reposChunk) => {
+        const repoScope = reposChunk.map((repo) => `repo:${repo}`).join(" OR ");
+        const q = encodeURIComponent([...parts, `(${repoScope})`].join(" "));
         try {
           const result = await this.request<{ items: T[] }>(
-            `/search/issues?q=${q}&sort=updated&order=desc&per_page=${perRepo}`
+            `/search/issues?q=${q}&sort=updated&order=desc&per_page=${perChunk}`
           );
           return result.items;
         } catch {
@@ -319,27 +326,44 @@ export class GitHubAPI {
    */
   async listAllRepos(): Promise<GitHubRepoRef[]> {
     const MAX_REPOS = 50;
-    try {
-      const organizations = await this.getOrganizations();
-      const repoLists = await Promise.all(
-        organizations.map((org) => this.getRepositories(org.login, org.type))
-      );
-      const flat: GitHubRepoRef[] = repoLists
-        .flat()
-        .slice(0, MAX_REPOS)
+    const dedupe = (repos: GitHubRepository[]): GitHubRepoRef[] => {
+      const seen = new Set<string>();
+      return repos
         .map((repo) => ({
           fullName: repo.full_name,
           owner: repo.owner?.login ?? repo.full_name.split("/")[0],
           name: repo.name,
-        }));
+        }))
+        .filter((repo) => {
+          if (seen.has(repo.fullName)) return false;
+          seen.add(repo.fullName);
+          return true;
+        })
+        .slice(0, MAX_REPOS);
+    };
 
-      // Deduplicate by fullName
-      const seen = new Set<string>();
-      return flat.filter((r) => {
-        if (seen.has(r.fullName)) return false;
-        seen.add(r.fullName);
-        return true;
-      });
+    try {
+      // Primary path: GitHub endpoint that returns repositories the user can access.
+      // This includes owned, collaborator, and org member repos.
+      const accessibleRepos = await this.request<GitHubRepository[]>(
+        "/user/repos?affiliation=owner,collaborator,organization_member&sort=updated&per_page=100"
+      );
+
+      const primary = dedupe(accessibleRepos);
+      if (primary.length > 0) {
+        return primary;
+      }
+    } catch (error) {
+      console.error("[GitHubAPI] Primary accessible-repos fetch failed, falling back:", error);
+    }
+
+    try {
+      // Fallback path: gather repos from organizations and user account
+      const organizations = await this.getOrganizations();
+      const repoLists = await Promise.all(
+        organizations.map((org) => this.getRepositories(org.login, org.type))
+      );
+      return dedupe(repoLists.flat());
     } catch (error) {
       console.error("[GitHubAPI] Failed to list repos:", error);
       return [];
