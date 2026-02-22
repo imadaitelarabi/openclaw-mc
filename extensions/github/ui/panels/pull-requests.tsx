@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { ExtensionPanelProps } from "@/types/extension";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
+import { usePanels } from "@/contexts/PanelContext";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubPR, GitHubRepoRef, PRFilters } from "../../api";
 import { FilterDropdown } from "@/components/panels/FilterDropdown";
@@ -59,6 +60,7 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
   const extensionContext = useOptionalExtensions();
   const isExtensionContextLoading = extensionContext?.isLoading ?? false;
   const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
+  const { openPanel } = usePanels();
 
   const [items, setItems] = useState<GitHubPR[]>([]);
   const [loading, setLoading] = useState(false);
@@ -353,10 +355,23 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
 
         {items.map((pr) => {
           const repoFullName = extractRepoFullName(pr.html_url);
+          const [owner, repo] = repoFullName ? repoFullName.split("/") : [undefined, undefined];
           return (
             <button
               key={pr.number}
-              onClick={() => window.open(pr.html_url, "_blank", "noopener,noreferrer")}
+              onClick={() => {
+                if (owner && repo) {
+                  openPanel("github-pr-details", {
+                    kind: "github-pr",
+                    owner,
+                    repo,
+                    number: pr.number,
+                    htmlUrl: pr.html_url,
+                  });
+                } else {
+                  window.open(pr.html_url, "_blank", "noopener,noreferrer");
+                }
+              }}
               className="w-full text-left px-3 py-2.5 border-b border-border hover:bg-accent group flex items-start gap-2"
             >
               <GitPullRequest

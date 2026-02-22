@@ -19,6 +19,7 @@ export interface GitHubPR {
   draft?: boolean;
   labels?: Array<{ name: string; color: string }>;
   assignees?: Array<{ login: string }>;
+  body?: string | null;
 }
 
 export interface GitHubIssue {
@@ -33,6 +34,7 @@ export interface GitHubIssue {
   updated_at: string;
   labels: Array<{ name: string; color: string }>;
   assignees?: Array<{ login: string }>;
+  body?: string | null;
 }
 
 export interface GitHubOrganization {
@@ -264,6 +266,20 @@ export class GitHubAPI {
       console.error(`[GitHubAPI] Failed to search issues for ${owner}/${repo}:`, error);
       return [];
     }
+  }
+
+  /**
+   * Get a single pull request by number.
+   */
+  async getPRDetails(owner: string, repo: string, number: number): Promise<GitHubPR> {
+    return this.request<GitHubPR>(`/repos/${owner}/${repo}/pulls/${number}`);
+  }
+
+  /**
+   * Get a single issue by number.
+   */
+  async getIssueDetails(owner: string, repo: string, number: number): Promise<GitHubIssue> {
+    return this.request<GitHubIssue>(`/repos/${owner}/${repo}/issues/${number}`);
   }
 
   /**

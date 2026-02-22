@@ -226,6 +226,16 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         case "skills":
           title = "Skills";
           break;
+        case "github-pr-details":
+          title = data?.number
+            ? `PR #${data.number}${data.repo ? ` — ${data.repo}` : ""}`
+            : "PR Details";
+          break;
+        case "github-issue-details":
+          title = data?.number
+            ? `Issue #${data.number}${data.repo ? ` — ${data.repo}` : ""}`
+            : "Issue Details";
+          break;
         default:
           title = type;
       }

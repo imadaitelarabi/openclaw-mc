@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { RefreshCw, ExternalLink, AlertCircle, Loader2, Search } from "lucide-react";
 import type { ExtensionPanelProps } from "@/types/extension";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
+import { usePanels } from "@/contexts/PanelContext";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubIssue, GitHubRepoRef, IssueFilters } from "../../api";
 import { FilterDropdown } from "@/components/panels/FilterDropdown";
@@ -53,6 +54,7 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
   const extensionContext = useOptionalExtensions();
   const isExtensionContextLoading = extensionContext?.isLoading ?? false;
   const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
+  const { openPanel } = usePanels();
 
   const [items, setItems] = useState<GitHubIssue[]>([]);
   const [loading, setLoading] = useState(false);
@@ -316,10 +318,23 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
 
         {items.map((issue) => {
           const repoFullName = extractRepoFullName(issue.html_url);
+          const [owner, repo] = repoFullName ? repoFullName.split("/") : [undefined, undefined];
           return (
             <button
               key={issue.number}
-              onClick={() => window.open(issue.html_url, "_blank", "noopener,noreferrer")}
+              onClick={() => {
+                if (owner && repo) {
+                  openPanel("github-issue-details", {
+                    kind: "github-issue",
+                    owner,
+                    repo,
+                    number: issue.number,
+                    htmlUrl: issue.html_url,
+                  });
+                } else {
+                  window.open(issue.html_url, "_blank", "noopener,noreferrer");
+                }
+              }}
               className="w-full text-left px-3 py-2.5 border-b border-border hover:bg-accent group flex items-start gap-2"
             >
               <div className="flex-1 min-w-0">

@@ -14,7 +14,7 @@ interface ExtensionStatusBarItemProps {
   item: StatusBarItem;
   onCopy?: (value: string) => void;
   onOpen?: (url: string) => void;
-  onOpenPanel?: (extensionName: string, panelId: string) => void;
+  onOpenPanel?: (extensionName: string, panelId: string, panelData?: Record<string, any>) => void;
 }
 
 export function ExtensionStatusBarItem({
@@ -34,7 +34,7 @@ export function ExtensionStatusBarItem({
   const handleItemSelect = (dropdownItem: StatusBarDropdownItem) => {
     // Panel open action (host-handled)
     if (dropdownItem.openPanelId && onOpenPanel) {
-      onOpenPanel(extensionName, dropdownItem.openPanelId);
+      onOpenPanel(extensionName, dropdownItem.openPanelId, dropdownItem.panelData);
       setIsOpen(false);
       return;
     }
