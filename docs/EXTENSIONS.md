@@ -712,13 +712,13 @@ Add a `panels` array, plus optional `usage` and `writePermissions` fields:
 
 Fields:
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | Yes | Unique panel ID within the extension |
-| `title` | Yes | Human-readable panel title |
-| `description` | No | Short description shown in the submenu |
-| `requiresWrite` | No | If `true`, user must grant write consent on first open |
-| `default` | No | When multiple panels exist, the panel marked `default: true` appears first in the "Open Panel" submenu. If none is marked, the first panel in the array is used. |
+| Field           | Required | Description                                                                                                                                                      |
+| --------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`            | Yes      | Unique panel ID within the extension                                                                                                                             |
+| `title`         | Yes      | Human-readable panel title                                                                                                                                       |
+| `description`   | No       | Short description shown in the submenu                                                                                                                           |
+| `requiresWrite` | No       | If `true`, user must grant write consent on first open                                                                                                           |
+| `default`       | No       | When multiple panels exist, the panel marked `default: true` appears first in the "Open Panel" submenu. If none is marked, the first panel in the array is used. |
 
 ### Implementing the Panel Hook
 

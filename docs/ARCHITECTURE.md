@@ -627,6 +627,7 @@ Extension panels are host-owned UI surfaces opened from the extension status bar
 ### Consent Storage
 
 Write consent is stored in the extension state object under `writeConsent: Record<string, boolean>` where the key is `panelId`. Helpers:
+
 - `extensionRegistry.checkWriteConsent(extensionName, panelId)` — synchronous check
 - `extensionRegistry.grantWriteConsent(extensionName, panelId)` — async, persists to IndexedDB
 - `useExtensions().getWriteConsent(extensionName, panelId)` — React context helper

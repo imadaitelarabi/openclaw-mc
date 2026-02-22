@@ -8,7 +8,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { RefreshCw, ExternalLink, AlertCircle, Loader2, Search, GitPullRequest } from "lucide-react";
+import {
+  RefreshCw,
+  ExternalLink,
+  AlertCircle,
+  Loader2,
+  Search,
+  GitPullRequest,
+} from "lucide-react";
 import type { ExtensionPanelProps } from "@/types/extension";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { getApiInstance } from "../../api-instance";
@@ -180,7 +187,10 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
   );
 
   const assigneeOptions = useMemo(
-    () => Array.from(new Set(items.flatMap((pr) => pr.assignees?.map((assignee) => assignee.login) ?? []))).sort((a, b) => a.localeCompare(b)),
+    () =>
+      Array.from(
+        new Set(items.flatMap((pr) => pr.assignees?.map((assignee) => assignee.login) ?? []))
+      ).sort((a, b) => a.localeCompare(b)),
     [items]
   );
 
@@ -220,7 +230,8 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
     []
   );
 
-  const draftDropdownValue = draftFilter === true ? "draft" : draftFilter === false ? "ready" : "all";
+  const draftDropdownValue =
+    draftFilter === true ? "draft" : draftFilter === false ? "ready" : "all";
 
   return (
     <div className="flex flex-col h-full">
@@ -343,50 +354,50 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
         {items.map((pr) => {
           const repoFullName = extractRepoFullName(pr.html_url);
           return (
-          <button
-            key={pr.number}
-            onClick={() => window.open(pr.html_url, "_blank", "noopener,noreferrer")}
-            className="w-full text-left px-3 py-2.5 border-b border-border hover:bg-accent group flex items-start gap-2"
-          >
-            <GitPullRequest
-              className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${
-                pr.draft ? "text-muted-foreground" : "text-green-500"
-              }`}
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-xs text-muted-foreground font-mono">#{pr.number}</span>
-                <span className="text-sm font-medium text-foreground truncate">{pr.title}</span>
-                {pr.draft && (
-                  <span className="flex-shrink-0 px-1 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground rounded">
-                    Draft
+            <button
+              key={pr.number}
+              onClick={() => window.open(pr.html_url, "_blank", "noopener,noreferrer")}
+              className="w-full text-left px-3 py-2.5 border-b border-border hover:bg-accent group flex items-start gap-2"
+            >
+              <GitPullRequest
+                className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${
+                  pr.draft ? "text-muted-foreground" : "text-green-500"
+                }`}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="text-xs text-muted-foreground font-mono">#{pr.number}</span>
+                  <span className="text-sm font-medium text-foreground truncate">{pr.title}</span>
+                  {pr.draft && (
+                    <span className="flex-shrink-0 px-1 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground rounded">
+                      Draft
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-muted-foreground">
+                    by {pr.user.login}
+                    {repoFullName ? ` in [${repoFullName}]` : ""}
                   </span>
-                )}
+                  {pr.labels?.map((label) => (
+                    <span
+                      key={label.name}
+                      className="px-1.5 py-0.5 rounded-full text-[10px] font-medium"
+                      style={{
+                        backgroundColor: `#${label.color}`,
+                        color: labelTextColor(label.color),
+                      }}
+                    >
+                      {label.name}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-muted-foreground">
-                  by {pr.user.login}
-                  {repoFullName ? ` in [${repoFullName}]` : ""}
-                </span>
-                {pr.labels?.map((label) => (
-                  <span
-                    key={label.name}
-                    className="px-1.5 py-0.5 rounded-full text-[10px] font-medium"
-                    style={{
-                      backgroundColor: `#${label.color}`,
-                      color: labelTextColor(label.color),
-                    }}
-                  >
-                    {label.name}
-                  </span>
-                ))}
+              <div className="flex-shrink-0 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span>{formatRelativeTime(pr.updated_at)}</span>
+                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-            </div>
-            <div className="flex-shrink-0 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span>{formatRelativeTime(pr.updated_at)}</span>
-              <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          </button>
+            </button>
           );
         })}
       </div>

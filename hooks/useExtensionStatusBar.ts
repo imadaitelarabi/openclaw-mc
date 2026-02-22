@@ -6,7 +6,11 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useExtensions } from "@/contexts/ExtensionContext";
-import type { StatusBarItem, StatusBarDropdownItem, ExtensionPanelDefinition } from "@/types/extension";
+import type {
+  StatusBarItem,
+  StatusBarDropdownItem,
+  ExtensionPanelDefinition,
+} from "@/types/extension";
 
 const STATUS_BAR_REFRESH_INTERVAL_MS = 5000;
 

@@ -165,14 +165,17 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
 
   const labelOptions = useMemo(
     () =>
-      Array.from(new Set(items.flatMap((issue) => issue.labels?.map((label) => label.name) ?? []))).sort(
-        (a, b) => a.localeCompare(b)
-      ),
+      Array.from(
+        new Set(items.flatMap((issue) => issue.labels?.map((label) => label.name) ?? []))
+      ).sort((a, b) => a.localeCompare(b)),
     [items]
   );
 
   const authorOptions = useMemo(
-    () => Array.from(new Set(items.map((issue) => issue.user.login))).sort((a, b) => a.localeCompare(b)),
+    () =>
+      Array.from(new Set(items.map((issue) => issue.user.login))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
     [items]
   );
 
@@ -314,40 +317,42 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
         {items.map((issue) => {
           const repoFullName = extractRepoFullName(issue.html_url);
           return (
-          <button
-            key={issue.number}
-            onClick={() => window.open(issue.html_url, "_blank", "noopener,noreferrer")}
-            className="w-full text-left px-3 py-2.5 border-b border-border hover:bg-accent group flex items-start gap-2"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-xs text-muted-foreground font-mono">#{issue.number}</span>
-                <span className="text-sm font-medium text-foreground truncate">{issue.title}</span>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-muted-foreground">
-                  by {issue.user.login}
-                  {repoFullName ? ` in [${repoFullName}]` : ""}
-                </span>
-                {issue.labels?.map((label) => (
-                  <span
-                    key={label.name}
-                    className="px-1.5 py-0.5 rounded-full text-[10px] font-medium"
-                    style={{
-                      backgroundColor: `#${label.color}`,
-                      color: labelTextColor(label.color),
-                    }}
-                  >
-                    {label.name}
+            <button
+              key={issue.number}
+              onClick={() => window.open(issue.html_url, "_blank", "noopener,noreferrer")}
+              className="w-full text-left px-3 py-2.5 border-b border-border hover:bg-accent group flex items-start gap-2"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="text-xs text-muted-foreground font-mono">#{issue.number}</span>
+                  <span className="text-sm font-medium text-foreground truncate">
+                    {issue.title}
                   </span>
-                ))}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-muted-foreground">
+                    by {issue.user.login}
+                    {repoFullName ? ` in [${repoFullName}]` : ""}
+                  </span>
+                  {issue.labels?.map((label) => (
+                    <span
+                      key={label.name}
+                      className="px-1.5 py-0.5 rounded-full text-[10px] font-medium"
+                      style={{
+                        backgroundColor: `#${label.color}`,
+                        color: labelTextColor(label.color),
+                      }}
+                    >
+                      {label.name}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="flex-shrink-0 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span>{formatRelativeTime(issue.updated_at)}</span>
-              <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          </button>
+              <div className="flex-shrink-0 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span>{formatRelativeTime(issue.updated_at)}</span>
+                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </button>
           );
         })}
       </div>
