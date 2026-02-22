@@ -8,7 +8,10 @@ import { initialize, cleanup, isSetupComplete, checkConnectionStatus } from "./s
 import { getStatusBarData } from "./ui/status-bar";
 import { getChatInputOptions } from "./ui/chat-input";
 import { OnboardingPanel } from "./ui/onboarding";
+import { IssuesPanel } from "./ui/panels/issues";
+import { PullRequestsPanel } from "./ui/panels/pull-requests";
 import { GitHubAPI } from "./api";
+import { setApiInstance } from "./api-instance";
 
 // API instance (initialized on setup)
 let apiInstance: GitHubAPI | null = null;
@@ -20,6 +23,7 @@ async function setup(): Promise<void> {
   console.log("[GitHub] Setting up extension...");
 
   apiInstance = await initialize();
+  setApiInstance(apiInstance);
 
   if (!apiInstance) {
     throw new Error("Failed to initialize GitHub extension");
@@ -34,6 +38,7 @@ async function cleanupExtension(): Promise<void> {
 
   await cleanup();
   apiInstance = null;
+  setApiInstance(null);
 }
 
 /**
@@ -61,6 +66,12 @@ const hooks: ExtensionHooks = {
     isRequired: async () => !(await isSetupComplete()),
     checkStatus: checkConnectionStatus,
     component: OnboardingPanel,
+  },
+
+  // Panel hook - Issues and Pull Requests panels
+  panel: {
+    issues: IssuesPanel,
+    "pull-requests": PullRequestsPanel,
   },
 };
 
