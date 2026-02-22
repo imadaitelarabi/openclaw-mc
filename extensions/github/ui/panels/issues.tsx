@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { RefreshCw, ExternalLink, AlertCircle, Loader2, Search } from "lucide-react";
 import type { ExtensionPanelProps } from "@/types/extension";
+import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubIssue, GitHubRepoRef, IssueFilters } from "../../api";
 import { FilterDropdown } from "@/components/panels/FilterDropdown";
@@ -49,6 +50,10 @@ const inputCls =
   "px-2 py-1 text-xs border border-border rounded bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring";
 
 export function IssuesPanel(_props: ExtensionPanelProps) {
+  const extensionContext = useOptionalExtensions();
+  const isExtensionContextLoading = extensionContext?.isLoading ?? false;
+  const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
+
   const [items, setItems] = useState<GitHubIssue[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,9 +74,20 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
 
   // Fetch issues whenever fetchTick or selectedRepo changes
   useEffect(() => {
+    if (isExtensionContextLoading) {
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     const api = getApiInstance();
     if (!api) {
-      setError("GitHub extension is not initialized. Please complete onboarding.");
+      setLoading(false);
+      setError(
+        isGitHubEnabled
+          ? "GitHub extension is still initializing. Please retry in a moment."
+          : "GitHub extension is not initialized. Please complete onboarding."
+      );
       return;
     }
 
@@ -108,12 +124,32 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchTick, selectedRepo, repos, labelFilter, authorFilter, assigneeFilter]);
+  }, [
+    fetchTick,
+    selectedRepo,
+    repos,
+    labelFilter,
+    authorFilter,
+    assigneeFilter,
+    isExtensionContextLoading,
+    isGitHubEnabled,
+  ]);
 
   // Load repos list once on mount
   useEffect(() => {
+    if (isExtensionContextLoading) {
+      return;
+    }
+
     const api = getApiInstance();
-    if (!api) return;
+    if (!api) {
+      setRepos([]);
+      setSelectedRepo("");
+      return;
+    }
+
+    setError(null);
+
     api
       .listAllRepos()
       .then((repoList) => {
@@ -121,7 +157,7 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
         setSelectedRepo((current) => current || repoList[0]?.fullName || "");
       })
       .catch(() => {});
-  }, []);
+  }, [isExtensionContextLoading, isGitHubEnabled]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") refresh();

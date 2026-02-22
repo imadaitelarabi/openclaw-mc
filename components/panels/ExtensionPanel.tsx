@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { useExtensions } from "@/contexts/ExtensionContext";
 
 interface ExtensionPanelProps {
@@ -11,7 +10,7 @@ interface ExtensionPanelProps {
 export function ExtensionPanel({ extensionName, panelId }: ExtensionPanelProps) {
   const { getExtension } = useExtensions();
 
-  const extension = useMemo(() => getExtension(extensionName), [getExtension, extensionName]);
+  const extension = getExtension(extensionName);
 
   const PanelComponent = extension?.hooks.panel?.[panelId];
 

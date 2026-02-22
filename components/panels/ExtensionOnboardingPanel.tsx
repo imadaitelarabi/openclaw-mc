@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { ShieldAlert } from "lucide-react";
 import { useExtensions } from "@/contexts/ExtensionContext";
 import { useToast } from "@/hooks/useToast";
@@ -20,7 +20,7 @@ export function ExtensionOnboardingPanel({
   const [connectionStatus, setConnectionStatus] = useState<ExtensionConnectionStatus | undefined>();
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
-  const extension = useMemo(() => getExtension(extensionName), [getExtension, extensionName]);
+  const extension = getExtension(extensionName);
   const OnboardingComponent = extension?.hooks.onboarding?.component;
 
   // Check connection status on mount
