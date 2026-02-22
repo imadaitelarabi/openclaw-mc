@@ -23,7 +23,9 @@ function buildOpenPanelItems(panels: ExtensionPanelDefinition[]): StatusBarDropd
 }
 
 /**
- * Augment a status bar item with an "Open Panel" submenu if the extension has panels
+ * Augment a status bar item with an "Open Panel" submenu if the extension has panels.
+ * Skips injection if the item already contains a panel-open entry to avoid duplication.
+ * For multiple panels the default panel (or first) appears first in the submenu.
  */
 function augmentWithPanelSubmenu(
   item: StatusBarItem,
@@ -31,26 +33,39 @@ function augmentWithPanelSubmenu(
 ): StatusBarItem {
   if (panels.length === 0) return item;
 
-  const panelItems = buildOpenPanelItems(panels);
+  // De-dupe: skip if an existing item already has id "__open-panel__" or openPanelId set
+  const existingItems = item.items || [];
+  const alreadyHasPanelEntry = existingItems.some(
+    (i) => i.id === "__open-panel__" || i.openPanelId !== undefined
+  );
+  if (alreadyHasPanelEntry) return item;
 
-  // For a single panel, add it as a direct item
-  // For multiple panels, nest them in a submenu
-  const openPanelEntry: StatusBarDropdownItem =
-    panelItems.length === 1
-      ? {
-          id: "__open-panel__",
-          text: "Open Panel",
-          openPanelId: panelItems[0].openPanelId,
-        }
-      : {
-          id: "__open-panel__",
-          text: "Open Panel",
-          children: panelItems,
-        };
+  let openPanelEntry: StatusBarDropdownItem;
+
+  if (panels.length === 1) {
+    // Single panel: direct open action
+    openPanelEntry = {
+      id: "__open-panel__",
+      text: "Open Panel",
+      openPanelId: panels[0].id,
+    };
+  } else {
+    // Multiple panels: sort so the default panel comes first in the submenu.
+    // If no panel is marked default, use the manifest order as-is (first = implicit default).
+    const defaultPanel = panels.find((p) => p.default);
+    const orderedPanels = defaultPanel
+      ? [defaultPanel, ...panels.filter((p) => p.id !== defaultPanel.id)]
+      : panels;
+    openPanelEntry = {
+      id: "__open-panel__",
+      text: "Open Panel",
+      children: buildOpenPanelItems(orderedPanels),
+    };
+  }
 
   return {
     ...item,
-    items: [...(item.items || []), openPanelEntry],
+    items: [...existingItems, openPanelEntry],
   };
 }
 

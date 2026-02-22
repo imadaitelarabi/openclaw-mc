@@ -718,7 +718,7 @@ Fields:
 | `title` | Yes | Human-readable panel title |
 | `description` | No | Short description shown in the submenu |
 | `requiresWrite` | No | If `true`, user must grant write consent on first open |
-| `default` | No | Mark the primary/default panel |
+| `default` | No | When multiple panels exist, the panel marked `default: true` appears first in the "Open Panel" submenu. If none is marked, the first panel in the array is used. |
 
 ### Implementing the Panel Hook
 
@@ -765,8 +765,10 @@ If a panel has `requiresWrite: true`, the host shows a one-time confirmation dia
 
 You do **not** need to do anything special to add "Open Panel" entries to your status bar item. The host automatically injects them based on your manifest's `panels` array:
 
-- Single panel → Direct "Open Panel" item in the dropdown
-- Multiple panels → "Open Panel" submenu with all panels listed
+- **Single panel** → Direct "Open Panel" item in the dropdown (clicking opens that panel immediately)
+- **Multiple panels** → "Open Panel" submenu; the panel with `default: true` (or the first panel if none is marked) appears at the top of the submenu
+
+The injection is de-duplicated: if your status-bar hook already returns an item containing an entry with `id === "__open-panel__"` or any item with `openPanelId` set, the host will not inject an additional "Open Panel" entry.
 
 If your extension has panels but no `status-bar` hook (or the hook returns `null`), the host creates a minimal status bar entry using `manifest.statusBar.icon` so the panel menu always appears.
 
