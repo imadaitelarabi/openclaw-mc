@@ -24,6 +24,7 @@ Defines the core data structures for cron jobs:
 - `CronRun`: Execution history entry with status and session key
 - `Schedule`: Schedule configuration (cron expression, interval, timezone)
 - `CronEvent`: Real-time event payload for job updates
+- `CronPayload`: Includes a required `model`, ensuring every scheduled message targets an explicit model before being handed to the gateway
 
 ### Server Handlers (`server/handlers/cron.handler.ts`)
 
@@ -85,6 +86,12 @@ Dedicated panel for job control:
   - Edit: Full configuration form (optional callback)
   - Delete: Remove job with confirmation
 
+#### Create & Update Cron Panels (`components/panels/CreateCronPanel.tsx`, `components/panels/UpdateCronPanel.tsx`)
+
+- Both panels render the shared `ModelSelector` component (the same searchable dropdown used in the status bar) so users can choose the model that will execute the scheduled message. `PanelContainer` injects the `models` array and a `defaultModel` derived from `sessionSettings.model`, which means the creation flow starts with the active model already selected when available.
+- Model selection is mandatory: the form blocks submission when the list is empty (showing a descriptive callout) or when no model is picked, and it surfaces a reminder that the choice affects the shared session target. When submitted, the selected model fills `payload.model` (alongside the cron message, schedule, and `agentId`) before calling `cron.add` / `cron.update`.
+- This guarantees every cron job stores the model it should run against so scheduled runs stay deterministic rather than inheriting an unexpected default.
+
 ### Integration
 
 #### Panel System (`components/panels/PanelContainer.tsx`)
@@ -93,6 +100,7 @@ Dedicated panel for job control:
 - Renders CronPanel when panel.type === 'cron'
 - Requires `panel.data.jobId` to identify which job to display
 - Passes cronJobs, wsRef, and action callbacks as props
+- Supplies `models` and `defaultModel` (derived from `sessionSettings.model` or the first available model) to the create/update Cron panels so they can render the searchable `ModelSelector`.
 
 #### Status Bar (`components/layout/StatusBar.tsx`)
 

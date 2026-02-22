@@ -126,6 +126,13 @@ interface CronRun {
 }
 ```
 
+### 6. Cron Creation / Model Selection Panels
+
+**Files**: `components/panels/CreateCronPanel.tsx`, `components/panels/UpdateCronPanel.tsx`
+
+- Both panels now render the shared `ModelSelector` component so users can search for and pick the model that will execute the scheduled message. `PanelContainer` forwards the `models` list from `useSessionSettings` along with a `defaultModel` derived from the active session, keeping the current choice pre-selected when available.
+- Model selection is required before submission; the selected value is stored in `payload.model` (along with the cron message and optional `agentId`) and sent to the gateway API, guaranteeing each scheduled job runs against a deterministic model rather than inheriting a fallback.
+
 ## Integration Points
 
 ### Main App (`app/page.tsx`)
