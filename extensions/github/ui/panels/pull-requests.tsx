@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   RefreshCw,
   ExternalLink,
@@ -22,6 +22,7 @@ import { usePanels } from "@/contexts/PanelContext";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubPR, GitHubRepoRef, PRFilters } from "../../api";
 import { FilterDropdown } from "@/components/panels/FilterDropdown";
+import { uiStateStore } from "@/lib/ui-state-db";
 
 function formatRelativeTime(dateStr: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -81,6 +82,43 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
   const [fetchTick, setFetchTick] = useState(0);
 
   const refresh = useCallback(() => setFetchTick((n) => n + 1), []);
+
+  // Holds the repo that was just restored from IndexedDB so the repo-change
+  // reset effect can skip clearing the other restored filters.
+  const restoredRepoRef = useRef<string | null>(null);
+
+  // Load persisted filters on mount
+  useEffect(() => {
+    let mounted = true;
+    uiStateStore.getExtensionFilters("github:pull-requests").then((saved) => {
+      if (!mounted || !saved) return;
+      if (saved.repo) {
+        restoredRepoRef.current = saved.repo;
+        setSelectedRepo(saved.repo);
+      }
+      if (saved.search !== undefined) setSearchInput(saved.search);
+      if (saved.label !== undefined) setLabelFilter(saved.label);
+      if (saved.author !== undefined) setAuthorFilter(saved.author);
+      if (saved.assignee !== undefined) setAssigneeFilter(saved.assignee);
+      if (saved.draft === "draft") setDraftFilter(true);
+      else if (saved.draft === "ready") setDraftFilter(false);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Persist filters whenever they change
+  useEffect(() => {
+    uiStateStore.saveExtensionFilters("github:pull-requests", {
+      repo: selectedRepo,
+      search: searchInput,
+      label: labelFilter,
+      author: authorFilter,
+      assignee: assigneeFilter,
+      draft: draftFilter === true ? "draft" : draftFilter === false ? "ready" : "all",
+    });
+  }, [selectedRepo, searchInput, labelFilter, authorFilter, assigneeFilter, draftFilter]);
 
   // Fetch PRs whenever fetchTick, selectedRepo, or draftFilter changes
   useEffect(() => {
@@ -197,6 +235,10 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
   );
 
   useEffect(() => {
+    if (restoredRepoRef.current !== null && selectedRepo === restoredRepoRef.current) {
+      restoredRepoRef.current = null;
+      return;
+    }
     setLabelFilter("");
     setAuthorFilter("");
     setAssigneeFilter("");
