@@ -259,12 +259,49 @@ export async function handleAgentFilesGet(
         agentId: trimmedAgentId,
         name: trimmedName,
       });
-      content =
-        typeof result?.content === "string"
-          ? result.content
-          : typeof result === "string"
-            ? result
-            : "";
+
+      const responseObj =
+        result && typeof result === "object" ? (result as Record<string, unknown>) : undefined;
+      const fileObj =
+        responseObj?.file && typeof responseObj.file === "object"
+          ? (responseObj.file as Record<string, unknown>)
+          : undefined;
+      const payloadObj =
+        responseObj?.payload && typeof responseObj.payload === "object"
+          ? (responseObj.payload as Record<string, unknown>)
+          : undefined;
+      const payloadFileObj =
+        payloadObj?.file && typeof payloadObj.file === "object"
+          ? (payloadObj.file as Record<string, unknown>)
+          : undefined;
+
+      const directContent = responseObj?.content;
+      const nestedFileContent = fileObj?.content;
+      const nestedPayloadFileContent = payloadFileObj?.content;
+
+      if (typeof directContent === "string") {
+        content = directContent;
+      } else if (typeof nestedFileContent === "string") {
+        content = nestedFileContent;
+      } else if (typeof nestedPayloadFileContent === "string") {
+        content = nestedPayloadFileContent;
+      } else if (typeof result === "string") {
+        content = result;
+      } else {
+        content = "";
+      }
+
+      const directMissing = responseObj?.missing;
+      const nestedFileMissing = fileObj?.missing;
+      const nestedPayloadFileMissing = payloadFileObj?.missing;
+
+      if (typeof directMissing === "boolean") {
+        exists = !directMissing;
+      } else if (typeof nestedFileMissing === "boolean") {
+        exists = !nestedFileMissing;
+      } else if (typeof nestedPayloadFileMissing === "boolean") {
+        exists = !nestedPayloadFileMissing;
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (/not found|does not exist|no such/i.test(message)) {
