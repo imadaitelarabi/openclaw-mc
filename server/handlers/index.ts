@@ -6,7 +6,13 @@
 import type { ClientMessage, ExtendedWebSocket } from "../types/internal";
 import type { GatewayClient } from "../core/GatewayClient";
 import { ConfigManager } from "../core/ConfigManager";
-import { handleAgentAdd, handleAgentUpdate, handleAgentDelete } from "./agent.handler";
+import {
+  handleAgentAdd,
+  handleAgentUpdate,
+  handleAgentDelete,
+  handleAgentFilesGet,
+  handleAgentFilesSet,
+} from "./agent.handler";
 import { handleChatSend, handleChatHistoryLoad, handleChatAbort } from "./chat.handler";
 import { handleSessionsList, handleSessionsPatch } from "./session.handler";
 import {
@@ -116,6 +122,14 @@ export async function handleMessage(
 
       case "agents.delete":
         await handleAgentDelete(msg, ws, gateway);
+        break;
+
+      case "agents.files.get":
+        await handleAgentFilesGet(msg, ws, gateway);
+        break;
+
+      case "agents.files.set":
+        await handleAgentFilesSet(msg, ws, gateway);
         break;
 
       case "cron.list":

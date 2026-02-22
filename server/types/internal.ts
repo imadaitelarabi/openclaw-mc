@@ -83,6 +83,19 @@ export type ClientMessage =
       requestId?: string;
       agentId: string;
     }
+  | {
+      type: "agents.files.get";
+      requestId?: string;
+      agentId: string;
+      name: string;
+    }
+  | {
+      type: "agents.files.set";
+      requestId?: string;
+      agentId: string;
+      name: string;
+      content: string;
+    }
   | { type: "cron.list"; requestId?: string }
   | { type: "cron.status"; requestId?: string }
   | { type: "cron.add"; requestId?: string; job: any }
@@ -144,6 +157,17 @@ export type ServerMessage =
   | { type: "agents.add.ack"; requestId?: string; agentId: string }
   | { type: "agents.update.ack"; requestId?: string; agentId: string; name: string }
   | { type: "agents.delete.ack"; requestId?: string; agentId: string; removed: boolean }
+  | {
+      type: "agents.files.get.response";
+      requestId?: string;
+      agentId: string;
+      name: string;
+      content: string;
+      exists: boolean;
+    }
+  | { type: "agents.files.get.error"; requestId?: string; error: string }
+  | { type: "agents.files.set.response"; requestId?: string; agentId: string; name: string }
+  | { type: "agents.files.set.error"; requestId?: string; error: string }
   | { type: "chat.abort.run.ack"; agentId: string; ok: boolean; error?: string }
   | { type: "chat_history"; agentId: string; messages: unknown[] }
   | {

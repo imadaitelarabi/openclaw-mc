@@ -2,6 +2,7 @@ export type PanelType =
   | "chat"
   | "create-agent"
   | "update-agent"
+  | "agent-file"
   | "agent-list"
   | "extension-onboarding"
   | "cron"

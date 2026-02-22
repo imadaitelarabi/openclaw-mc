@@ -197,6 +197,11 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         case "update-agent":
           title = `Edit ${data?.agentName || "Agent"}`;
           break;
+        case "agent-file":
+          title = data?.fileName
+            ? `${data.fileName} — ${data?.agentName || "Agent"}`
+            : `File — ${data?.agentName || "Agent"}`;
+          break;
         case "agent-list":
           title = "Agents";
           break;

@@ -6,6 +6,7 @@ import { PanelHeader, type AgentRunStatus } from "./PanelHeader";
 import { ChatPanel } from "./ChatPanel";
 import { CreateAgentPanel } from "./CreateAgentPanel";
 import { UpdateAgentPanel } from "./UpdateAgentPanel";
+import { AgentFilePanel } from "./AgentFilePanel";
 import { CreateCronPanel } from "./CreateCronPanel";
 import { UpdateCronPanel } from "./UpdateCronPanel";
 import { ExtensionOnboardingPanel } from "./ExtensionOnboardingPanel";
@@ -54,6 +55,7 @@ interface PanelContainerProps {
     agentId: string;
     name: string;
   }) => Promise<{ agentId: string; name: string }>;
+  onOpenAgentFile?: (agentId: string, agentName: string, fileName: string) => void;
 
   // Cron-related props
   cronJobs?: CronJob[];
@@ -121,6 +123,7 @@ export function PanelContainer({
   onRefreshChat,
   onCreateAgent,
   onUpdateAgent,
+  onOpenAgentFile,
   cronJobs = [],
   wsRef,
   onReschedule,
@@ -270,6 +273,27 @@ export function PanelContainer({
                   panel.agentId
                 }
                 onUpdateAgent={onUpdateAgent}
+                onOpenFile={
+                  onOpenAgentFile
+                    ? (fileName) => {
+                        const agentName =
+                          panel.data?.agentName ||
+                          agents.find((a) => a.id === panel.agentId)?.name ||
+                          panel.agentId!;
+                        onOpenAgentFile(panel.agentId!, agentName, fileName);
+                      }
+                    : undefined
+                }
+                onClose={() => onPanelClose(panel.id)}
+              />
+            )}
+
+            {panel.type === "agent-file" && panel.agentId && panel.data?.fileName && wsRef && (
+              <AgentFilePanel
+                agentId={panel.agentId}
+                agentName={panel.data.agentName || panel.agentId}
+                fileName={panel.data.fileName}
+                wsRef={wsRef}
                 onClose={() => onPanelClose(panel.id)}
               />
             )}

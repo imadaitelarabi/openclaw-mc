@@ -151,7 +151,9 @@ interface UseNotesReturn {
   error: string | null;
   addNote: (content, group, tags?, imageUrl?) => Promise<Note>;
   setTagColor: (tag, color) => Promise<Record<string, string>>;
-  deleteTag: (tag: string) => Promise<{ notes: Note[]; allTags: string[]; tagColors: Record<string, string> }>;
+  deleteTag: (
+    tag: string
+  ) => Promise<{ notes: Note[]; allTags: string[]; tagColors: Record<string, string> }>;
   createTag: (tag: string) => Promise<{ allTags: string[]; tagColors: Record<string, string> }>;
   addGroup: (group) => Promise<string[]>;
   deleteGroup: (group) => Promise<string[]>;

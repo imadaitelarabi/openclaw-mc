@@ -538,6 +538,13 @@ function MissionControlInner() {
     [agents, openPanel]
   );
 
+  const handleOpenAgentFile = useCallback(
+    (agentId: string, agentName: string, fileName: string) => {
+      openPanel("agent-file", { agentId, agentName, fileName });
+    },
+    [openPanel]
+  );
+
   const handleOpenExtensionOnboarding = useCallback(
     (extensionName: string) => {
       openPanel("extension-onboarding", { extensionName });
@@ -1093,6 +1100,7 @@ function MissionControlInner() {
             onRefreshChat={handleRefreshChat}
             onCreateAgent={handleCreateAgentRequest}
             onUpdateAgent={handleUpdateAgentRequest}
+            onOpenAgentFile={handleOpenAgentFile}
             cronJobs={cronJobs}
             wsRef={wsRef}
             onEditCronJob={handleEditCronJob}

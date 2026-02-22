@@ -1,11 +1,14 @@
 # Changelog
 
 ## [0.3.0] - 2026-02-22
+
 ### Meta
+
 - Bump: minor (score: 124)
 - Range: 30dab58afd3628004c5188249358986fc0a767b7..174a5614e2266b7015d4403e5dec7a6e3afb77b4
 
 ### Features
+
 - add gateway skills fetch (00331f0)
 - add skills filters and persistence (7c84e9c)
 - add skills to native # mentions (d232b22)
@@ -14,20 +17,25 @@
 - replace model selection dropdown with ModelSelector component in Create and Update Cron panels (c9fdfcb)
 
 ### Fixes
+
 - avoid passing click event to skills refresh (dd7efd7)
 - flatten hierarchical extension results to leaves in global search (a33175e)
 - filter and sort global search leaf results by relevance score (91c06ef)
 
 ### Refactors
+
 - format function parameters for CreateCronPanel and UpdateCronPanel components (2ba5eb2)
 
 ### Docs
+
 - linkify PRs and commit SHAs (d29f7d3)
 
 ### Chores
+
 - daily changelog 2026-02-21 (4283585)
 
 ### Other
+
 - Merge pull request #95 from imadaitelarabi/changelog/daily-2026-02-21 (ec733f7)
 - Merge pull request #96 from imadaitelarabi/chore/linkify-changelog (2d28316)
 - Initial plan (4e35d3f)
@@ -44,8 +52,6 @@
 - Merge pull request #107 from imadaitelarabi/copilot/add-oxlint-prettier-formatting (572b012)
 - Initial plan (221fbb2)
 - Merge pull request #109 from imadaitelarabi/copilot/require-model-selection-cron (174a561)
-
-
 
 ## [0.2.0] - 2026-02-21
 
