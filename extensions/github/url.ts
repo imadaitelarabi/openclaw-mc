@@ -48,9 +48,7 @@ export function parseGitHubUrl(url: string): GitHubUrlInfo | null {
   }
 
   // pathname: /{owner}/{repo}/issues/{number}[/...]
-  const issueMatch = parsed.pathname.match(
-    /^\/([^/]+)\/([^/]+)\/issues\/(\d+)(?:\/.*)?$/
-  );
+  const issueMatch = parsed.pathname.match(/^\/([^/]+)\/([^/]+)\/issues\/(\d+)(?:\/.*)?$/);
   if (issueMatch) {
     const number = parseInt(issueMatch[3], 10);
     return {
@@ -63,9 +61,7 @@ export function parseGitHubUrl(url: string): GitHubUrlInfo | null {
   }
 
   // pathname: /{owner}/{repo}/pull/{number}[/...]
-  const prMatch = parsed.pathname.match(
-    /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/.*)?$/
-  );
+  const prMatch = parsed.pathname.match(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/.*)?$/);
   if (prMatch) {
     const number = parseInt(prMatch[3], 10);
     return {
