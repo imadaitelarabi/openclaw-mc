@@ -18,6 +18,8 @@ Handles persistent storage of notes to the file system.
 - `listAllTags()` - Returns sorted unique tags from all notes
 - `listTagColors()` - Returns map of tag names to hex colors
 - `setTagColor(tag, color)` - Sets custom hex color for a specific tag
+- `createTag(tag)` - Creates a global tag entry (persisted even before it is attached to a note) and seeds the color map so the tag can be reused from the UI.
+- `deleteTag(tag)` - Removes the tag from every note, clears its color, and returns the updated list of tags and colors.
 - `addNote(content, group, tags?, imageUrl?)` - Creates a new note with optional tags
 - `updateNote(id, updates)` - Updates an existing note (including tags)
 - `deleteNote(id)` - Removes a note
@@ -28,6 +30,7 @@ Handles persistent storage of notes to the file system.
 - Format: JSON storage including notes, groups, and `tagColors` map
 - Images: `~/.oc-mission-control/notes-images/` for local uploads
 - Auto-creates directories if missing
+- Tags: Persists an explicit `tags` array so manually created tags survive even if no note currently references them.
 
 #### Notes Handler (`server/handlers/notes.handler.ts`)
 
@@ -40,6 +43,8 @@ WebSocket message handlers for notes CRUD operations.
 - `notes.update` - Update a note
 - `notes.delete` - Delete a note
 - `notes.tags.color.set` - Set custom color for a tag
+- `notes.tags.create` - Add a new tag definition globally
+- `notes.tags.delete` - Remove a tag from all notes and the color map
 
 **Response Types:**
 
@@ -48,6 +53,8 @@ WebSocket message handlers for notes CRUD operations.
 - `notes.update.ack` - Confirms note update and returns updated tagColors
 - `notes.delete.ack` - Confirms note deletion
 - `notes.tags.color.set.ack` - Confirms new tag color
+- `notes.tags.create.ack` - Confirms tag creation and returns updated `allTags` and `tagColors`
+- `notes.tags.delete.ack` - Confirms tag removal, returning the new note list plus the refreshed tag/tag color map
 - `notes.*.error` - Error responses
 
 ### Frontend Components
@@ -114,6 +121,13 @@ interface NotesStatusBarItemProps {
 }
 ```
 
+#### TagsSettingsPanel (`components/panels/TagsSettingsPanel.tsx`)
+
+- The tags settings panel is opened via the notes status bar or by calling `openPanel("tags-settings")`. It lists every tag with its color pill (rendered with `getTagColor`) and exposes controls for colors, random color regeneration, and deletion.
+- A creation row at the top lets operators type a new tag name and hit `Create`; this triggers the `notes.tags.create` RPC through the `createTag` helper. Errors for empty or duplicate names surface inline and the button disables while the request is in flight.
+- Each tag row contains a color picker (hooked to `onSetTagColor`), a `Random` button to regenerate a color, and a `Delete` button wired to `onDeleteTag`. Deletion opens the shared `ConfirmationModal`, and the hook refreshes the notes/tag map with the response.
+- This panel depends on the `createTag`/`deleteTag` helpers from `useNotes` so the UI can stay in sync with the backend-managed `allTags` and `tagColors`.
+
 #### useNotes Hook (`hooks/useNotes.ts`)
 
 React hook for WebSocket integration with notes backend.
@@ -122,7 +136,7 @@ React hook for WebSocket integration with notes backend.
 
 - Auto-loads notes on mount or socket reconnect
 - Real-time updates via WebSocket
-- Promise-based async operations (add, update, delete, tag colors)
+- Promise-based async operations (add, update, delete, tag colors, create/delete tags)
 - Error handling and loading states
 
 **Returns:**
@@ -137,6 +151,8 @@ interface UseNotesReturn {
   error: string | null;
   addNote: (content, group, tags?, imageUrl?) => Promise<Note>;
   setTagColor: (tag, color) => Promise<Record<string, string>>;
+  deleteTag: (tag: string) => Promise<{ notes: Note[]; allTags: string[]; tagColors: Record<string, string> }>;
+  createTag: (tag: string) => Promise<{ allTags: string[]; tagColors: Record<string, string> }>;
   addGroup: (group) => Promise<string[]>;
   deleteGroup: (group) => Promise<string[]>;
   uploadNoteImage: (file) => Promise<string>;
@@ -267,6 +283,26 @@ This workflow is useful for quickly grounding an agent with structured note cont
 }
 ```
 
+**Create Tag:**
+
+```json
+{
+  "type": "notes.tags.create",
+  "requestId": "uuid",
+  "tag": "deploy"
+}
+```
+
+**Delete Tag:**
+
+```json
+{
+  "type": "notes.tags.delete",
+  "requestId": "uuid",
+  "tag": "cli"
+}
+```
+
 **Update Note:**
 
 ```json
@@ -325,6 +361,31 @@ This workflow is useful for quickly grounding an agent with structured note cont
   "tag": "cli",
   "color": "#3b82f6",
   "tagColors": { ... }
+}
+```
+
+**Tag Creation Acknowledgment:**
+
+```json
+{
+  "type": "notes.tags.create.ack",
+  "requestId": "uuid",
+  "tag": "deploy",
+  "allTags": ["deploy"],
+  "tagColors": { "deploy": "#3b82f6" }
+}
+```
+
+**Tag Deletion Acknowledgment:**
+
+```json
+{
+  "type": "notes.tags.delete.ack",
+  "requestId": "uuid",
+  "tag": "cli",
+  "notes": [],
+  "allTags": [],
+  "tagColors": {}
 }
 ```
 
