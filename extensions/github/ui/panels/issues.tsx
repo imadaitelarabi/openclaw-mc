@@ -318,18 +318,16 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
 
         {items.map((issue) => {
           const repoFullName = extractRepoFullName(issue.html_url);
-          const [issueOwner, issueRepo] = repoFullName
-            ? repoFullName.split("/")
-            : [undefined, undefined];
+          const [owner, repo] = repoFullName ? repoFullName.split("/") : [undefined, undefined];
           return (
             <button
               key={issue.number}
               onClick={() => {
-                if (issueOwner && issueRepo) {
+                if (owner && repo) {
                   openPanel("github-issue-details", {
                     kind: "github-issue",
-                    owner: issueOwner,
-                    repo: issueRepo,
+                    owner,
+                    repo,
                     number: issue.number,
                     htmlUrl: issue.html_url,
                   });

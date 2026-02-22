@@ -37,6 +37,8 @@ function labelTextColor(hex: string): string {
   return luminance > 0.5 ? "#000000" : "#ffffff";
 }
 
+const MAX_BODY_PREVIEW_LENGTH = 1000;
+
 interface GitHubIssueDetailsPanelProps extends ExtensionPanelProps {
   owner?: string;
   repo?: string;
@@ -202,7 +204,7 @@ export function GitHubIssueDetailsPanel({
       {/* Body */}
       {issue.body && (
         <div className="border border-border rounded p-3 text-xs text-foreground whitespace-pre-wrap break-words max-h-60 overflow-auto bg-muted/20">
-          {issue.body.length > 1000 ? `${issue.body.slice(0, 1000)}…` : issue.body}
+          {issue.body.length > MAX_BODY_PREVIEW_LENGTH ? `${issue.body.slice(0, MAX_BODY_PREVIEW_LENGTH)}…` : issue.body}
         </div>
       )}
 

@@ -355,16 +355,16 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
 
         {items.map((pr) => {
           const repoFullName = extractRepoFullName(pr.html_url);
-          const [prOwner, prRepo] = repoFullName ? repoFullName.split("/") : [undefined, undefined];
+          const [owner, repo] = repoFullName ? repoFullName.split("/") : [undefined, undefined];
           return (
             <button
               key={pr.number}
               onClick={() => {
-                if (prOwner && prRepo) {
+                if (owner && repo) {
                   openPanel("github-pr-details", {
                     kind: "github-pr",
-                    owner: prOwner,
-                    repo: prRepo,
+                    owner,
+                    repo,
                     number: pr.number,
                     htmlUrl: pr.html_url,
                   });
