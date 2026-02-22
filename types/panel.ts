@@ -5,6 +5,7 @@ export type PanelType =
   | "agent-file"
   | "agent-list"
   | "extension-onboarding"
+  | "extension-panel"
   | "cron"
   | "create-cron"
   | "update-cron"

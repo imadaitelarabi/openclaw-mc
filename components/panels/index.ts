@@ -7,4 +7,5 @@ export { AgentFilePanel } from "./AgentFilePanel";
 export { CreateCronPanel } from "./CreateCronPanel";
 export { UpdateCronPanel } from "./UpdateCronPanel";
 export { ExtensionOnboardingPanel } from "./ExtensionOnboardingPanel";
+export { ExtensionPanel } from "./ExtensionPanel";
 export { TagsSettingsPanel } from "./TagsSettingsPanel";

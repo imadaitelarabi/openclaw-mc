@@ -16,6 +16,8 @@ interface ExtensionContextValue {
   needsOnboarding: (extensionName: string) => Promise<boolean>;
   completeOnboarding: (extensionName: string) => Promise<void>;
   refreshExtensions: () => void;
+  getWriteConsent: (extensionName: string, panelId: string) => boolean;
+  grantWriteConsent: (extensionName: string, panelId: string) => Promise<void>;
 }
 
 const ExtensionContext = createContext<ExtensionContextValue | undefined>(undefined);
@@ -134,6 +136,26 @@ export function ExtensionProvider({ children }: ExtensionProviderProps) {
     [refreshExtensions]
   );
 
+  const getWriteConsent = useCallback((extensionName: string, panelId: string): boolean => {
+    return extensionRegistry.checkWriteConsent(extensionName, panelId);
+  }, []);
+
+  const grantWriteConsent = useCallback(
+    async (extensionName: string, panelId: string): Promise<void> => {
+      try {
+        await extensionRegistry.grantWriteConsent(extensionName, panelId);
+        refreshExtensions();
+      } catch (error) {
+        console.error(
+          `[ExtensionContext] Failed to grant write consent for "${extensionName}/${panelId}":`,
+          error
+        );
+        throw error;
+      }
+    },
+    [refreshExtensions]
+  );
+
   const value: ExtensionContextValue = {
     extensions,
     enabledExtensions,
@@ -145,6 +167,8 @@ export function ExtensionProvider({ children }: ExtensionProviderProps) {
     needsOnboarding,
     completeOnboarding,
     refreshExtensions,
+    getWriteConsent,
+    grantWriteConsent,
   };
 
   return <ExtensionContext.Provider value={value}>{children}</ExtensionContext.Provider>;

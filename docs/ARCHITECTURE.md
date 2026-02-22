@@ -612,6 +612,26 @@ console.log("[ExtensionName] Action", result);
 - Read-only safety model
 - Easy to add/remove features
 
+## Extension Panel System
+
+### Panel UX Rules
+
+Extension panels are host-owned UI surfaces opened from the extension status bar menu.
+
+1. **Open Panel entry**: Every extension that declares `panels` in its manifest gets an "Open Panel" submenu item automatically injected into its status bar dropdown by `useExtensionStatusBar`.
+2. **Host renders `PanelHeader`**: `PanelContainer` always wraps extension panels with `PanelHeader` — extensions only render the body component.
+3. **Themed container**: Extension panel bodies are rendered inside a `bg-background text-foreground border-border` container so they inherit app theming automatically.
+4. **Write operations in panels only**: Write actions are not permitted in status bar dropdowns or chat input — only inside extension panels.
+5. **Write consent gate**: When a panel declares `requiresWrite: true` in the manifest, the host shows a one-time `ConfirmationModal` before opening. Consent is stored per-panel in `ExtensionState.writeConsent` (persisted to IndexedDB). Subsequent opens skip the gate.
+
+### Consent Storage
+
+Write consent is stored in the extension state object under `writeConsent: Record<string, boolean>` where the key is `panelId`. Helpers:
+- `extensionRegistry.checkWriteConsent(extensionName, panelId)` — synchronous check
+- `extensionRegistry.grantWriteConsent(extensionName, panelId)` — async, persists to IndexedDB
+- `useExtensions().getWriteConsent(extensionName, panelId)` — React context helper
+- `useExtensions().grantWriteConsent(extensionName, panelId)` — React context helper
+
 ## References
 
 - [Next.js Documentation](https://nextjs.org/docs)

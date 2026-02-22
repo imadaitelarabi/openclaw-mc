@@ -29,12 +29,52 @@ export interface ExtensionManifest {
 
   /** Status bar configuration */
   statusBar?: StatusBarConfig;
+
+  /** Extension panel definitions */
+  panels?: ExtensionPanelDefinition[];
+
+  /** Human-readable summary of what this extension does (shown during onboarding) */
+  usage?: string;
+
+  /** Write permission scopes (shown in write consent gate and onboarding) */
+  writePermissions?: string[];
 }
 
 /**
  * Available extension hooks
  */
-export type ExtensionHook = "status-bar" | "chat-input" | "onboarding";
+export type ExtensionHook = "status-bar" | "chat-input" | "onboarding" | "panel";
+
+/**
+ * Extension panel definition (declared in manifest)
+ */
+export interface ExtensionPanelDefinition {
+  /** Unique panel identifier within the extension */
+  id: string;
+
+  /** Human-readable panel title */
+  title: string;
+
+  /** Optional panel description */
+  description?: string;
+
+  /** Whether the panel requires write consent before opening */
+  requiresWrite?: boolean;
+
+  /** Whether this is the default panel (opened when only one panel exists) */
+  default?: boolean;
+}
+
+/**
+ * Props passed to extension panel body components
+ */
+export interface ExtensionPanelProps {
+  /** Extension name */
+  extensionName: string;
+
+  /** Panel identifier */
+  panelId: string;
+}
 
 /**
  * Tagger configuration for chat input
@@ -79,6 +119,9 @@ export interface ExtensionState {
 
   /** Timestamp of last update */
   lastUpdated: number;
+
+  /** Write consent per panel (keyed by panelId) */
+  writeConsent?: Record<string, boolean>;
 }
 
 /**
@@ -124,6 +167,9 @@ export interface StatusBarDropdownItem {
 
   /** URL for open action */
   openUrl?: string;
+
+  /** Panel ID to open (host-handled action for extension panels) */
+  openPanelId?: string;
 
   /** Nested dropdown items */
   children?: StatusBarDropdownItem[];
@@ -189,6 +235,9 @@ export interface ExtensionHooks {
     /** React component for onboarding UI */
     component: React.ComponentType<OnboardingProps>;
   };
+
+  /** Panel hook - map of panelId to body component (host renders PanelHeader) */
+  panel?: Record<string, React.ComponentType<ExtensionPanelProps>>;
 }
 
 /**

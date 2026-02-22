@@ -17,6 +17,7 @@ import { MobileControlPanel } from "@/components/mobile";
 import { GatewaySetup } from "@/components/gateway/GatewaySetup";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { PanelProvider, usePanels } from "@/contexts/PanelContext";
+import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { PanelContainer } from "@/components/panels";
 import { ConfirmationModal } from "@/components/modals";
 import { uiStateStore } from "@/lib/ui-state-db";
@@ -57,8 +58,16 @@ function MissionControlInner() {
   // Delete agent confirmation modal state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [agentToDelete, setAgentToDelete] = useState<{ id: string; name: string } | null>(null);
+  // Write consent gate state for extension panels
+  const [writeConsentPending, setWriteConsentPending] = useState<{
+    extensionName: string;
+    panelId: string;
+    panelTitle: string;
+    writePermissions: string[];
+  } | null>(null);
 
   const { toast } = useToast();
+  const extensionContext = useOptionalExtensions();
   const pendingRequestsRef = useRef(
     new Map<
       string,
@@ -551,6 +560,51 @@ function MissionControlInner() {
     },
     [openPanel]
   );
+
+  const handleOpenExtensionPanel = useCallback(
+    (extensionName: string, panelId: string) => {
+      if (!extensionContext) {
+        openPanel("extension-panel", { extensionName, panelId });
+        return;
+      }
+
+      const extension = extensionContext.getExtension(extensionName);
+      const panelDef = extension?.manifest.panels?.find((p) => p.id === panelId);
+      const panelTitle = panelDef?.title || panelId;
+
+      if (panelDef?.requiresWrite && !extensionContext.getWriteConsent(extensionName, panelId)) {
+        // Show write consent gate first
+        setWriteConsentPending({
+          extensionName,
+          panelId,
+          panelTitle,
+          writePermissions: extension?.manifest.writePermissions || [],
+        });
+        return;
+      }
+
+      openPanel("extension-panel", { extensionName, panelId, panelTitle });
+    },
+    [openPanel, extensionContext]
+  );
+
+  const handleConfirmWriteConsent = useCallback(async () => {
+    if (!writeConsentPending || !extensionContext) return;
+
+    const { extensionName, panelId, panelTitle } = writeConsentPending;
+    try {
+      await extensionContext.grantWriteConsent(extensionName, panelId);
+      openPanel("extension-panel", { extensionName, panelId, panelTitle });
+    } catch (error) {
+      toast({
+        title: "Failed to grant consent",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setWriteConsentPending(null);
+    }
+  }, [writeConsentPending, extensionContext, openPanel, toast]);
 
   const handleOpenTagsSettings = useCallback(() => {
     openPanel("tags-settings");
@@ -1155,6 +1209,7 @@ function MissionControlInner() {
           onAddGateway={() => setShowSetup(true)}
           onRemoveGateway={(id) => sendMessage({ type: "gateways.remove", id })}
           onOpenExtensionOnboarding={handleOpenExtensionOnboarding}
+          onOpenExtensionPanel={handleOpenExtensionPanel}
           onOpenTagsSettings={handleOpenTagsSettings}
           onOpenSkills={handleOpenSkills}
           cronJobs={cronJobs}
@@ -1239,6 +1294,22 @@ function MissionControlInner() {
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+      />
+
+      {/* Write Consent Gate Modal */}
+      <ConfirmationModal
+        isOpen={writeConsentPending !== null}
+        onClose={() => setWriteConsentPending(null)}
+        onConfirm={handleConfirmWriteConsent}
+        title={`Allow write access — ${writeConsentPending?.panelTitle}`}
+        message={
+          writeConsentPending?.writePermissions && writeConsentPending.writePermissions.length > 0
+            ? `This panel requires write access to: ${writeConsentPending.writePermissions.join(", ")}. You will only be asked once.`
+            : "This panel requires write access. You will only be asked once."
+        }
+        confirmText="Allow"
+        cancelText="Cancel"
+        variant="warning"
       />
     </div>
   );
