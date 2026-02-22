@@ -273,6 +273,46 @@ export class GitHubAPI {
     this.config = { ...this.config, ...newConfig };
   }
 
+  private async searchPanelItems<T extends { updated_at: string; html_url: string }>(
+    parts: string[],
+    repoFullNames: string[],
+    totalLimit: number
+  ): Promise<T[]> {
+    if (repoFullNames.length === 0) {
+      return [];
+    }
+
+    const perRepo = Math.min(Math.max(Math.ceil((totalLimit * 2) / repoFullNames.length), 1), 50);
+
+    const results = await Promise.all(
+      repoFullNames.map(async (repoFullName) => {
+        const q = encodeURIComponent([...parts, `repo:${repoFullName}`].join(" "));
+        try {
+          const result = await this.request<{ items: T[] }>(
+            `/search/issues?q=${q}&sort=updated&order=desc&per_page=${perRepo}`
+          );
+          return result.items;
+        } catch {
+          return [];
+        }
+      })
+    );
+
+    const seen = new Set<string>();
+    const merged = results
+      .flat()
+      .filter((item) => {
+        if (seen.has(item.html_url)) {
+          return false;
+        }
+        seen.add(item.html_url);
+        return true;
+      })
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+    return merged.slice(0, totalLimit);
+  }
+
   /**
    * List all repos accessible to the user (used to populate panel repo selector).
    * Returns at most 50 repos, sorted by last updated across all orgs/users.
@@ -307,24 +347,19 @@ export class GitHubAPI {
   }
 
   /**
-   * Search issues using the GitHub Search API with optional filters.
-   * Supports "all repos" (no repo qualifier) and scoped-to-repo modes.
+   * Search issues using the GitHub Search API and explicit repository scoping.
+   * Passing multiple repos enables "all accessible repos" behavior.
    */
-  async searchIssuesPanel(filters: IssueFilters, repoFullName?: string): Promise<GitHubIssue[]> {
-    const perPage = Math.min(Math.max(this.config.maxResults ?? 30, 1) * 6, 50);
+  async searchIssuesPanel(filters: IssueFilters, repoFullNames: string[]): Promise<GitHubIssue[]> {
+    const totalLimit = Math.min(Math.max(this.config.maxResults ?? 30, 1) * 6, 50);
     try {
       const parts: string[] = ["is:issue", "is:open"];
-      if (repoFullName) parts.push(`repo:${repoFullName}`);
       if (filters.label) parts.push(`label:${filters.label}`);
       if (filters.author) parts.push(`author:${filters.author}`);
       if (filters.assignee) parts.push(`assignee:${filters.assignee}`);
       if (filters.search) parts.push(filters.search);
 
-      const q = encodeURIComponent(parts.join(" "));
-      const result = await this.request<{ items: GitHubIssue[] }>(
-        `/search/issues?q=${q}&sort=updated&order=desc&per_page=${perPage}`
-      );
-      return result.items;
+      return this.searchPanelItems<GitHubIssue>(parts, repoFullNames, totalLimit);
     } catch (error) {
       console.error("[GitHubAPI] Failed to search issues panel:", error);
       return [];
@@ -332,14 +367,13 @@ export class GitHubAPI {
   }
 
   /**
-   * Search pull requests using the GitHub Search API with optional filters.
-   * Supports "all repos" (no repo qualifier) and scoped-to-repo modes.
+   * Search pull requests using the GitHub Search API and explicit repository scoping.
+   * Passing multiple repos enables "all accessible repos" behavior.
    */
-  async searchPRsPanel(filters: PRFilters, repoFullName?: string): Promise<GitHubPR[]> {
-    const perPage = Math.min(Math.max(this.config.maxResults ?? 30, 1) * 6, 50);
+  async searchPRsPanel(filters: PRFilters, repoFullNames: string[]): Promise<GitHubPR[]> {
+    const totalLimit = Math.min(Math.max(this.config.maxResults ?? 30, 1) * 6, 50);
     try {
       const parts: string[] = ["is:pr", "is:open"];
-      if (repoFullName) parts.push(`repo:${repoFullName}`);
       if (filters.label) parts.push(`label:${filters.label}`);
       if (filters.author) parts.push(`author:${filters.author}`);
       if (filters.assignee) parts.push(`assignee:${filters.assignee}`);
@@ -347,11 +381,7 @@ export class GitHubAPI {
       if (filters.isDraft === false) parts.push("draft:false");
       if (filters.search) parts.push(filters.search);
 
-      const q = encodeURIComponent(parts.join(" "));
-      const result = await this.request<{ items: GitHubPR[] }>(
-        `/search/issues?q=${q}&sort=updated&order=desc&per_page=${perPage}`
-      );
-      return result.items;
+      return this.searchPanelItems<GitHubPR>(parts, repoFullNames, totalLimit);
     } catch (error) {
       console.error("[GitHubAPI] Failed to search PRs panel:", error);
       return [];

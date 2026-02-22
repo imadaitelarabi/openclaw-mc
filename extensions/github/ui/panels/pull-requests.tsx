@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { RefreshCw, ExternalLink, AlertCircle, Loader2, Search, GitPullRequest } from "lucide-react";
 import type { ExtensionPanelProps } from "@/types/extension";
 import { getApiInstance } from "../../api-instance";
@@ -22,6 +22,17 @@ function formatRelativeTime(dateStr: string): string {
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
   return `${Math.floor(days / 30)}mo ago`;
+}
+
+function extractRepoFullName(htmlUrl: string): string | null {
+  try {
+    const url = new URL(htmlUrl);
+    const [, owner, repo] = url.pathname.split("/");
+    if (!owner || !repo) return null;
+    return `${owner}/${repo}`;
+  } catch {
+    return null;
+  }
 }
 
 function labelTextColor(hex: string): string {
@@ -45,9 +56,9 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
 
   // Filter inputs (applied on Enter or Refresh)
   const [searchInput, setSearchInput] = useState("");
-  const [labelInput, setLabelInput] = useState("");
-  const [authorInput, setAuthorInput] = useState("");
-  const [assigneeInput, setAssigneeInput] = useState("");
+  const [labelFilter, setLabelFilter] = useState("");
+  const [authorFilter, setAuthorFilter] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState("");
   // Draft filter: undefined = all, true = draft only, false = non-draft only
   const [draftFilter, setDraftFilter] = useState<boolean | undefined>(undefined);
 
@@ -70,14 +81,16 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
 
     const filters: PRFilters = {
       search: searchInput.trim() || undefined,
-      label: labelInput.trim() || undefined,
-      author: authorInput.trim() || undefined,
-      assignee: assigneeInput.trim() || undefined,
+      label: labelFilter || undefined,
+      author: authorFilter || undefined,
+      assignee: assigneeFilter || undefined,
       isDraft: draftFilter,
     };
 
+    const repoScope = selectedRepo ? [selectedRepo] : repos.map((repo) => repo.fullName);
+
     api
-      .searchPRsPanel(filters, selectedRepo || undefined)
+      .searchPRsPanel(filters, repoScope)
       .then((results) => {
         if (!cancelled) setItems(results);
       })
@@ -92,7 +105,7 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchTick, selectedRepo, draftFilter]);
+  }, [fetchTick, selectedRepo, draftFilter, repos, labelFilter, authorFilter, assigneeFilter]);
 
   // Load repos list once on mount
   useEffect(() => {
@@ -107,6 +120,24 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") refresh();
   };
+
+  const labelOptions = useMemo(
+    () =>
+      Array.from(new Set(items.flatMap((pr) => pr.labels?.map((label) => label.name) ?? []))).sort(
+        (a, b) => a.localeCompare(b)
+      ),
+    [items]
+  );
+
+  const authorOptions = useMemo(
+    () => Array.from(new Set(items.map((pr) => pr.user.login))).sort((a, b) => a.localeCompare(b)),
+    [items]
+  );
+
+  const assigneeOptions = useMemo(
+    () => Array.from(new Set(items.flatMap((pr) => pr.assignees?.map((assignee) => assignee.login) ?? []))).sort((a, b) => a.localeCompare(b)),
+    [items]
+  );
 
   const cycleDraftFilter = () => {
     setDraftFilter((prev) => {
@@ -157,7 +188,7 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
             onChange={(e) => setSelectedRepo(e.target.value)}
             className={`${inputCls} min-w-[130px] max-w-[200px]`}
           >
-            <option value="">All repos</option>
+            <option value="">All accessible repos</option>
             {repos.map((r) => (
               <option key={r.fullName} value={r.fullName}>
                 {r.fullName}
@@ -165,30 +196,42 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
             ))}
           </select>
 
-          <input
-            type="text"
-            placeholder="Label"
-            value={labelInput}
-            onChange={(e) => setLabelInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className={`${inputCls} w-24`}
-          />
-          <input
-            type="text"
-            placeholder="Author"
-            value={authorInput}
-            onChange={(e) => setAuthorInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className={`${inputCls} w-24`}
-          />
-          <input
-            type="text"
-            placeholder="Assignee"
-            value={assigneeInput}
-            onChange={(e) => setAssigneeInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className={`${inputCls} w-24`}
-          />
+          <select
+            value={labelFilter}
+            onChange={(e) => setLabelFilter(e.target.value)}
+            className={`${inputCls} min-w-[110px] max-w-[170px]`}
+          >
+            <option value="">All labels</option>
+            {labelOptions.map((label) => (
+              <option key={label} value={label}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={authorFilter}
+            onChange={(e) => setAuthorFilter(e.target.value)}
+            className={`${inputCls} min-w-[110px] max-w-[170px]`}
+          >
+            <option value="">All authors</option>
+            {authorOptions.map((author) => (
+              <option key={author} value={author}>
+                {author}
+              </option>
+            ))}
+          </select>
+          <select
+            value={assigneeFilter}
+            onChange={(e) => setAssigneeFilter(e.target.value)}
+            className={`${inputCls} min-w-[110px] max-w-[170px]`}
+          >
+            <option value="">All assignees</option>
+            {assigneeOptions.map((assignee) => (
+              <option key={assignee} value={assignee}>
+                {assignee}
+              </option>
+            ))}
+          </select>
 
           {/* Draft toggle cycles: All → Draft only → Non-draft → All */}
           <button
@@ -224,7 +267,9 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
           </div>
         )}
 
-        {items.map((pr) => (
+        {items.map((pr) => {
+          const repoFullName = extractRepoFullName(pr.html_url);
+          return (
           <button
             key={pr.number}
             onClick={() => window.open(pr.html_url, "_blank", "noopener,noreferrer")}
@@ -246,7 +291,10 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
                 )}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-muted-foreground">by {pr.user.login}</span>
+                <span className="text-xs text-muted-foreground">
+                  by {pr.user.login}
+                  {repoFullName ? ` in [${repoFullName}]` : ""}
+                </span>
                 {pr.labels?.map((label) => (
                   <span
                     key={label.name}
@@ -266,7 +314,8 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
               <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
