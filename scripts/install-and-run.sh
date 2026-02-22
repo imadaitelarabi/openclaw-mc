@@ -7,6 +7,13 @@ INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/share/openclaw-mc}"
 MIN_NODE_MAJOR="18"
 TARGET_NODE_MAJOR="20"
 
+# Common locations to search for an existing installation (in priority order).
+# The default INSTALL_DIR is always included first.
+SEARCH_DIRS=(
+  "$HOME/.local/share/openclaw-mc"
+  "$HOME/.openclaw/openclaw-mc"
+)
+
 SUDO=""
 if [[ "${EUID:-$(id -u)}" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
   SUDO="sudo"
@@ -134,18 +141,75 @@ ensure_cmds() {
   fi
 }
 
-fetch_repo() {
-  mkdir -p "$(dirname "$INSTALL_DIR")"
+# Search common locations (and the explicit INSTALL_DIR) for an existing
+# openclaw-mc git checkout.  Returns the first matching directory path.
+find_existing_install() {
+  # Build a de-duplicated search list: explicit INSTALL_DIR first, then the
+  # well-known fallback directories.
+  local -a dirs=("$INSTALL_DIR")
+  for d in "${SEARCH_DIRS[@]}"; do
+    if [[ "$d" != "$INSTALL_DIR" ]]; then
+      dirs+=("$d")
+    fi
+  done
 
-  if [[ -d "$INSTALL_DIR/.git" ]]; then
+  for dir in "${dirs[@]}"; do
+    if [[ -d "$dir/.git" ]]; then
+      local remote
+      remote="$(git -C "$dir" remote get-url origin 2>/dev/null || true)"
+      # Match the canonical repo URL (without .git suffix for flexibility).
+      local canonical="${REPO_URL%.git}"
+      if [[ "$remote" == "$canonical" || "$remote" == "${canonical}.git" ]]; then
+        echo "$dir"
+        return 0
+      fi
+    fi
+  done
+
+  return 1
+}
+
+fetch_repo() {
+  # Detect an existing installation before deciding what to do.
+  local found_dir
+  if found_dir="$(find_existing_install)"; then
+    if [[ "$found_dir" != "$INSTALL_DIR" ]]; then
+      warn "Existing installation found at $found_dir (not $INSTALL_DIR)."
+      log  "Using existing installation at $found_dir instead of re-cloning."
+      INSTALL_DIR="$found_dir"
+    fi
+
     log "Updating existing installation at $INSTALL_DIR"
-    git -C "$INSTALL_DIR" fetch --all --prune
-    git -C "$INSTALL_DIR" checkout "$BRANCH"
-    git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH"
-  else
-    log "Cloning repository into $INSTALL_DIR"
-    git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
+    if ! git -C "$INSTALL_DIR" fetch --all --prune; then
+      err "Failed to fetch updates for $INSTALL_DIR. Check your network connection."
+      exit 1
+    fi
+    if ! git -C "$INSTALL_DIR" checkout "$BRANCH"; then
+      err "Failed to checkout branch '$BRANCH' in $INSTALL_DIR."
+      exit 1
+    fi
+    if ! git -C "$INSTALL_DIR" pull --ff-only origin "$BRANCH"; then
+      err "Failed to pull updates in $INSTALL_DIR (try resolving any local changes manually)."
+      exit 1
+    fi
+    return
   fi
+
+  # No existing git checkout found.
+  if [[ -d "$INSTALL_DIR" ]]; then
+    # Directory exists but is not a git repo — back it up and re-clone.
+    local backup_dir="${INSTALL_DIR}.bak.$(date +%Y%m%d%H%M%S)"
+    warn "$INSTALL_DIR exists but is not a git repository."
+    warn "Moving it to $backup_dir and performing a fresh clone."
+    if ! mv "$INSTALL_DIR" "$backup_dir"; then
+      err "Failed to back up $INSTALL_DIR to $backup_dir. Check permissions and try again."
+      exit 1
+    fi
+  fi
+
+  mkdir -p "$(dirname "$INSTALL_DIR")"
+  log "Cloning repository into $INSTALL_DIR"
+  git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR"
 }
 
 build_and_run() {
