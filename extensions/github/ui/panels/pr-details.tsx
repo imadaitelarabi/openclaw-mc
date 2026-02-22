@@ -19,6 +19,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ExtensionPanelProps } from "@/types/extension";
+import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubPR } from "../../api";
 
@@ -47,12 +48,11 @@ interface GitHubPrDetailsPanelProps extends ExtensionPanelProps {
   htmlUrl?: string;
 }
 
-export function GitHubPrDetailsPanel({
-  owner,
-  repo,
-  number,
-  htmlUrl,
-}: GitHubPrDetailsPanelProps) {
+export function GitHubPrDetailsPanel({ owner, repo, number, htmlUrl }: GitHubPrDetailsPanelProps) {
+  const extensionContext = useOptionalExtensions();
+  const isExtensionContextLoading = extensionContext?.isLoading ?? false;
+  const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
+
   const [pr, setPr] = useState<GitHubPR | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,9 +60,20 @@ export function GitHubPrDetailsPanel({
   useEffect(() => {
     if (!owner || !repo || !number) return;
 
+    if (isExtensionContextLoading) {
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     const api = getApiInstance();
     if (!api) {
-      setError("GitHub extension is not initialized. Please complete onboarding.");
+      setLoading(false);
+      setError(
+        isGitHubEnabled
+          ? "GitHub extension is still initializing. Please retry in a moment."
+          : "GitHub extension is not initialized. Please complete onboarding."
+      );
       return;
     }
 
@@ -87,14 +98,25 @@ export function GitHubPrDetailsPanel({
     return () => {
       cancelled = true;
     };
-  }, [owner, repo, number]);
+  }, [owner, repo, number, isExtensionContextLoading, isGitHubEnabled]);
 
-  const fallbackUrl = htmlUrl || (owner && repo && number ? `https://github.com/${owner}/${repo}/pull/${number}` : undefined);
+  const fallbackUrl =
+    htmlUrl ||
+    (owner && repo && number ? `https://github.com/${owner}/${repo}/pull/${number}` : undefined);
 
   if (!owner || !repo || !number) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
         No pull request selected.
+      </div>
+    );
+  }
+
+  if (isExtensionContextLoading) {
+    return (
+      <div className="flex items-center justify-center gap-2 p-8 text-sm text-muted-foreground">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        Loading GitHub extension…
       </div>
     );
   }
@@ -133,21 +155,12 @@ export function GitHubPrDetailsPanel({
   if (!pr) return null;
 
   const StatusIcon =
-    pr.state === "closed"
-      ? GitPullRequestClosed
-      : pr.draft
-        ? GitPullRequest
-        : GitMerge;
+    pr.state === "closed" ? GitPullRequestClosed : pr.draft ? GitPullRequest : GitMerge;
 
   const statusColor =
-    pr.state === "closed"
-      ? "text-red-500"
-      : pr.draft
-        ? "text-muted-foreground"
-        : "text-green-500";
+    pr.state === "closed" ? "text-red-500" : pr.draft ? "text-muted-foreground" : "text-green-500";
 
-  const statusLabel =
-    pr.state === "closed" ? "Closed" : pr.draft ? "Draft" : "Open";
+  const statusLabel = pr.state === "closed" ? "Closed" : pr.draft ? "Draft" : "Open";
 
   return (
     <div className="flex flex-col h-full overflow-auto p-4 space-y-4">

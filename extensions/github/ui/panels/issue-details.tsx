@@ -8,16 +8,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  ExternalLink,
-  AlertCircle,
-  Loader2,
-  CircleDot,
-  CircleCheck,
-} from "lucide-react";
+import { ExternalLink, AlertCircle, Loader2, CircleDot, CircleCheck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ExtensionPanelProps } from "@/types/extension";
+import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubIssue } from "../../api";
 
@@ -52,6 +47,10 @@ export function GitHubIssueDetailsPanel({
   number,
   htmlUrl,
 }: GitHubIssueDetailsPanelProps) {
+  const extensionContext = useOptionalExtensions();
+  const isExtensionContextLoading = extensionContext?.isLoading ?? false;
+  const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
+
   const [issue, setIssue] = useState<GitHubIssue | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,9 +58,20 @@ export function GitHubIssueDetailsPanel({
   useEffect(() => {
     if (!owner || !repo || !number) return;
 
+    if (isExtensionContextLoading) {
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     const api = getApiInstance();
     if (!api) {
-      setError("GitHub extension is not initialized. Please complete onboarding.");
+      setLoading(false);
+      setError(
+        isGitHubEnabled
+          ? "GitHub extension is still initializing. Please retry in a moment."
+          : "GitHub extension is not initialized. Please complete onboarding."
+      );
       return;
     }
 
@@ -86,18 +96,25 @@ export function GitHubIssueDetailsPanel({
     return () => {
       cancelled = true;
     };
-  }, [owner, repo, number]);
+  }, [owner, repo, number, isExtensionContextLoading, isGitHubEnabled]);
 
   const fallbackUrl =
     htmlUrl ||
-    (owner && repo && number
-      ? `https://github.com/${owner}/${repo}/issues/${number}`
-      : undefined);
+    (owner && repo && number ? `https://github.com/${owner}/${repo}/issues/${number}` : undefined);
 
   if (!owner || !repo || !number) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
         No issue selected.
+      </div>
+    );
+  }
+
+  if (isExtensionContextLoading) {
+    return (
+      <div className="flex items-center justify-center gap-2 p-8 text-sm text-muted-foreground">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        Loading GitHub extension…
       </div>
     );
   }
@@ -148,9 +165,7 @@ export function GitHubIssueDetailsPanel({
           <StatusIcon className={`w-4 h-4 flex-shrink-0 ${statusColor}`} />
           <span
             className={`text-xs font-medium px-1.5 py-0.5 rounded border ${
-              isOpen
-                ? "border-green-500/40 text-green-500"
-                : "border-purple-500/40 text-purple-500"
+              isOpen ? "border-green-500/40 text-green-500" : "border-purple-500/40 text-purple-500"
             }`}
           >
             {statusLabel}
