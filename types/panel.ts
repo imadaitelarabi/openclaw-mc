@@ -11,7 +11,9 @@ export type PanelType =
   | "update-cron"
   | "notes"
   | "skills"
-  | "tags-settings";
+  | "tags-settings"
+  | "github-pr-details"
+  | "github-issue-details";
 
 export interface PanelSettings {
   showTools: boolean; // Verbose mode: show/hide tool calls

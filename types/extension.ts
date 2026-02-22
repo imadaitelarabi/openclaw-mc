@@ -171,6 +171,9 @@ export interface StatusBarDropdownItem {
   /** Panel ID to open (host-handled action for extension panels) */
   openPanelId?: string;
 
+  /** Additional data forwarded to the panel handler (used with openPanelId) */
+  panelData?: Record<string, any>;
+
   /** Nested dropdown items */
   children?: StatusBarDropdownItem[];
 }

@@ -562,7 +562,17 @@ function MissionControlInner() {
   );
 
   const handleOpenExtensionPanel = useCallback(
-    (extensionName: string, panelId: string) => {
+    (extensionName: string, panelId: string, panelData?: Record<string, any>) => {
+      // Route GitHub detail panels to their own panel types
+      if (panelData?.kind === "github-pr") {
+        openPanel("github-pr-details", panelData);
+        return;
+      }
+      if (panelData?.kind === "github-issue") {
+        openPanel("github-issue-details", panelData);
+        return;
+      }
+
       if (!extensionContext) {
         openPanel("extension-panel", { extensionName, panelId });
         return;

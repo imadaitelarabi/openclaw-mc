@@ -57,6 +57,14 @@ export async function getStatusBarData(api: GitHubAPI): Promise<StatusBarItem | 
                   subtext: `by ${pr.user.login}`,
                   copyValue: pr.html_url,
                   openUrl: pr.html_url,
+                  openPanelId: "pr-details",
+                  panelData: {
+                    kind: "github-pr",
+                    owner: repoOwner,
+                    repo: repo.name,
+                    number: pr.number,
+                    htmlUrl: pr.html_url,
+                  },
                 })),
               },
             };

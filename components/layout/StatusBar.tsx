@@ -32,7 +32,7 @@ interface StatusBarProps {
 
   // Extension onboarding
   onOpenExtensionOnboarding?: (extensionName: string) => void;
-  onOpenExtensionPanel?: (extensionName: string, panelId: string) => void;
+  onOpenExtensionPanel?: (extensionName: string, panelId: string, panelData?: Record<string, any>) => void;
   onOpenTagsSettings?: () => void;
   onOpenSkills?: () => void;
 

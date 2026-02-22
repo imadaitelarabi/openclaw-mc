@@ -15,6 +15,8 @@ import { TagsSettingsPanel } from "./TagsSettingsPanel";
 import { CronPanel } from "../cron";
 import { NotesPanel } from "../notes";
 import { SkillsPanel } from "../skills";
+import { GitHubPrDetailsPanel } from "@/extensions/github/ui/panels/pr-details";
+import { GitHubIssueDetailsPanel } from "@/extensions/github/ui/panels/issue-details";
 import type { CronJob, SkillStatusReport } from "@/types";
 
 interface PanelContainerProps {
@@ -433,6 +435,32 @@ export function PanelContainer({
                 onDeleteTag={onDeleteTag}
                 onCreateTag={onCreateTag}
               />
+            )}
+
+            {panel.type === "github-pr-details" && (
+              <div className="h-full overflow-auto bg-background text-foreground">
+                <GitHubPrDetailsPanel
+                  extensionName="github"
+                  panelId="pr-details"
+                  owner={panel.data?.owner}
+                  repo={panel.data?.repo}
+                  number={panel.data?.number}
+                  htmlUrl={panel.data?.htmlUrl}
+                />
+              </div>
+            )}
+
+            {panel.type === "github-issue-details" && (
+              <div className="h-full overflow-auto bg-background text-foreground">
+                <GitHubIssueDetailsPanel
+                  extensionName="github"
+                  panelId="issue-details"
+                  owner={panel.data?.owner}
+                  repo={panel.data?.repo}
+                  number={panel.data?.number}
+                  htmlUrl={panel.data?.htmlUrl}
+                />
+              </div>
             )}
           </div>
         </div>
