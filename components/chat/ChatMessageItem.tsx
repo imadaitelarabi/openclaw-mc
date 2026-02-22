@@ -1,10 +1,12 @@
-import { useState, memo } from "react";
+import { useState, memo, useCallback } from "react";
 import type { ChatMessage } from "@/types";
 import { ToolCard } from "./ToolCard";
 import { ReasoningCard } from "./ReasoningCard";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Copy, Check } from "lucide-react";
+import { usePanels } from "@/contexts/PanelContext";
+import { chatLinkMatcherRegistry } from "@/lib/chat-link-matcher-registry";
 
 interface ChatMessageItemProps {
   message: ChatMessage;
@@ -14,6 +16,7 @@ interface ChatMessageItemProps {
 export const ChatMessageItem = memo(
   function ChatMessageItem({ message, showTools }: ChatMessageItemProps) {
     const [copied, setCopied] = useState(false);
+    const { openPanel } = usePanels();
     const content =
       typeof message.content === "string"
         ? message.content
@@ -35,6 +38,23 @@ export const ChatMessageItem = memo(
         // Optionally show error feedback to user
       }
     };
+
+    const handleLinkClick = useCallback(
+      (e: React.MouseEvent<HTMLAnchorElement>) => {
+        // Cmd/Ctrl-click should open in a new tab as normal
+        if (e.metaKey || e.ctrlKey) return;
+
+        const href = e.currentTarget.href;
+        if (!href) return;
+
+        const result = chatLinkMatcherRegistry.match(href);
+        if (!result) return;
+
+        e.preventDefault();
+        openPanel(result.panelType, result.panelData);
+      },
+      [openPanel]
+    );
 
     if (message.role === "tool") {
       // Only show tool cards when showTools is true
@@ -112,6 +132,7 @@ export const ChatMessageItem = memo(
                       {...props}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={handleLinkClick}
                       className={
                         message.role === "user"
                           ? "!text-foreground underline hover:opacity-90"

@@ -12,6 +12,8 @@ import { IssuesPanel } from "./ui/panels/issues";
 import { PullRequestsPanel } from "./ui/panels/pull-requests";
 import { GitHubAPI } from "./api";
 import { setApiInstance } from "./api-instance";
+import { parseGitHubUrl } from "./url";
+import { chatLinkMatcherRegistry } from "@/lib/chat-link-matcher-registry";
 
 // API instance (initialized on setup)
 let apiInstance: GitHubAPI | null = null;
@@ -28,6 +30,24 @@ async function setup(): Promise<void> {
   if (!apiInstance) {
     throw new Error("Failed to initialize GitHub extension");
   }
+
+  // Register the GitHub URL matcher so chat links open in-app panels.
+  chatLinkMatcherRegistry.register({
+    id: "github",
+    match(url) {
+      const info = parseGitHubUrl(url);
+      if (!info) return null;
+      return {
+        panelType: info.type === "issue" ? "github-issue-details" : "github-pr-details",
+        panelData: {
+          owner: info.owner,
+          repo: info.repo,
+          number: info.number,
+          htmlUrl: info.htmlUrl,
+        },
+      };
+    },
+  });
 }
 
 /**
@@ -35,6 +55,9 @@ async function setup(): Promise<void> {
  */
 async function cleanupExtension(): Promise<void> {
   console.log("[GitHub] Cleaning up extension...");
+
+  // Remove the GitHub URL matcher when the extension is disabled.
+  chatLinkMatcherRegistry.unregister("github");
 
   await cleanup();
   apiInstance = null;
