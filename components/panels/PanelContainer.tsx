@@ -10,6 +10,7 @@ import { AgentFilePanel } from "./AgentFilePanel";
 import { CreateCronPanel } from "./CreateCronPanel";
 import { UpdateCronPanel } from "./UpdateCronPanel";
 import { ExtensionOnboardingPanel } from "./ExtensionOnboardingPanel";
+import { ExtensionPanel } from "./ExtensionPanel";
 import { TagsSettingsPanel } from "./TagsSettingsPanel";
 import { CronPanel } from "../cron";
 import { NotesPanel } from "../notes";
@@ -309,6 +310,13 @@ export function PanelContainer({
               <ExtensionOnboardingPanel
                 extensionName={panel.data.extensionName}
                 onClose={() => onPanelClose(panel.id)}
+              />
+            )}
+
+            {panel.type === "extension-panel" && panel.data?.extensionName && (
+              <ExtensionPanel
+                extensionName={panel.data.extensionName}
+                panelId={panel.data.panelId || "main"}
               />
             )}
 

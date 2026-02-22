@@ -14,6 +14,7 @@ interface ExtensionStatusBarItemProps {
   item: StatusBarItem;
   onCopy?: (value: string) => void;
   onOpen?: (url: string) => void;
+  onOpenPanel?: (extensionName: string, panelId: string) => void;
 }
 
 export function ExtensionStatusBarItem({
@@ -21,6 +22,7 @@ export function ExtensionStatusBarItem({
   item,
   onCopy,
   onOpen,
+  onOpenPanel,
 }: ExtensionStatusBarItemProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -30,6 +32,13 @@ export function ExtensionStatusBarItem({
     : LucideIcons.Box;
 
   const handleItemSelect = (dropdownItem: StatusBarDropdownItem) => {
+    // Panel open action (host-handled)
+    if (dropdownItem.openPanelId && onOpenPanel) {
+      onOpenPanel(extensionName, dropdownItem.openPanelId);
+      setIsOpen(false);
+      return;
+    }
+
     // Primary action: copy if available
     if (dropdownItem.copyValue && onCopy) {
       onCopy(dropdownItem.copyValue);
@@ -92,13 +101,16 @@ export function ExtensionStatusBarItem({
                 )}
               </div>
 
-              {(dropdownItem.copyValue || dropdownItem.openUrl) && (
+              {(dropdownItem.copyValue || dropdownItem.openUrl || dropdownItem.openPanelId) && (
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                   {dropdownItem.copyValue && (
                     <LucideIcons.Copy className="w-3 h-3 text-muted-foreground" />
                   )}
                   {dropdownItem.openUrl && (
                     <LucideIcons.ExternalLink className="w-3 h-3 text-muted-foreground" />
+                  )}
+                  {dropdownItem.openPanelId && (
+                    <LucideIcons.PanelRight className="w-3 h-3 text-muted-foreground" />
                   )}
                 </div>
               )}

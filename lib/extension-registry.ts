@@ -313,6 +313,30 @@ class ExtensionRegistry {
   }
 
   /**
+   * Check if write consent has been granted for a panel
+   */
+  checkWriteConsent(extensionName: string, panelId: string): boolean {
+    const entry = this.extensions.get(extensionName);
+    if (!entry) return false;
+    return entry.extension.state.writeConsent?.[panelId] === true;
+  }
+
+  /**
+   * Grant write consent for a panel and persist it
+   */
+  async grantWriteConsent(extensionName: string, panelId: string): Promise<void> {
+    const entry = this.extensions.get(extensionName);
+    if (!entry) {
+      throw new Error(`Extension "${extensionName}" not registered`);
+    }
+
+    const currentConsent = entry.extension.state.writeConsent || {};
+    await this.updateState(extensionName, {
+      writeConsent: { ...currentConsent, [panelId]: true },
+    });
+  }
+
+  /**
    * Mark extension onboarding as complete
    */
   async completeOnboarding(extensionName: string): Promise<void> {

@@ -2,11 +2,12 @@
 
 ## Overview
 
-OpenClaw MC's extensions system enables modular, read-only integrations with external services. Extensions can provide:
+OpenClaw MC's extensions system enables modular integrations with external services. Extensions can provide:
 
 - **Status Bar Items**: Display real-time data with dropdown actions
 - **Chat Input Tagging**: Enable @ mentions for external resources
 - **Onboarding Panels**: Configure extension settings
+- **Extension Panels**: Full host-managed panels with optional write support
 
 ## Core Principles
 
@@ -675,6 +676,124 @@ Test these cases:
 - Document breaking changes
 - Maintain backwards compatibility
 - Test upgrades thoroughly
+
+## Extension Panels
+
+### Overview
+
+Extensions can define one or more **panels** that open as full host-managed surfaces inside the application. Panels are opened via the extension's status bar menu under an **"Open Panel"** submenu.
+
+### Declaring Panels in the Manifest
+
+Add a `panels` array, plus optional `usage` and `writePermissions` fields:
+
+```json
+{
+  "name": "my-extension",
+  "panels": [
+    {
+      "id": "main",
+      "title": "My Panel",
+      "description": "Shows resource data",
+      "requiresWrite": false,
+      "default": true
+    },
+    {
+      "id": "settings",
+      "title": "Settings",
+      "description": "Configure the extension",
+      "requiresWrite": true
+    }
+  ],
+  "usage": "Displays data from My Service and allows quick actions.",
+  "writePermissions": ["my-service:write"]
+}
+```
+
+Fields:
+
+| Field           | Required | Description                                                                                                                                                      |
+| --------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`            | Yes      | Unique panel ID within the extension                                                                                                                             |
+| `title`         | Yes      | Human-readable panel title                                                                                                                                       |
+| `description`   | No       | Short description shown in the submenu                                                                                                                           |
+| `requiresWrite` | No       | If `true`, user must grant write consent on first open                                                                                                           |
+| `default`       | No       | When multiple panels exist, the panel marked `default: true` appears first in the "Open Panel" submenu. If none is marked, the first panel in the array is used. |
+
+### Implementing the Panel Hook
+
+Register panel body components in the extension's `hooks.panel` record:
+
+```typescript
+import { MyMainPanel } from "./ui/panels/main";
+import { MySettingsPanel } from "./ui/panels/settings";
+import type { ExtensionPanelProps } from "@/types/extension";
+
+const hooks: ExtensionHooks = {
+  // ... other hooks ...
+  panel: {
+    main: MyMainPanel,
+    settings: MySettingsPanel,
+  },
+};
+```
+
+Each component receives `ExtensionPanelProps`:
+
+```typescript
+interface ExtensionPanelProps {
+  extensionName: string;
+  panelId: string;
+}
+```
+
+> **Important**: The host (`PanelContainer`) always renders the `PanelHeader`. Your panel component should only render the **body** content.
+
+### Panel Theming
+
+Your panel body is automatically wrapped in a `bg-background text-foreground` container. Use standard Tailwind utility classes and theme tokens (`text-muted-foreground`, `border-border`, etc.) to ensure your panel respects the active application theme.
+
+### Shared Panel Components
+
+When panel UI primitives are reusable across extensions, place them in the host panel components folder:
+
+- `components/panels/FilterDropdown.tsx`
+
+This keeps extension code focused on domain logic and allows consistent panel UX across integrations.
+
+Example usage from an extension panel:
+
+```typescript
+import { FilterDropdown } from "@/components/panels/FilterDropdown";
+```
+
+### Write Consent Gate
+
+If a panel has `requiresWrite: true`, the host shows a one-time confirmation dialog before opening the panel:
+
+- The dialog displays `writePermissions` scopes from the manifest.
+- Once the user confirms, consent is stored in `ExtensionState.writeConsent[panelId]` (persisted to IndexedDB).
+- Subsequent opens skip the gate entirely.
+
+### Status Bar Integration
+
+You do **not** need to do anything special to add "Open Panel" entries to your status bar item. The host automatically injects them based on your manifest's `panels` array:
+
+- **Single panel** → Direct "Open Panel" item in the dropdown (clicking opens that panel immediately)
+- **Multiple panels** → "Open Panel" submenu; the panel with `default: true` (or the first panel if none is marked) appears at the top of the submenu
+
+The injection is de-duplicated: if your status-bar hook already returns an item containing an entry with `id === "__open-panel__"` or any item with `openPanelId` set, the host will not inject an additional "Open Panel" entry.
+
+If your extension has panels but no `status-bar` hook (or the hook returns `null`), the host creates a minimal status bar entry using `manifest.statusBar.icon` so the panel menu always appears.
+
+### Onboarding Disclosure
+
+During onboarding, the host automatically displays:
+
+1. **Usage** (`manifest.usage`): A plain-text summary of what the extension does.
+2. **Write permissions** (`manifest.writePermissions`): Displayed with a warning icon if the array is non-empty.
+
+This ensures users are informed before granting access.
 
 ## Examples
 

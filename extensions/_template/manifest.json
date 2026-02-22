@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Brief description of what this extension does",
   "permissions": ["read:resource"],
-  "hooks": ["status-bar", "chat-input"],
+  "hooks": ["status-bar", "chat-input", "panel"],
   "taggers": [
     {
       "prefix": "TAG",
@@ -14,5 +14,16 @@
   "statusBar": {
     "icon": "Box",
     "actions": ["copy", "open"]
-  }
+  },
+  "panels": [
+    {
+      "id": "main",
+      "title": "Main Panel",
+      "description": "Primary extension panel showing resource data",
+      "requiresWrite": false,
+      "default": true
+    }
+  ],
+  "usage": "Displays data from the external service and enables quick interactions directly from the status bar.",
+  "writePermissions": []
 }

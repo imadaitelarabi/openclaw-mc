@@ -16,6 +16,9 @@ export interface GitHubPR {
   };
   created_at: string;
   updated_at: string;
+  draft?: boolean;
+  labels?: Array<{ name: string; color: string }>;
+  assignees?: Array<{ login: string }>;
 }
 
 export interface GitHubIssue {
@@ -29,11 +32,32 @@ export interface GitHubIssue {
   created_at: string;
   updated_at: string;
   labels: Array<{ name: string; color: string }>;
+  assignees?: Array<{ login: string }>;
 }
 
 export interface GitHubOrganization {
   login: string;
   type: "Organization" | "User";
+}
+
+export interface GitHubRepoRef {
+  /** "owner/name" */
+  fullName: string;
+  owner: string;
+  name: string;
+}
+
+/** Filters for issues panel searches */
+export interface IssueFilters {
+  search?: string;
+  label?: string;
+  author?: string;
+  assignee?: string;
+}
+
+/** Filters for pull-requests panel searches */
+export interface PRFilters extends IssueFilters {
+  isDraft?: boolean;
 }
 
 export interface GitHubUser {
@@ -247,5 +271,109 @@ export class GitHubAPI {
    */
   updateConfig(newConfig: Partial<GitHubConfig>): void {
     this.config = { ...this.config, ...newConfig };
+  }
+
+  /**
+   * List all repos accessible to the user (used to populate panel repo selector).
+   * Returns at most 50 repos, sorted by last updated across all orgs/users.
+   */
+  async listAllRepos(): Promise<GitHubRepoRef[]> {
+    const MAX_REPOS = 50;
+    const dedupe = (repos: GitHubRepository[]): GitHubRepoRef[] => {
+      const seen = new Set<string>();
+      return repos
+        .map((repo) => ({
+          fullName: repo.full_name,
+          owner: repo.owner?.login ?? repo.full_name.split("/")[0],
+          name: repo.name,
+        }))
+        .filter((repo) => {
+          if (seen.has(repo.fullName)) return false;
+          seen.add(repo.fullName);
+          return true;
+        })
+        .slice(0, MAX_REPOS);
+    };
+
+    try {
+      // Primary path: GitHub endpoint that returns repositories the user can access.
+      // This includes owned, collaborator, and org member repos.
+      const accessibleRepos = await this.request<GitHubRepository[]>(
+        "/user/repos?affiliation=owner,collaborator,organization_member&sort=updated&per_page=100"
+      );
+
+      const primary = dedupe(accessibleRepos);
+      if (primary.length > 0) {
+        return primary;
+      }
+    } catch (error) {
+      console.error("[GitHubAPI] Primary accessible-repos fetch failed, falling back:", error);
+    }
+
+    try {
+      // Fallback path: gather repos from organizations and user account
+      const organizations = await this.getOrganizations();
+      const repoLists = await Promise.all(
+        organizations.map((org) => this.getRepositories(org.login, org.type))
+      );
+      return dedupe(repoLists.flat());
+    } catch (error) {
+      console.error("[GitHubAPI] Failed to list repos:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Search issues in a specific repository for panel rendering.
+   */
+  async searchIssuesPanel(filters: IssueFilters, repoFullName?: string): Promise<GitHubIssue[]> {
+    const perPage = Math.min(Math.max(this.config.maxResults ?? 30, 1) * 6, 50);
+    try {
+      if (!repoFullName) return [];
+
+      const parts: string[] = ["is:issue", "is:open"];
+      parts.push(`repo:${repoFullName}`);
+      if (filters.label) parts.push(`label:${filters.label}`);
+      if (filters.author) parts.push(`author:${filters.author}`);
+      if (filters.assignee) parts.push(`assignee:${filters.assignee}`);
+      if (filters.search) parts.push(filters.search);
+
+      const q = encodeURIComponent(parts.join(" "));
+      const result = await this.request<{ items: GitHubIssue[] }>(
+        `/search/issues?q=${q}&sort=updated&order=desc&per_page=${perPage}`
+      );
+      return result.items;
+    } catch (error) {
+      console.error("[GitHubAPI] Failed to search issues panel:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Search pull requests in a specific repository for panel rendering.
+   */
+  async searchPRsPanel(filters: PRFilters, repoFullName?: string): Promise<GitHubPR[]> {
+    const perPage = Math.min(Math.max(this.config.maxResults ?? 30, 1) * 6, 50);
+    try {
+      if (!repoFullName) return [];
+
+      const parts: string[] = ["is:pr", "is:open"];
+      parts.push(`repo:${repoFullName}`);
+      if (filters.label) parts.push(`label:${filters.label}`);
+      if (filters.author) parts.push(`author:${filters.author}`);
+      if (filters.assignee) parts.push(`assignee:${filters.assignee}`);
+      if (filters.isDraft === true) parts.push("draft:true");
+      if (filters.isDraft === false) parts.push("-draft:true");
+      if (filters.search) parts.push(filters.search);
+
+      const q = encodeURIComponent(parts.join(" "));
+      const result = await this.request<{ items: GitHubPR[] }>(
+        `/search/issues?q=${q}&sort=updated&order=desc&per_page=${perPage}`
+      );
+      return result.items;
+    } catch (error) {
+      console.error("[GitHubAPI] Failed to search PRs panel:", error);
+      return [];
+    }
   }
 }

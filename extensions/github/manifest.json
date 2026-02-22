@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "GitHub PR and issue quick access integration",
   "permissions": ["github:read"],
-  "hooks": ["status-bar", "chat-input", "onboarding"],
+  "hooks": ["status-bar", "chat-input", "onboarding", "panel"],
   "taggers": [
     {
       "prefix": "PR",
@@ -24,5 +24,21 @@
   "statusBar": {
     "icon": "Github",
     "actions": ["copy", "open"]
-  }
+  },
+  "panels": [
+    {
+      "id": "issues",
+      "title": "Issues",
+      "description": "Browse open GitHub issues with filters",
+      "requiresWrite": false,
+      "default": true
+    },
+    {
+      "id": "pull-requests",
+      "title": "Pull Requests",
+      "description": "Browse open pull requests with filters",
+      "requiresWrite": false
+    }
+  ],
+  "usage": "Displays open GitHub issues and pull requests from your repositories, with filtering by label, author, and assignee."
 }

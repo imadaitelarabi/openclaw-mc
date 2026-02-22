@@ -205,6 +205,9 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
         case "agent-list":
           title = "Agents";
           break;
+        case "extension-panel":
+          title = data?.panelTitle || `${data?.extensionName || "Extension"} Panel`;
+          break;
         case "extension-onboarding":
           title = `${data?.extensionName || "Extension"} Setup`;
           break;
