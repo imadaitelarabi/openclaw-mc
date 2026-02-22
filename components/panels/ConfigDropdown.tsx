@@ -8,6 +8,7 @@ interface ConfigDropdownProps {
   onShowToolsChange: (show: boolean) => void;
   onShowReasoningChange: (show: boolean) => void;
   disabled?: boolean;
+  onOpenSettings?: () => void;
 }
 
 export function ConfigDropdown({
@@ -16,6 +17,7 @@ export function ConfigDropdown({
   onShowToolsChange,
   onShowReasoningChange,
   disabled = false,
+  onOpenSettings,
 }: ConfigDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -100,6 +102,22 @@ export function ConfigDropdown({
               </DropdownMenu.SubContent>
             </DropdownMenu.Portal>
           </DropdownMenu.Sub>
+
+          {/* Settings Item */}
+          {onOpenSettings && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-border" />
+              <DropdownMenu.Item
+                onSelect={() => {
+                  onOpenSettings();
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs flex items-center gap-2"
+              >
+                <span>Settings</span>
+              </DropdownMenu.Item>
+            </>
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

@@ -34,6 +34,9 @@ interface PanelHeaderProps {
   onThinkingChange?: (thinking: "off" | "low" | "medium" | "high") => void;
   onRefreshChat?: () => void;
 
+  // Settings handler - only for chat panels
+  onOpenSettings?: () => void;
+
   // Activity pulse indicator
   activeRunStatus?: AgentRunStatus;
   onRunAcknowledged?: () => void;
@@ -57,6 +60,7 @@ export function PanelHeader({
   thinkingMode = "low",
   onThinkingChange,
   onRefreshChat,
+  onOpenSettings,
   activeRunStatus = "idle",
   onRunAcknowledged,
 }: PanelHeaderProps) {
@@ -148,6 +152,7 @@ export function PanelHeader({
               showReasoning={showReasoning}
               onShowToolsChange={onShowToolsChange}
               onShowReasoningChange={onShowReasoningChange}
+              onOpenSettings={onOpenSettings}
             />
           )}
 
