@@ -8,4 +8,9 @@ export interface Agent {
   identity?: string;
 }
 
-export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "no-config";
+export type ConnectionStatus =
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "no-config"
+  | "pairing-required";

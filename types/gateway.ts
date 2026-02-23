@@ -15,6 +15,7 @@ export interface GatewayEvent {
 export interface WebSocketMessage {
   type: string;
   status?: string;
+  message?: string;
   data?: any;
   event?: string;
   payload?: any;

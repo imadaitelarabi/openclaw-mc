@@ -41,6 +41,9 @@ export class GatewayClient {
   private connectWaiters: ConnectWaiter[] = [];
   private configManager: ConfigManager;
   private debugGatewayEvents: boolean = false;
+  private lastStatus: { status: string; gatewayId?: string; message?: string } = {
+    status: "connecting",
+  };
 
   constructor(configManager: ConfigManager) {
     this.configManager = configManager;
@@ -116,14 +119,14 @@ export class GatewayClient {
   connect(): void {
     if (!this.url) {
       console.log("[Gateway] No gateway configured");
-      this.broadcast({ type: "status", status: "no-config" });
+      this.broadcastStatus("no-config");
       this.resolveConnectWaiters(new Error("No gateway configured"));
       return;
     }
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
     console.log("[Gateway] Connecting to:", this.url);
-    this.broadcast({ type: "status", status: "connecting", gatewayId: this.activeId || undefined });
+  this.broadcastStatus("connecting", { gatewayId: this.activeId || undefined });
     const configuredOrigin = process.env.OPENCLAW_GATEWAY_ORIGIN?.trim();
     const gatewayOrigin = configuredOrigin || `http://localhost:${process.env.PORT || "3000"}`;
     this.ws = new WebSocket(this.url, {
@@ -159,12 +162,23 @@ export class GatewayClient {
     });
 
     this.ws.on("close", (code: number, reason: Buffer) => {
-      console.log(`[Gateway] Closed: ${code} - ${reason.toString()}`);
+      const reasonText = reason.toString();
+      console.log(`[Gateway] Closed: ${code} - ${reasonText}`);
       this.authenticated = false;
       this.ws = null;
       this.resolveConnectWaiters(new Error(`Gateway connection closed (${code})`));
 
-      this.broadcast({ type: "status", status: "disconnected" });
+      const pairingRequired =
+        /pairing\s+required/i.test(reasonText) || this.lastStatus.status === "pairing-required";
+      if (pairingRequired) {
+        this.broadcastStatus("pairing-required", {
+          message:
+            this.lastStatus.message ||
+            "Pairing required. Approve this device in the Gateway pairing flow.",
+        });
+      } else {
+        this.broadcastStatus("disconnected");
+      }
 
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
       this.reconnectTimer = setTimeout(() => this.connect(), 5000);
@@ -266,11 +280,21 @@ export class GatewayClient {
       console.log("[Gateway] Authenticated successfully");
       this.resolveConnectWaiters();
 
-      this.broadcast({ type: "status", status: "connected" });
+      this.broadcastStatus("connected");
       await this.fetchInitialData();
     } catch (err) {
       console.error("[Gateway] Authentication failed:", err);
-      this.resolveConnectWaiters(new Error((err as Error).message || "Authentication failed"));
+      const errorMessage = (err as Error).message || "Authentication failed";
+      const pairingRequired = /pairing\s+required/i.test(errorMessage);
+      this.resolveConnectWaiters(new Error(errorMessage));
+
+      if (pairingRequired) {
+        this.broadcastStatus("pairing-required", {
+          message: "Pairing required. Approve this device in Gateway, then Mission Control reconnects automatically.",
+        });
+        return;
+      }
+
       this.ws?.close(4008, "Authentication failed");
     }
   }
@@ -493,8 +517,23 @@ export class GatewayClient {
         this.fetchInitialData();
       }
     } else {
-      client.send(JSON.stringify({ type: "status", status: "connecting" }));
+      client.send(
+        JSON.stringify({
+          type: "status",
+          status: this.lastStatus.status,
+          gatewayId: this.lastStatus.gatewayId,
+          message: this.lastStatus.message,
+        })
+      );
     }
+  }
+
+  private broadcastStatus(
+    status: string,
+    options: { gatewayId?: string; message?: string } = {}
+  ): void {
+    this.lastStatus = { status, ...options };
+    this.broadcast({ type: "status", status, ...options });
   }
 
   removeClient(client: ExtendedWebSocket): void {

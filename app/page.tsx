@@ -99,7 +99,7 @@ function MissionControlInner() {
     onEventRef.current(message);
   }, []);
 
-  const { connectionStatus, agents, sendMessage, wsRef } = useGatewayWebSocket({
+  const { connectionStatus, connectionMessage, agents, sendMessage, wsRef } = useGatewayWebSocket({
     onEvent: stableOnEvent,
   });
 
@@ -1119,6 +1119,27 @@ function MissionControlInner() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
+        {connectionStatus === "pairing-required" && (
+          <div className="mx-3 mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-xs text-destructive">
+            <div className="font-bold uppercase tracking-wide">Gateway pairing approval required</div>
+            <div className="mt-1 text-[11px] leading-relaxed">
+              {connectionMessage ||
+                "Approve this device in your Gateway pairing flow, then keep this page open. Mission Control reconnects automatically after approval."}
+            </div>
+            <div className="mt-2 text-[11px] leading-relaxed">
+              Open your gateway host and approve the pending pairing request for this device.
+            </div>
+            <a
+              href="https://docs.openclaw.ai/gateway/protocol#device-identity-pairing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex text-[11px] font-bold underline underline-offset-2"
+            >
+              How pairing approval works
+            </a>
+          </div>
+        )}
+
         {layout.panels.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
             <div className="relative mb-6">

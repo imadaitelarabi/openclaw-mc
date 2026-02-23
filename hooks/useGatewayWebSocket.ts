@@ -8,6 +8,7 @@ interface UseGatewayWebSocketProps {
 
 export function useGatewayWebSocket({ onEvent }: UseGatewayWebSocketProps) {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
+  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -45,6 +46,7 @@ export function useGatewayWebSocket({ onEvent }: UseGatewayWebSocketProps) {
         // Handle core infrastructure messages
         if (message.type === "status") {
           setConnectionStatus(message.status as ConnectionStatus);
+          setConnectionMessage(message.message || null);
         } else if (message.type === "agents") {
           setAgents(message.data || []);
         }
@@ -58,6 +60,7 @@ export function useGatewayWebSocket({ onEvent }: UseGatewayWebSocketProps) {
 
     ws.onclose = () => {
       setConnectionStatus("disconnected");
+      setConnectionMessage(null);
       if (reconnectAttemptsRef.current < maxReconnectAttempts) {
         reconnectAttemptsRef.current++;
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
@@ -85,6 +88,7 @@ export function useGatewayWebSocket({ onEvent }: UseGatewayWebSocketProps) {
 
   return {
     connectionStatus,
+    connectionMessage,
     agents,
     sendMessage,
     wsRef,

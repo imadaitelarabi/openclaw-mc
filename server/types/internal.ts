@@ -139,7 +139,7 @@ export type ClientMessage =
 // Server to Client Messages
 export type ServerMessage =
   | { type: "pong" }
-  | { type: "status"; status: string; gatewayId?: string }
+  | { type: "status"; status: string; gatewayId?: string; message?: string }
   | { type: "gateways.list"; data: GatewayConfig[]; activeId: string | null }
   | { type: "gateways.add.ack"; requestId?: string }
   | { type: "gateways.switch.ack" }

@@ -47,7 +47,9 @@ export function GatewaySwitcher({
               ? "Connected"
               : status === "no-config"
                 ? "No Gateway"
-                : "Disconnected"}
+                : status === "pairing-required"
+                  ? "Pairing Required"
+                  : "Disconnected"}
           </span>
           <ChevronUp
             className={`w-3 h-3 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
@@ -64,6 +66,12 @@ export function GatewaySwitcher({
           <DropdownMenu.Label className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Gateways
           </DropdownMenu.Label>
+
+          {status === "pairing-required" && (
+            <div className="mx-2 mb-2 p-2 rounded-lg border border-destructive/30 bg-destructive/10 text-[10px] leading-relaxed text-destructive">
+              Pairing approval needed in Gateway before this client can connect.
+            </div>
+          )}
 
           <div className="max-h-[300px] overflow-y-auto space-y-0.5">
             {gateways.map((gateway) => (
