@@ -1,57 +1,67 @@
 # Changelog
 
+## [0.3.0] - 2026-02-23
+### Meta
+- Bump: none (score: 0)
+- Range: [629894d](https://github.com/imadaitelarabi/openclaw-mc/commit/629894d4a7e5892ace043056bc7f32096f1626ec)..[629894d](https://github.com/imadaitelarabi/openclaw-mc/commit/629894d4a7e5892ace043056bc7f32096f1626ec)
+
+### Other
+- No changes
+
+
+
 ## [0.3.0] - 2026-02-22
 
 ### Meta
 
 - Bump: minor (score: 124)
-- Range: 30dab58afd3628004c5188249358986fc0a767b7..174a5614e2266b7015d4403e5dec7a6e3afb77b4
+- Range: [30dab58](https://github.com/imadaitelarabi/openclaw-mc/commit/30dab58afd3628004c5188249358986fc0a767b7)..[174a561](https://github.com/imadaitelarabi/openclaw-mc/commit/174a5614e2266b7015d4403e5dec7a6e3afb77b4)
 
 ### Features
 
-- add gateway skills fetch (00331f0)
-- add skills filters and persistence (7c84e9c)
-- add skills to native # mentions (d232b22)
-- support global search for @ extensions and # native mentions (a4a97a6)
-- require model selection in cron create/edit panels and send payload.model (38e93cc)
-- replace model selection dropdown with ModelSelector component in Create and Update Cron panels (c9fdfcb)
+- add gateway skills fetch ([00331f0](https://github.com/imadaitelarabi/openclaw-mc/commit/00331f0))
+- add skills filters and persistence ([7c84e9c](https://github.com/imadaitelarabi/openclaw-mc/commit/7c84e9c))
+- add skills to native # mentions ([d232b22](https://github.com/imadaitelarabi/openclaw-mc/commit/d232b22))
+- support global search for @ extensions and # native mentions ([a4a97a6](https://github.com/imadaitelarabi/openclaw-mc/commit/a4a97a6))
+- require model selection in cron create/edit panels and send payload.model ([38e93cc](https://github.com/imadaitelarabi/openclaw-mc/commit/38e93cc))
+- replace model selection dropdown with ModelSelector component in Create and Update Cron panels ([c9fdfcb](https://github.com/imadaitelarabi/openclaw-mc/commit/c9fdfcb))
 
 ### Fixes
 
-- avoid passing click event to skills refresh (dd7efd7)
-- flatten hierarchical extension results to leaves in global search (a33175e)
-- filter and sort global search leaf results by relevance score (91c06ef)
+- avoid passing click event to skills refresh ([dd7efd7](https://github.com/imadaitelarabi/openclaw-mc/commit/dd7efd7))
+- flatten hierarchical extension results to leaves in global search ([a33175e](https://github.com/imadaitelarabi/openclaw-mc/commit/a33175e))
+- filter and sort global search leaf results by relevance score ([91c06ef](https://github.com/imadaitelarabi/openclaw-mc/commit/91c06ef))
 
 ### Refactors
 
-- format function parameters for CreateCronPanel and UpdateCronPanel components (2ba5eb2)
+- format function parameters for CreateCronPanel and UpdateCronPanel components ([2ba5eb2](https://github.com/imadaitelarabi/openclaw-mc/commit/2ba5eb2))
 
 ### Docs
 
-- linkify PRs and commit SHAs (d29f7d3)
+- linkify PRs and commit SHAs ([d29f7d3](https://github.com/imadaitelarabi/openclaw-mc/commit/d29f7d3))
 
 ### Chores
 
-- daily changelog 2026-02-21 (4283585)
+- daily changelog 2026-02-21 ([4283585](https://github.com/imadaitelarabi/openclaw-mc/commit/4283585))
 
 ### Other
 
-- Merge pull request #95 from imadaitelarabi/changelog/daily-2026-02-21 (ec733f7)
-- Merge pull request #96 from imadaitelarabi/chore/linkify-changelog (2d28316)
-- Initial plan (4e35d3f)
-- Rename Mission Control to OpenClaw MC + add keyboard navigation/scrolling in menus (9a0c959)
-- Merge pull request #99 from imadaitelarabi/feature/gateway-skills (9d8c656)
-- Merge pull request #98 from imadaitelarabi/copilot/rename-mission-control-to-openclaw-mc (51a337f)
-- Initial plan (1d84221)
-- Merge pull request #103 from imadaitelarabi/copilot/support-global-search-extensions-mentions (e1c9a2b)
-- Initial plan (a000ec5)
-- README cleanup + tag creation feature in Tags Settings panel (f68e216)
-- Merge pull request #105 from imadaitelarabi/copilot/update-readme-and-tag-settings (b90b447)
-- Initial plan (68afa99)
-- Add oxlint + prettier formatting and CI quality workflow (f270cf8)
-- Merge pull request #107 from imadaitelarabi/copilot/add-oxlint-prettier-formatting (572b012)
-- Initial plan (221fbb2)
-- Merge pull request #109 from imadaitelarabi/copilot/require-model-selection-cron (174a561)
+- Merge pull request [#95](https://github.com/imadaitelarabi/openclaw-mc/pull/95) from imadaitelarabi/changelog/daily-2026-02-21 ([ec733f7](https://github.com/imadaitelarabi/openclaw-mc/commit/ec733f7))
+- Merge pull request [#96](https://github.com/imadaitelarabi/openclaw-mc/pull/96) from imadaitelarabi/chore/linkify-changelog ([2d28316](https://github.com/imadaitelarabi/openclaw-mc/commit/2d28316))
+- Initial plan ([4e35d3f](https://github.com/imadaitelarabi/openclaw-mc/commit/4e35d3f))
+- Rename Mission Control to OpenClaw MC + add keyboard navigation/scrolling in menus ([9a0c959](https://github.com/imadaitelarabi/openclaw-mc/commit/9a0c959))
+- Merge pull request [#99](https://github.com/imadaitelarabi/openclaw-mc/pull/99) from imadaitelarabi/feature/gateway-skills ([9d8c656](https://github.com/imadaitelarabi/openclaw-mc/commit/9d8c656))
+- Merge pull request [#98](https://github.com/imadaitelarabi/openclaw-mc/pull/98) from imadaitelarabi/copilot/rename-mission-control-to-openclaw-mc ([51a337f](https://github.com/imadaitelarabi/openclaw-mc/commit/51a337f))
+- Initial plan ([1d84221](https://github.com/imadaitelarabi/openclaw-mc/commit/1d84221))
+- Merge pull request [#103](https://github.com/imadaitelarabi/openclaw-mc/pull/103) from imadaitelarabi/copilot/support-global-search-extensions-mentions ([e1c9a2b](https://github.com/imadaitelarabi/openclaw-mc/commit/e1c9a2b))
+- Initial plan ([a000ec5](https://github.com/imadaitelarabi/openclaw-mc/commit/a000ec5))
+- README cleanup + tag creation feature in Tags Settings panel ([f68e216](https://github.com/imadaitelarabi/openclaw-mc/commit/f68e216))
+- Merge pull request [#105](https://github.com/imadaitelarabi/openclaw-mc/pull/105) from imadaitelarabi/copilot/update-readme-and-tag-settings ([b90b447](https://github.com/imadaitelarabi/openclaw-mc/commit/b90b447))
+- Initial plan ([68afa99](https://github.com/imadaitelarabi/openclaw-mc/commit/68afa99))
+- Add oxlint + prettier formatting and CI quality workflow ([f270cf8](https://github.com/imadaitelarabi/openclaw-mc/commit/f270cf8))
+- Merge pull request [#107](https://github.com/imadaitelarabi/openclaw-mc/pull/107) from imadaitelarabi/copilot/add-oxlint-prettier-formatting ([572b012](https://github.com/imadaitelarabi/openclaw-mc/commit/572b012))
+- Initial plan ([221fbb2](https://github.com/imadaitelarabi/openclaw-mc/commit/221fbb2))
+- Merge pull request [#109](https://github.com/imadaitelarabi/openclaw-mc/pull/109) from imadaitelarabi/copilot/require-model-selection-cron ([174a561](https://github.com/imadaitelarabi/openclaw-mc/commit/174a561))
 
 ## [0.2.0] - 2026-02-21
 
@@ -106,3 +116,4 @@
 - Merge pull request [#80](https://github.com/imadaitelarabi/openclaw-mc/pull/80) from imadaitelarabi/docs/daily-update-2026-02-20 ([c57db9f](https://github.com/imadaitelarabi/openclaw-mc/commit/c57db9f))
 - Merge pull request [#81](https://github.com/imadaitelarabi/openclaw-mc/pull/81) from imadaitelarabi:copilot/add-inline-note-editing ([9a20c7c](https://github.com/imadaitelarabi/openclaw-mc/commit/9a20c7c))
 - Merge pull request [#79](https://github.com/imadaitelarabi/openclaw-mc/pull/79) from imadaitelarabi:copilot/add-inline-note-editing ([dd26e82](https://github.com/imadaitelarabi/openclaw-mc/commit/dd26e82))
+
