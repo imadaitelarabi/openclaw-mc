@@ -25,10 +25,41 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   if (!event.request.url.startsWith("http")) return;
 
+  const url = new URL(event.request.url);
+  const isSameOrigin = url.origin === self.location.origin;
+  const isNextAsset = isSameOrigin && url.pathname.startsWith("/_next/");
+  const isApiRoute = isSameOrigin && url.pathname.startsWith("/api/");
+
+  if (isNextAsset || isApiRoute) {
+    return;
+  }
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request).then((cached) => cached))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request);
+      if (cached) {
+        fetch(event.request)
+          .then((response) => {
+            if (response && response.ok) {
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+            }
+          })
+          .catch(() => {});
+        return cached;
+      }
+
+      return fetch(event.request).then((response) => {
+        if (response && response.ok) {
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+        }
+        return response;
+      });
     })
   );
 });
