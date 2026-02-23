@@ -58,7 +58,14 @@ interface GitHubPrDetailsPanelProps extends ExtensionPanelProps {
   back?: PanelBackNavigation;
 }
 
-export function GitHubPrDetailsPanel({ owner, repo, number, htmlUrl, contextPanelId, back }: GitHubPrDetailsPanelProps) {
+export function GitHubPrDetailsPanel({
+  owner,
+  repo,
+  number,
+  htmlUrl,
+  contextPanelId,
+  back,
+}: GitHubPrDetailsPanelProps) {
   const { replacePanel } = usePanels();
   const extensionContext = useOptionalExtensions();
   const isExtensionContextLoading = extensionContext?.isLoading ?? false;

@@ -102,7 +102,7 @@ interface PanelContainerProps {
 
 export function PanelContainer({
   panels,
-  activePanel,
+  activePanel: _activePanel,
   onPanelActivate,
   onPanelClose,
   agents,

@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  ReactNode,
-  useEffect,
-  useRef,
-} from "react";
+import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { Panel, PanelType, PanelLayout, PanelSettings } from "@/types";
 import { uiStateStore, type WorkspaceState } from "@/lib/ui-state-db";

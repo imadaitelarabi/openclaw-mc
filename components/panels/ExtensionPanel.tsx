@@ -33,7 +33,11 @@ export function ExtensionPanel({ extensionName, panelId, contextPanelId }: Exten
 
   return (
     <div className="h-full overflow-auto bg-background text-foreground border-border">
-      <PanelComponent extensionName={extensionName} panelId={panelId} contextPanelId={contextPanelId} />
+      <PanelComponent
+        extensionName={extensionName}
+        panelId={panelId}
+        contextPanelId={contextPanelId}
+      />
     </div>
   );
 }
