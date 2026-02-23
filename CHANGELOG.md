@@ -1,5 +1,73 @@
 # Changelog
 
+## [0.4.0] - 2026-02-23
+### Meta
+- Bump: minor (score: 188)
+- Range: 174a5614e2266b7015d4403e5dec7a6e3afb77b4..629894d4a7e5892ace043056bc7f32096f1626ec
+
+### Features
+- add in-app GitHub PR and issue detail panels (c218832)
+- use ReactMarkdown with remark-gfm for PR/issue body rendering (17f357a)
+- enhance GitHub PR and issue detail panels with loading states and context checks (187e60a)
+- detect existing openclaw-mc installs and update in place (0a20065)
+- open GitHub Issue/PR links in chat directly in details panel (3bcf2d1)
+- persist GitHub extension panel filters across refresh (IndexedDB) (79db715)
+
+### Fixes
+- use default panel flag ordering + de-dupe Open Panel injection (495dcc9)
+
+### Refactors
+- update issue and PR panel search to use single repository selection and improve loading states (36e3ca5)
+- simplify extension retrieval in onboarding and panel components; enhance loading state handling in Issues and Pull Requests panels (9dc1247)
+- format code for consistency and improve readability in various components and documentation (7cbf64a)
+- address code review feedback (d501096)
+- streamline state initialization and error handling in GitHub PR details panel (74a2215)
+- introduce ChatLinkMatcher registry to decouple chat from GitHub (b579597)
+- simplify regex matching for GitHub issue and PR URLs (fbe77e7)
+
+### Docs
+- cover cron model selection and tag creation (e726565)
+- highlight GitHub panels and installer update (4dfce80)
+
+### Chores
+- daily changelog 2026-02-22 (1ba88f8)
+
+### Other
+- Initial plan (bef6789)
+- Add Edit Agent Files tab + AgentFilePanel for workspace file editing (4dd3a4c)
+- Refactor handleAgentFilesGet to improve content and existence checks for response objects (d51dc09)
+- Refactor message handling imports for improved readability (2c4d0e2)
+- Merge pull request #112 from imadaitelarabi/docs/daily-update-2026-02-22 (46c1ccb)
+- Merge pull request #113 from imadaitelarabi/changelog/daily-2026-02-22 (df03528)
+- Merge branch 'master' of https://github.com/imadaitelarabi/openclaw-mc into copilot/edit-agent-files-tab (10f55f8)
+- Refactor AgentFilePanel to improve WebSocket handling and cleanup logic; update Notes feature documentation for deleteTag method signature (823d066)
+- Merge pull request #111 from imadaitelarabi/copilot/edit-agent-files-tab (ae8c69c)
+- Initial plan (779e064)
+- Add Settings option in agent panel header dropdown to open Edit Agent panel (c3143c3)
+- Merge pull request #116 from imadaitelarabi/copilot/add-settings-option-dropdown (b4a2489)
+- Initial plan (c348d84)
+- Add extension panels via status bar + first-time write consent gate (c88e4ff)
+- Add GitHub Issues and Pull Requests extension panels (bd39cc8)
+- Enhance GitHub API and UI panels with multi-repo support for issue and PR searches (dfe3ecd)
+- Optimize GitHub API search by chunking repository queries and enhancing deduplication logic for accessible repositories (6aeca64)
+- Add FilterDropdown component and integrate it into Issues and Pull Requests panels (fe98901)
+- Merge pull request #118 from imadaitelarabi/copilot/add-extension-panels-status-bar (6e73158)
+- Initial plan (919950b)
+- Merge pull request #121 from imadaitelarabi/copilot/add-in-app-pr-issue-panels (66a7488)
+- Initial plan (48bd132)
+- Initial plan (28d7533)
+- GitHub extension: update PR/Issue detail layout, add comments (GitHub-style) (403fb38)
+- Merge pull request #127 from imadaitelarabi/copilot/update-pr-issue-layout (1a8322b)
+- Merge pull request #124 from imadaitelarabi/copilot/detect-existing-installs-update (ac1c187)
+- Initial plan (b7c652c)
+- Merge branch 'copilot/open-github-links-in-chat-panel' of https://github.com/imadaitelarabi/openclaw-mc into copilot/open-github-links-in-chat-panel (a88ee1f)
+- Merge pull request #128 from imadaitelarabi/copilot/open-github-links-in-chat-panel (f24c750)
+- Initial plan (dfac69c)
+- Merge pull request #129 from imadaitelarabi/copilot/persist-github-filters-across-refresh (9d75d26)
+- Merge pull request #130 from imadaitelarabi/docs/github-panels-update (629894d)
+
+
+
 ## [0.3.0] - 2026-02-22
 
 ### Meta
