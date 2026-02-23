@@ -1,4 +1,4 @@
-import { ShieldAlert, Settings, ExternalLink } from "lucide-react";
+import { ShieldAlert, Settings } from "lucide-react";
 
 interface PairingRequiredProps {
   message?: string | null;
@@ -26,6 +26,20 @@ export function PairingRequired({ message, onOpenGatewaySetup }: PairingRequired
             "Pairing required. Open your gateway host and approve the pending pairing request for this device."}
         </div>
 
+        <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Gateway host commands
+          </p>
+          <pre className="text-xs leading-relaxed overflow-x-auto bg-background/60 rounded-lg p-3">
+{`openclaw devices list
+openclaw devices approve <request-id>`}
+          </pre>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Run these on the gateway server, approve the pending request ID, then return here and
+            reconnect.
+          </p>
+        </div>
+
         <div className="flex flex-col gap-3">
           <button
             onClick={onOpenGatewaySetup}
@@ -34,16 +48,6 @@ export function PairingRequired({ message, onOpenGatewaySetup }: PairingRequired
             <Settings className="w-5 h-5" />
             Go to Gateway Setup
           </button>
-
-          <a
-            href="https://docs.openclaw.ai/gateway/protocol#device-identity-pairing"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full border border-border text-foreground font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-secondary transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Pairing approval docs
-          </a>
         </div>
       </div>
     </div>
