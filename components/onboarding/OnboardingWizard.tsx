@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Sparkles, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { uiStateStore } from "@/lib/ui-state-db";
 import { GatewayConnectionStep } from "./GatewayConnectionStep";
 import { ExtensionsSetupStep } from "./ExtensionsSetupStep";
@@ -38,9 +38,16 @@ export function OnboardingWizard({ onConnectGateway, onComplete, onSkip }: Onboa
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-background/80 backdrop-blur-lg">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-primary" />
-          </div>
+          <img
+            src="/images/logos/openclawmc-logo-white.png"
+            alt="OpenClaw MC"
+            className="w-10 h-10 rounded-xl object-contain hidden dark:block"
+          />
+          <img
+            src="/images/logos/openclawmc-logo-black.png"
+            alt="OpenClaw MC"
+            className="w-10 h-10 rounded-xl object-contain block dark:hidden"
+          />
           <div>
             <h1 className="font-bold text-lg">Welcome to OpenClaw MC</h1>
             <p className="text-xs text-muted-foreground">Let's get you set up</p>
