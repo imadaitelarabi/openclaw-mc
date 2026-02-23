@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { RefreshCw, ExternalLink, AlertCircle, Loader2, Search } from "lucide-react";
 import type { ExtensionPanelProps } from "@/types/extension";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
@@ -15,6 +15,7 @@ import { usePanels } from "@/contexts/PanelContext";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubIssue, GitHubRepoRef, IssueFilters } from "../../api";
 import { FilterDropdown } from "@/components/panels/FilterDropdown";
+import { uiStateStore } from "@/lib/ui-state-db";
 
 function formatRelativeTime(dateStr: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -73,6 +74,40 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
   const [fetchTick, setFetchTick] = useState(0);
 
   const refresh = useCallback(() => setFetchTick((n) => n + 1), []);
+
+  // Holds the repo that was just restored from IndexedDB so the repo-change
+  // reset effect can skip clearing the other restored filters.
+  const restoredRepoRef = useRef<string | null>(null);
+
+  // Load persisted filters on mount
+  useEffect(() => {
+    let mounted = true;
+    uiStateStore.getExtensionFilters("github:issues").then((saved) => {
+      if (!mounted || !saved) return;
+      if (saved.repo) {
+        restoredRepoRef.current = saved.repo;
+        setSelectedRepo(saved.repo);
+      }
+      if (saved.search !== undefined) setSearchInput(saved.search);
+      if (saved.label !== undefined) setLabelFilter(saved.label);
+      if (saved.author !== undefined) setAuthorFilter(saved.author);
+      if (saved.assignee !== undefined) setAssigneeFilter(saved.assignee);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Persist filters whenever they change
+  useEffect(() => {
+    uiStateStore.saveExtensionFilters("github:issues", {
+      repo: selectedRepo,
+      search: searchInput,
+      label: labelFilter,
+      author: authorFilter,
+      assignee: assigneeFilter,
+    });
+  }, [selectedRepo, searchInput, labelFilter, authorFilter, assigneeFilter]);
 
   // Fetch issues whenever fetchTick or selectedRepo changes
   useEffect(() => {
@@ -210,6 +245,10 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
   );
 
   useEffect(() => {
+    if (restoredRepoRef.current !== null && selectedRepo === restoredRepoRef.current) {
+      restoredRepoRef.current = null;
+      return;
+    }
     setLabelFilter("");
     setAuthorFilter("");
     setAssigneeFilter("");

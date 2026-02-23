@@ -91,6 +91,10 @@ interface UIStateDB extends DBSchema {
       timestamp: number;
     };
   };
+  "extension-filters": {
+    key: string; // `${extensionName}:${panelName}`
+    value: { filters: Record<string, string>; timestamp: number };
+  };
 }
 
 class UIStateStore {
@@ -106,7 +110,8 @@ class UIStateStore {
       // Version 7 adds onboarding-state store to track first-time user onboarding completion
       // (isOnboarded, completedAt, skipped) across sessions. This is a non-breaking change.
       // Version 8 adds skills-filters store for persisting skills panel filters.
-      this.dbPromise = openDB<UIStateDB>("openclaw-ui-state", 8, {
+      // Version 9 adds extension-filters store for persisting GitHub extension panel filters.
+      this.dbPromise = openDB<UIStateDB>("openclaw-ui-state", 9, {
         upgrade(db, oldVersion) {
           // Create object stores if they don't exist
           if (!db.objectStoreNames.contains("scroll-positions")) {
@@ -159,6 +164,12 @@ class UIStateStore {
           if (oldVersion < 8) {
             if (!db.objectStoreNames.contains("skills-filters")) {
               db.createObjectStore("skills-filters");
+            }
+          }
+          // Add extension filters in version 9
+          if (oldVersion < 9) {
+            if (!db.objectStoreNames.contains("extension-filters")) {
+              db.createObjectStore("extension-filters");
             }
           }
         },
@@ -621,6 +632,27 @@ class UIStateStore {
       completedAt: Date.now(),
       skipped: true,
     });
+  }
+
+  // Extension filters management (keyed by `${extensionName}:${panelName}`)
+  async saveExtensionFilters(key: string, filters: Record<string, string>): Promise<void> {
+    try {
+      const db = await this.getDB();
+      await db.put("extension-filters", { filters, timestamp: Date.now() }, key);
+    } catch (err) {
+      console.error("[UIState] Failed to save extension filters:", err);
+    }
+  }
+
+  async getExtensionFilters(key: string): Promise<Record<string, string> | null> {
+    try {
+      const db = await this.getDB();
+      const data = await db.get("extension-filters", key);
+      return data?.filters ?? null;
+    } catch (err) {
+      console.error("[UIState] Failed to get extension filters:", err);
+      return null;
+    }
   }
 }
 
