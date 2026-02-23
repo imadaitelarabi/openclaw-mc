@@ -10,6 +10,9 @@ It gives you a single place to monitor agents, run chats, manage sessions, and o
 
 ---
 
+<img width="1512" height="949" alt="image" src="https://github.com/user-attachments/assets/9aabed21-9882-4fa5-bb75-eae358bfd8f7" />
+
+
 ## Quick Start
 
 ### Requirements
