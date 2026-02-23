@@ -21,6 +21,12 @@ import type {
   TransformedAgent,
 } from "../types/internal";
 import { ConfigManager } from "./ConfigManager";
+import {
+  buildDeviceAuthPayload,
+  loadOrCreateDeviceIdentity,
+  publicKeyRawBase64UrlFromPem,
+  signDevicePayload,
+} from "./DeviceIdentity";
 
 export class GatewayClient {
   private url: string | null = null;
@@ -197,26 +203,56 @@ export class GatewayClient {
 
   private async authenticate(challenge: any): Promise<void> {
     try {
+      const connectNonce =
+        typeof challenge?.nonce === "string" ? challenge.nonce.trim() : "";
+      if (!connectNonce) {
+        throw new Error("Gateway connect challenge missing nonce");
+      }
+
+      const role = "operator";
+      const scopes = [
+        "operator.read",
+        "operator.write",
+        "operator.admin",
+        "operator.approvals",
+        "operator.pairing",
+      ];
+      const clientId = "openclaw-control-ui";
+      const clientMode = "ui";
+      const identity = loadOrCreateDeviceIdentity();
+      const signedAtMs = Date.now();
+      const payload = buildDeviceAuthPayload({
+        deviceId: identity.deviceId,
+        clientId,
+        clientMode,
+        role,
+        scopes,
+        signedAtMs,
+        token: this.token ?? null,
+        nonce: connectNonce,
+      });
+
       const connectParams: ConnectParams = {
         minProtocol: 3,
         maxProtocol: 3,
         client: {
-          id: "openclaw-control-ui",
+          id: clientId,
           version: "2.0.0",
           platform: "node",
-          mode: "ui",
+          mode: clientMode,
           instanceId: uuidv4(),
         },
-        role: "operator",
-        scopes: [
-          "operator.read",
-          "operator.write",
-          "operator.admin",
-          "operator.approvals",
-          "operator.pairing",
-        ],
+        role,
+        scopes,
         auth: {
           token: this.token!,
+        },
+        device: {
+          id: identity.deviceId,
+          publicKey: publicKeyRawBase64UrlFromPem(identity.publicKeyPem),
+          signature: signDevicePayload(identity.privateKeyPem, payload),
+          signedAt: signedAtMs,
+          nonce: connectNonce,
         },
         caps: ["tool-events"],
         userAgent: "Mission-Control/2.0",

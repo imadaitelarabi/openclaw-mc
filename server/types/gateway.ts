@@ -47,8 +47,19 @@ export interface ConnectParams {
   scopes: string[];
   auth: {
     token: string;
+    deviceToken?: string;
+    password?: string;
+  };
+  device?: {
+    id: string;
+    publicKey: string;
+    signature: string;
+    signedAt: number;
+    nonce?: string;
   };
   caps: string[];
+  commands?: string[];
+  permissions?: Record<string, boolean>;
   userAgent: string;
   locale: string;
 }
