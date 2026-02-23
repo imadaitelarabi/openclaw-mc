@@ -17,11 +17,14 @@ import {
   ChevronDown,
   ChevronRight,
   MessageSquare,
+  ArrowLeft,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ExtensionPanelProps } from "@/types/extension";
+import type { PanelBackNavigation } from "@/types";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
+import { usePanels } from "@/contexts/PanelContext";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubIssue, GitHubComment } from "../../api";
 
@@ -50,6 +53,8 @@ interface GitHubIssueDetailsPanelProps extends ExtensionPanelProps {
   repo?: string;
   number?: number;
   htmlUrl?: string;
+  contextPanelId?: string;
+  back?: PanelBackNavigation;
 }
 
 export function GitHubIssueDetailsPanel({
@@ -57,7 +62,10 @@ export function GitHubIssueDetailsPanel({
   repo,
   number,
   htmlUrl,
+  contextPanelId,
+  back,
 }: GitHubIssueDetailsPanelProps) {
+  const { replacePanel } = usePanels();
   const extensionContext = useOptionalExtensions();
   const isExtensionContextLoading = extensionContext?.isLoading ?? false;
   const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
@@ -198,6 +206,19 @@ export function GitHubIssueDetailsPanel({
 
   return (
     <div className="flex flex-col h-full overflow-auto p-4 space-y-4">
+      {/* Back button */}
+      {back && contextPanelId && (
+        <div>
+          <button
+            onClick={() => replacePanel(contextPanelId, back.type, back.data)}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="space-y-1">
         <div className="flex items-center gap-2">

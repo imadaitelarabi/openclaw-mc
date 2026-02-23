@@ -15,6 +15,12 @@ export type PanelType =
   | "github-pr-details"
   | "github-issue-details";
 
+/** Describes where to navigate back to when a detail panel is closed. */
+export interface PanelBackNavigation {
+  type: PanelType;
+  data?: Record<string, any>;
+}
+
 export interface PanelSettings {
   showTools: boolean; // Verbose mode: show/hide tool calls
   showReasoning: boolean; // Show/hide reasoning blocks

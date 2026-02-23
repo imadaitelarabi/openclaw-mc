@@ -51,11 +51,11 @@ function labelTextColor(hex: string): string {
 const inputCls =
   "px-2 py-1 text-xs border border-border rounded bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring";
 
-export function IssuesPanel(_props: ExtensionPanelProps) {
+export function IssuesPanel({ contextPanelId }: ExtensionPanelProps) {
   const extensionContext = useOptionalExtensions();
   const isExtensionContextLoading = extensionContext?.isLoading ?? false;
   const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
-  const { openPanel } = usePanels();
+  const { replacePanel, openPanel } = usePanels();
 
   const [items, setItems] = useState<GitHubIssue[]>([]);
   const [loading, setLoading] = useState(false);
@@ -363,13 +363,22 @@ export function IssuesPanel(_props: ExtensionPanelProps) {
               key={issue.number}
               onClick={() => {
                 if (owner && repo) {
-                  openPanel("github-issue-details", {
+                  const data = {
                     kind: "github-issue",
                     owner,
                     repo,
                     number: issue.number,
                     htmlUrl: issue.html_url,
-                  });
+                    back: {
+                      type: "extension-panel" as const,
+                      data: { extensionName: "github", panelId: "issues" },
+                    },
+                  };
+                  if (contextPanelId) {
+                    replacePanel(contextPanelId, "github-issue-details", data);
+                  } else {
+                    openPanel("github-issue-details", data);
+                  }
                 } else {
                   window.open(issue.html_url, "_blank", "noopener,noreferrer");
                 }

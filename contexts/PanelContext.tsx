@@ -16,6 +16,7 @@ import { uiStateStore, type WorkspaceState } from "@/lib/ui-state-db";
 interface PanelContextValue {
   layout: PanelLayout;
   openPanel: (type: PanelType, data?: any) => Promise<string>;
+  replacePanel: (panelId: string, type: PanelType, data?: any) => void;
   closePanel: (panelId: string) => void;
   setActivePanel: (panelId: string) => void;
   updatePanel: (panelId: string, updates: Partial<Panel>) => void;
@@ -47,6 +48,48 @@ export function usePanels() {
   }
 
   return context;
+}
+
+/** Derive a panel title from its type and data (mirrors the logic in openPanel). */
+function getPanelTitle(type: PanelType, data?: any): string {
+  switch (type) {
+    case "chat":
+      return data?.agentName || "Chat";
+    case "create-agent":
+      return "Create New Agent";
+    case "update-agent":
+      return `Edit ${data?.agentName || "Agent"}`;
+    case "agent-file":
+      return data?.fileName
+        ? `${data.fileName} — ${data?.agentName || "Agent"}`
+        : `File — ${data?.agentName || "Agent"}`;
+    case "agent-list":
+      return "Agents";
+    case "extension-panel":
+      return data?.panelTitle || `${data?.extensionName || "Extension"} Panel`;
+    case "extension-onboarding":
+      return `${data?.extensionName || "Extension"} Setup`;
+    case "cron":
+      return data?.jobName ? `Cron: ${data.jobName}` : "Cron Job";
+    case "create-cron":
+      return "Create Cron Job";
+    case "update-cron":
+      return data?.jobName ? `Edit ${data.jobName}` : "Edit Cron Job";
+    case "tags-settings":
+      return "Tags Settings";
+    case "skills":
+      return "Skills";
+    case "github-pr-details":
+      return data?.number
+        ? `PR #${data.number}${data.repo ? ` — ${data.repo}` : ""}`
+        : "PR Details";
+    case "github-issue-details":
+      return data?.number
+        ? `Issue #${data.number}${data.repo ? ` — ${data.repo}` : ""}`
+        : "Issue Details";
+    default:
+      return type;
+  }
 }
 
 interface PanelProviderProps {
@@ -186,59 +229,7 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
       }
 
       // Generate title based on type and data
-      let title = "";
-      switch (type) {
-        case "chat":
-          title = data?.agentName || "Chat";
-          break;
-        case "create-agent":
-          title = "Create New Agent";
-          break;
-        case "update-agent":
-          title = `Edit ${data?.agentName || "Agent"}`;
-          break;
-        case "agent-file":
-          title = data?.fileName
-            ? `${data.fileName} — ${data?.agentName || "Agent"}`
-            : `File — ${data?.agentName || "Agent"}`;
-          break;
-        case "agent-list":
-          title = "Agents";
-          break;
-        case "extension-panel":
-          title = data?.panelTitle || `${data?.extensionName || "Extension"} Panel`;
-          break;
-        case "extension-onboarding":
-          title = `${data?.extensionName || "Extension"} Setup`;
-          break;
-        case "cron":
-          title = data?.jobName ? `Cron: ${data.jobName}` : "Cron Job";
-          break;
-        case "create-cron":
-          title = "Create Cron Job";
-          break;
-        case "update-cron":
-          title = data?.jobName ? `Edit ${data.jobName}` : "Edit Cron Job";
-          break;
-        case "tags-settings":
-          title = "Tags Settings";
-          break;
-        case "skills":
-          title = "Skills";
-          break;
-        case "github-pr-details":
-          title = data?.number
-            ? `PR #${data.number}${data.repo ? ` — ${data.repo}` : ""}`
-            : "PR Details";
-          break;
-        case "github-issue-details":
-          title = data?.number
-            ? `Issue #${data.number}${data.repo ? ` — ${data.repo}` : ""}`
-            : "Issue Details";
-          break;
-        default:
-          title = type;
-      }
+      const title = getPanelTitle(type, data);
 
       const newPanel: Panel = {
         id: panelId,
@@ -319,6 +310,24 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
     }));
   }, []);
 
+  /**
+   * Replaces a panel's type, data, and title in-place.
+   * The panel keeps its position, ID, and active state.
+   */
+  const replacePanel = useCallback((panelId: string, type: PanelType, data?: any) => {
+    setLayout((prev) => {
+      const panel = prev.panels.find((p) => p.id === panelId);
+      if (!panel) return prev;
+      const title = getPanelTitle(type, data);
+      return {
+        ...prev,
+        panels: prev.panels.map((p) =>
+          p.id === panelId ? { ...p, type, data: data || {}, title } : p
+        ),
+      };
+    });
+  }, []);
+
   const updatePanelSettings = useCallback((panelId: string, settings: Partial<PanelSettings>) => {
     setLayout((prev) => {
       const panel = prev.panels.find((p) => p.id === panelId);
@@ -384,6 +393,7 @@ export function PanelProvider({ children, maxPanels = 2 }: PanelProviderProps) {
       value={{
         layout,
         openPanel,
+        replacePanel,
         closePanel,
         setActivePanel,
         updatePanel,
