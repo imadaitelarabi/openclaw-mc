@@ -19,6 +19,8 @@ It gives you a single place to monitor agents, run chats, manage sessions, and o
 curl -fsSL https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc/master/scripts/install-and-run.sh | bash
 ```
 
+> The installer now detects common openclaw-mc clones, reuses an existing checkout, and pulls updates instead of forcing a fresh clone. See [docs/FEATURES.md](./docs/FEATURES.md) for details.
+
 ### Option B: Manual install
 
 ```bash
@@ -114,6 +116,12 @@ OPENCLAW_GATEWAY_TOKEN=your_gateway_token_here
 - Scrollable dropdowns for long Agent/Cron lists
 - Stream state recovery across refreshes
 - Activity history persisted across restarts
+
+### 9) GitHub issue & PR detail panels
+
+- Dedicated GitHub issue and pull request panels surface title, status, metadata, markdown bodies, and the latest conversation/review comments alongside a fast "Open in GitHub" link.
+- Chat links pointing to `github.com/.../issues/...` or `/pull/...` now open those panels in-place thanks to the new [chat link matcher registry](./docs/FEATURES.md).
+- See [docs/FEATURES.md](./docs/FEATURES.md) for the full rundown on these GitHub extension enhancements.
 
 ---
 
