@@ -29,7 +29,7 @@ export function useGatewayWebSocket({ onEvent }: UseGatewayWebSocketProps) {
     const ws = new WebSocket(`${protocol}//${window.location.host}${wsPath}`);
 
     ws.onopen = () => {
-      setConnectionStatus("connected");
+      setConnectionStatus("connecting");
       reconnectAttemptsRef.current = 0;
       if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
       heartbeatTimerRef.current = setInterval(() => {

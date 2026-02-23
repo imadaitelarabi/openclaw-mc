@@ -181,7 +181,11 @@ export class GatewayClient {
       }
 
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = setTimeout(() => this.connect(), 5000);
+      if (!pairingRequired) {
+        this.reconnectTimer = setTimeout(() => this.connect(), 5000);
+      } else {
+        this.reconnectTimer = null;
+      }
     });
 
     this.ws.on("error", (err: Error) => {
