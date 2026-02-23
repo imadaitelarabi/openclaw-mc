@@ -1,11 +1,14 @@
 # Changelog
 
 ## [0.4.0] - 2026-02-23
+
 ### Meta
+
 - Bump: minor (score: 188)
 - Range: 174a5614e2266b7015d4403e5dec7a6e3afb77b4..629894d4a7e5892ace043056bc7f32096f1626ec
 
 ### Features
+
 - add in-app GitHub PR and issue detail panels ([c218832](https://github.com/imadaitelarabi/openclaw-mc/commit/c218832))
 - use ReactMarkdown with remark-gfm for PR/issue body rendering ([17f357a](https://github.com/imadaitelarabi/openclaw-mc/commit/17f357a))
 - enhance GitHub PR and issue detail panels with loading states and context checks ([187e60a](https://github.com/imadaitelarabi/openclaw-mc/commit/187e60a))
@@ -14,9 +17,11 @@
 - persist GitHub extension panel filters across refresh (IndexedDB) ([79db715](https://github.com/imadaitelarabi/openclaw-mc/commit/79db715))
 
 ### Fixes
+
 - use default panel flag ordering + de-dupe Open Panel injection ([495dcc9](https://github.com/imadaitelarabi/openclaw-mc/commit/495dcc9))
 
 ### Refactors
+
 - update issue and PR panel search to use single repository selection and improve loading states ([36e3ca5](https://github.com/imadaitelarabi/openclaw-mc/commit/36e3ca5))
 - simplify extension retrieval in onboarding and panel components; enhance loading state handling in Issues and Pull Requests panels ([9dc1247](https://github.com/imadaitelarabi/openclaw-mc/commit/9dc1247))
 - format code for consistency and improve readability in various components and documentation ([7cbf64a](https://github.com/imadaitelarabi/openclaw-mc/commit/7cbf64a))
@@ -26,13 +31,16 @@
 - simplify regex matching for GitHub issue and PR URLs ([fbe77e7](https://github.com/imadaitelarabi/openclaw-mc/commit/fbe77e7))
 
 ### Docs
+
 - cover cron model selection and tag creation ([e726565](https://github.com/imadaitelarabi/openclaw-mc/commit/e726565))
 - highlight GitHub panels and installer update ([4dfce80](https://github.com/imadaitelarabi/openclaw-mc/commit/4dfce80))
 
 ### Chores
+
 - daily changelog 2026-02-22 ([1ba88f8](https://github.com/imadaitelarabi/openclaw-mc/commit/1ba88f8))
 
 ### Other
+
 - Initial plan ([bef6789](https://github.com/imadaitelarabi/openclaw-mc/commit/bef6789))
 - Add Edit Agent Files tab + AgentFilePanel for workspace file editing ([4dd3a4c](https://github.com/imadaitelarabi/openclaw-mc/commit/4dd3a4c))
 - Refactor handleAgentFilesGet to improve content and existence checks for response objects ([d51dc09](https://github.com/imadaitelarabi/openclaw-mc/commit/d51dc09))
@@ -65,8 +73,6 @@
 - Initial plan ([dfac69c](https://github.com/imadaitelarabi/openclaw-mc/commit/dfac69c))
 - Merge pull request [#129](https://github.com/imadaitelarabi/openclaw-mc/pull/129) from imadaitelarabi/copilot/persist-github-filters-across-refresh ([9d75d26](https://github.com/imadaitelarabi/openclaw-mc/commit/9d75d26))
 - Merge pull request [#130](https://github.com/imadaitelarabi/openclaw-mc/pull/130) from imadaitelarabi/docs/github-panels-update ([629894d](https://github.com/imadaitelarabi/openclaw-mc/commit/629894d))
-
-
 
 ## [0.3.0] - 2026-02-22
 
