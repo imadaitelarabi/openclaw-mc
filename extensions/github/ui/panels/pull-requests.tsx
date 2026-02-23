@@ -57,11 +57,11 @@ function labelTextColor(hex: string): string {
 const inputCls =
   "px-2 py-1 text-xs border border-border rounded bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring";
 
-export function PullRequestsPanel(_props: ExtensionPanelProps) {
+export function PullRequestsPanel({ contextPanelId }: ExtensionPanelProps) {
   const extensionContext = useOptionalExtensions();
   const isExtensionContextLoading = extensionContext?.isLoading ?? false;
   const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
-  const { openPanel } = usePanels();
+  const { replacePanel, openPanel } = usePanels();
 
   const [items, setItems] = useState<GitHubPR[]>([]);
   const [loading, setLoading] = useState(false);
@@ -403,13 +403,22 @@ export function PullRequestsPanel(_props: ExtensionPanelProps) {
               key={pr.number}
               onClick={() => {
                 if (owner && repo) {
-                  openPanel("github-pr-details", {
+                  const data = {
                     kind: "github-pr",
                     owner,
                     repo,
                     number: pr.number,
                     htmlUrl: pr.html_url,
-                  });
+                    back: {
+                      type: "extension-panel" as const,
+                      data: { extensionName: "github", panelId: "pull-requests" },
+                    },
+                  };
+                  if (contextPanelId) {
+                    replacePanel(contextPanelId, "github-pr-details", data);
+                  } else {
+                    openPanel("github-pr-details", data);
+                  }
                 } else {
                   window.open(pr.html_url, "_blank", "noopener,noreferrer");
                 }

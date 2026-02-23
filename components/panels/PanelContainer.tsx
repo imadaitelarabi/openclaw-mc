@@ -102,7 +102,7 @@ interface PanelContainerProps {
 
 export function PanelContainer({
   panels,
-  activePanel,
+  activePanel: _activePanel,
   onPanelActivate,
   onPanelClose,
   agents,
@@ -319,6 +319,7 @@ export function PanelContainer({
               <ExtensionPanel
                 extensionName={panel.data.extensionName}
                 panelId={panel.data.panelId || "main"}
+                contextPanelId={panel.id}
               />
             )}
 
@@ -442,10 +443,12 @@ export function PanelContainer({
                 <GitHubPrDetailsPanel
                   extensionName="github"
                   panelId="pr-details"
+                  contextPanelId={panel.id}
                   owner={panel.data?.owner}
                   repo={panel.data?.repo}
                   number={panel.data?.number}
                   htmlUrl={panel.data?.htmlUrl}
+                  back={panel.data?.back}
                 />
               </div>
             )}
@@ -455,10 +458,12 @@ export function PanelContainer({
                 <GitHubIssueDetailsPanel
                   extensionName="github"
                   panelId="issue-details"
+                  contextPanelId={panel.id}
                   owner={panel.data?.owner}
                   repo={panel.data?.repo}
                   number={panel.data?.number}
                   htmlUrl={panel.data?.htmlUrl}
+                  back={panel.data?.back}
                 />
               </div>
             )}

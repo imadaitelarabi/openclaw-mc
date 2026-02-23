@@ -74,6 +74,9 @@ export interface ExtensionPanelProps {
 
   /** Panel identifier */
   panelId: string;
+
+  /** PanelContext panel ID – allows the component to call replacePanel on itself */
+  contextPanelId?: string;
 }
 
 /**

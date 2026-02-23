@@ -5,9 +5,10 @@ import { useExtensions } from "@/contexts/ExtensionContext";
 interface ExtensionPanelProps {
   extensionName: string;
   panelId: string;
+  contextPanelId?: string;
 }
 
-export function ExtensionPanel({ extensionName, panelId }: ExtensionPanelProps) {
+export function ExtensionPanel({ extensionName, panelId, contextPanelId }: ExtensionPanelProps) {
   const { getExtension } = useExtensions();
 
   const extension = getExtension(extensionName);
@@ -32,7 +33,11 @@ export function ExtensionPanel({ extensionName, panelId }: ExtensionPanelProps) 
 
   return (
     <div className="h-full overflow-auto bg-background text-foreground border-border">
-      <PanelComponent extensionName={extensionName} panelId={panelId} />
+      <PanelComponent
+        extensionName={extensionName}
+        panelId={panelId}
+        contextPanelId={contextPanelId}
+      />
     </div>
   );
 }
