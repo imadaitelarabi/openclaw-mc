@@ -35,8 +35,17 @@ export function GatewaySetup({ onConnect, onCancel, isLoading }: GatewaySetupPro
 
       <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Wifi className="w-8 h-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4">
+            <img
+              src="/images/logos/openclawmc-logo-white.png"
+              alt="OpenClaw MC"
+              className="w-16 h-16 object-contain hidden dark:block"
+            />
+            <img
+              src="/images/logos/openclawmc-logo-black.png"
+              alt="OpenClaw MC"
+              className="w-16 h-16 object-contain block dark:hidden"
+            />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">Connect Gateway</h1>
           <p className="text-muted-foreground">Establish a secure link to your OpenClaw Gateway.</p>

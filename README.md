@@ -1,5 +1,10 @@
 # OpenClaw MC
 
+<p align="center">
+  <img src="public/images/logos/openclawmc-logo-black.png#gh-light-mode-only" alt="OpenClaw MC" width="120" />
+  <img src="public/images/logos/openclawmc-logo-white.png#gh-dark-mode-only" alt="OpenClaw MC" width="120" />
+</p>
+
 OpenClaw MC is the real-time control UI for OpenClaw Gateway.
 It gives you a single place to monitor agents, run chats, manage sessions, and operate automation features.
 

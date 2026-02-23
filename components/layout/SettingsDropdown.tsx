@@ -1,6 +1,9 @@
+"use client";
+
 import { useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Settings, ChevronRight } from "lucide-react";
+import { Settings, ChevronRight, Sun, Moon, Monitor } from "lucide-react";
+import { useTheme, type Theme } from "@/contexts/ThemeContext";
 
 interface ExtensionOption {
   name: string;
@@ -22,6 +25,12 @@ export function SettingsDropdown({
   onOpenSkills,
 }: SettingsDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
+    { value: "light", label: "Light", icon: <Sun className="w-3 h-3" /> },
+    { value: "dark", label: "Dark", icon: <Moon className="w-3 h-3" /> },
+    { value: "system", label: "System", icon: <Monitor className="w-3 h-3" /> },
+  ];
 
   const sortedExtensions = [...extensions].sort((first, second) =>
     first.name.localeCompare(second.name)
@@ -64,6 +73,41 @@ export function SettingsDropdown({
           >
             Skills
           </DropdownMenu.Item>
+
+          <DropdownMenu.Separator className="h-px bg-border my-1" />
+
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger className="w-full text-left px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs flex items-center justify-between gap-2 data-[state=open]:bg-accent">
+              <span>Theme</span>
+              <ChevronRight className="w-3 h-3 text-muted-foreground" />
+            </DropdownMenu.SubTrigger>
+
+            <DropdownMenu.Portal>
+              <DropdownMenu.SubContent
+                side="left"
+                alignOffset={-4}
+                sideOffset={6}
+                className="z-[120] min-w-[140px] bg-popover border border-border rounded-md shadow-lg p-1"
+              >
+                {themeOptions.map((opt) => (
+                  <DropdownMenu.Item
+                    key={opt.value}
+                    onSelect={() => {
+                      setTheme(opt.value);
+                      setIsOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs flex items-center gap-2"
+                  >
+                    {opt.icon}
+                    <span>{opt.label}</span>
+                    {theme === opt.value && (
+                      <span className="ml-auto text-primary text-[10px]">✓</span>
+                    )}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Sub>
 
           <DropdownMenu.Separator className="h-px bg-border my-1" />
 
