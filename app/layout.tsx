@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   description: "Real-time agent monitoring dashboard",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/images/logos/openclawmc-logo-white.png",
-    apple: "/images/logos/openclawmc-logo-white.png",
+    icon: "/images/logos/icon.png",
+    apple: "/images/logos/icon.png",
   },
 };
 

@@ -20,7 +20,7 @@ export function ReasoningCard({ message, isStreaming = false }: ReasoningCardPro
         <summary className="text-xs cursor-pointer text-muted-foreground hover:text-foreground mb-2">
           Thinking process
         </summary>
-        <div className="text-sm whitespace-pre-wrap text-purple-100 dark:text-purple-200 leading-relaxed">
+        <div className="text-sm whitespace-pre-wrap text-purple-800 dark:text-purple-200 leading-relaxed">
           {message.content}
           {isStreaming && (
             <span className="inline-block w-2 h-4 ml-1 bg-purple-500 animate-pulse">▊</span>

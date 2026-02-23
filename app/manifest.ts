@@ -11,13 +11,13 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#252525",
     icons: [
       {
-        src: "/images/logos/openclawmc-logo-white.png",
+        src: "/images/logos/icon.png",
         sizes: "1024x1024",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/images/logos/openclawmc-logo-white.png",
+        src: "/images/logos/icon.png",
         sizes: "1024x1024",
         type: "image/png",
         purpose: "maskable",
