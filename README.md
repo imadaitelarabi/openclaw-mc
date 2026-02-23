@@ -59,7 +59,10 @@ You can configure the gateway from the in-app setup flow (recommended), or via `
 ```env
 OPENCLAW_GATEWAY_URL=http://127.0.0.1:18789
 OPENCLAW_GATEWAY_TOKEN=your_gateway_token_here
+OPENCLAW_GATEWAY_ORIGIN=http://localhost:3000
 ```
+
+`OPENCLAW_GATEWAY_ORIGIN` is optional; if omitted, Mission Control uses `http://localhost:${PORT}` (`3000` by default).
 
 ---
 

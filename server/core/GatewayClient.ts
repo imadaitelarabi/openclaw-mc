@@ -118,9 +118,11 @@ export class GatewayClient {
 
     console.log("[Gateway] Connecting to:", this.url);
     this.broadcast({ type: "status", status: "connecting", gatewayId: this.activeId || undefined });
+    const configuredOrigin = process.env.OPENCLAW_GATEWAY_ORIGIN?.trim();
+    const gatewayOrigin = configuredOrigin || `http://localhost:${process.env.PORT || "3000"}`;
     this.ws = new WebSocket(this.url, {
       headers: {
-        Origin: "http://localhost:3001",
+        Origin: gatewayOrigin,
       },
     });
 
