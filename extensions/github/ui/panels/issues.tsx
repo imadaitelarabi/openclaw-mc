@@ -100,13 +100,20 @@ export function IssuesPanel({ contextPanelId }: ExtensionPanelProps) {
 
   // Persist filters whenever they change
   useEffect(() => {
-    uiStateStore.saveExtensionFilters("github:issues", {
+    const filters = {
       repo: selectedRepo,
       search: searchInput,
       label: labelFilter,
       author: authorFilter,
       assignee: assigneeFilter,
-    });
+    };
+    if (selectedRepo) {
+      // Save per-repo filters and update global key with last-used repo
+      uiStateStore.saveExtensionFilters(`github:issues:${selectedRepo}`, filters);
+      uiStateStore.saveExtensionFilters("github:issues", { repo: selectedRepo });
+    } else {
+      uiStateStore.saveExtensionFilters("github:issues", filters);
+    }
   }, [selectedRepo, searchInput, labelFilter, authorFilter, assigneeFilter]);
 
   // Fetch issues whenever fetchTick or selectedRepo changes
@@ -252,6 +259,22 @@ export function IssuesPanel({ contextPanelId }: ExtensionPanelProps) {
     setLabelFilter("");
     setAuthorFilter("");
     setAssigneeFilter("");
+  }, [selectedRepo]);
+
+  // Load per-repo filters whenever selectedRepo changes
+  useEffect(() => {
+    if (!selectedRepo) return;
+    let mounted = true;
+    uiStateStore.getExtensionFilters(`github:issues:${selectedRepo}`).then((saved) => {
+      if (!mounted || !saved) return;
+      if (saved.search !== undefined) setSearchInput(saved.search);
+      if (saved.label !== undefined) setLabelFilter(saved.label);
+      if (saved.author !== undefined) setAuthorFilter(saved.author);
+      if (saved.assignee !== undefined) setAssigneeFilter(saved.assignee);
+    });
+    return () => {
+      mounted = false;
+    };
   }, [selectedRepo]);
 
   return (

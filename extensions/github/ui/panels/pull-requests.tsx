@@ -110,14 +110,21 @@ export function PullRequestsPanel({ contextPanelId }: ExtensionPanelProps) {
 
   // Persist filters whenever they change
   useEffect(() => {
-    uiStateStore.saveExtensionFilters("github:pull-requests", {
+    const filters = {
       repo: selectedRepo,
       search: searchInput,
       label: labelFilter,
       author: authorFilter,
       assignee: assigneeFilter,
       draft: draftFilter === true ? "draft" : draftFilter === false ? "ready" : "all",
-    });
+    };
+    if (selectedRepo) {
+      // Save per-repo filters and update global key with last-used repo
+      uiStateStore.saveExtensionFilters(`github:pull-requests:${selectedRepo}`, filters);
+      uiStateStore.saveExtensionFilters("github:pull-requests", { repo: selectedRepo });
+    } else {
+      uiStateStore.saveExtensionFilters("github:pull-requests", filters);
+    }
   }, [selectedRepo, searchInput, labelFilter, authorFilter, assigneeFilter, draftFilter]);
 
   // Fetch PRs whenever fetchTick, selectedRepo, or draftFilter changes
@@ -243,6 +250,24 @@ export function PullRequestsPanel({ contextPanelId }: ExtensionPanelProps) {
     setAuthorFilter("");
     setAssigneeFilter("");
     setDraftFilter(undefined);
+  }, [selectedRepo]);
+
+  // Load per-repo filters whenever selectedRepo changes
+  useEffect(() => {
+    if (!selectedRepo) return;
+    let mounted = true;
+    uiStateStore.getExtensionFilters(`github:pull-requests:${selectedRepo}`).then((saved) => {
+      if (!mounted || !saved) return;
+      if (saved.search !== undefined) setSearchInput(saved.search);
+      if (saved.label !== undefined) setLabelFilter(saved.label);
+      if (saved.author !== undefined) setAuthorFilter(saved.author);
+      if (saved.assignee !== undefined) setAssigneeFilter(saved.assignee);
+      if (saved.draft === "draft") setDraftFilter(true);
+      else if (saved.draft === "ready") setDraftFilter(false);
+    });
+    return () => {
+      mounted = false;
+    };
   }, [selectedRepo]);
 
   const repoOptions = useMemo(
