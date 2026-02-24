@@ -126,7 +126,7 @@ export class GatewayClient {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
     console.log("[Gateway] Connecting to:", this.url);
-  this.broadcastStatus("connecting", { gatewayId: this.activeId || undefined });
+    this.broadcastStatus("connecting", { gatewayId: this.activeId || undefined });
     const configuredOrigin = process.env.OPENCLAW_GATEWAY_ORIGIN?.trim();
     const gatewayOrigin = configuredOrigin || `http://localhost:${process.env.PORT || "3000"}`;
     this.ws = new WebSocket(this.url, {
@@ -221,8 +221,7 @@ export class GatewayClient {
 
   private async authenticate(challenge: any): Promise<void> {
     try {
-      const connectNonce =
-        typeof challenge?.nonce === "string" ? challenge.nonce.trim() : "";
+      const connectNonce = typeof challenge?.nonce === "string" ? challenge.nonce.trim() : "";
       if (!connectNonce) {
         throw new Error("Gateway connect challenge missing nonce");
       }
@@ -294,7 +293,8 @@ export class GatewayClient {
 
       if (pairingRequired) {
         this.broadcastStatus("pairing-required", {
-          message: "Pairing required. Approve this device in Gateway, then Mission Control reconnects automatically.",
+          message:
+            "Pairing required. Approve this device in Gateway, then Mission Control reconnects automatically.",
         });
         return;
       }
