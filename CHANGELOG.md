@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.5.0] - 2026-02-24
+### Meta
+- Bump: minor (score: 62)
+- Range: since 24 hours
+
+### Docs
+- update CHANGELOG.md for 0.4.0 with formatting improvements and additional sections ([19bb2b2](https://github.com/imadaitelarabi/openclaw-mc.git/commit/19bb2b283bc15d0c8170d4a3d0d012a8ac048259))
+- linkify PR and commit references in CHANGELOG.md for 0.4.0 and 0.3.0 ([f63e559](https://github.com/imadaitelarabi/openclaw-mc.git/commit/f63e5592626fbbb23a5c7bf4f4459a0d3bc2f55b))
+
+### Other
+- Refactor PairingRequired component: remove unused import and add gateway commands section ([dbd2e24](https://github.com/imadaitelarabi/openclaw-mc.git/commit/dbd2e2430fe114d985a147cdf1b0a2b79d454cd8))
+- Add PairingRequired component and update connection status handling ([3e00e39](https://github.com/imadaitelarabi/openclaw-mc.git/commit/3e00e397ae80ba2f7b5b9f7c4b611266995b029a))
+- Enhance service worker fetch handling for caching and navigation requests ([10b810d](https://github.com/imadaitelarabi/openclaw-mc.git/commit/10b810dbbd62b109ce5080bd5f335de2be1717b4))
+- Add pairing status handling and connection messages to Gateway components ([232fbc9](https://github.com/imadaitelarabi/openclaw-mc.git/commit/232fbc9b01975d8477f2d95e7514f428e1689ff6))
+- Implement device identity management and authentication payload generation ([b2480a1](https://github.com/imadaitelarabi/openclaw-mc.git/commit/b2480a13d9633081bad89aac37f244358200070d))
+- Add OPENCLAW_GATEWAY_ORIGIN configuration for WebSocket connection ([8e1ba59](https://github.com/imadaitelarabi/openclaw-mc.git/commit/8e1ba59e7865db366202cfbf7c82d0dc4c84249e))
+- Enhance README with image and formatting updates ([f743908](https://github.com/imadaitelarabi/openclaw-mc.git/commit/f743908e06c4133cea7951d58268b31f8f3464e4))
+- Merge pull request [#133](https://github.com/imadaitelarabi/openclaw-mc.git/pull/133) from imadaitelarabi/changelog/daily-2026-02-23 ([7d3d9a3](https://github.com/imadaitelarabi/openclaw-mc.git/commit/7d3d9a329868c2ad9b9f26909521f16832ffadb5))
+- Merge pull request [#137](https://github.com/imadaitelarabi/openclaw-mc.git/pull/137) from imadaitelarabi/copilot/make-pwa-compatible-theme-switcher ([f68ccb6](https://github.com/imadaitelarabi/openclaw-mc.git/commit/f68ccb60308ff1826ae8a44a7d8fd2eb7b9621be))
+- Refactor ThemeProvider return statement for improved readability ([1fe703b](https://github.com/imadaitelarabi/openclaw-mc.git/commit/1fe703b94c8268952a9acc4e4a0b17a4c573d43f))
+- Refactor code structure for improved readability and maintainability ([a258b4b](https://github.com/imadaitelarabi/openclaw-mc.git/commit/a258b4b523a88b36c1385590204853324676efe4))
+- Add PWA support, brand assets, and theme switcher ([05c05ec](https://github.com/imadaitelarabi/openclaw-mc.git/commit/05c05ecbb5ea1e31d83f66410a2b1063c12c370b))
+- Initial plan ([564452a](https://github.com/imadaitelarabi/openclaw-mc.git/commit/564452a463e36ba7225bcedb374ff94be427e036))
+- Refactor code structure for improved readability and maintainability ([4b4ed14](https://github.com/imadaitelarabi/openclaw-mc.git/commit/4b4ed144b64e07d69ed0a47567f53e77667a51d8))
+- Merge pull request [#132](https://github.com/imadaitelarabi/openclaw-mc.git/pull/132) from imadaitelarabi/copilot/add-comments-and-improve-navigation ([fe11a83](https://github.com/imadaitelarabi/openclaw-mc.git/commit/fe11a83fbcd010d7eaecfa0b522db29ed767ea0e))
+- Merge pull request [#135](https://github.com/imadaitelarabi/openclaw-mc.git/pull/135) from imadaitelarabi/copilot/sub-pr-133 ([c6ae23f](https://github.com/imadaitelarabi/openclaw-mc.git/commit/c6ae23f37bcc30a9d5d557e078bc73bb71291810))
+- Fix formatting and lint warnings in modified files ([bb8996e](https://github.com/imadaitelarabi/openclaw-mc.git/commit/bb8996ebe7a49cd71f35311919f9e11e9348425a))
+- Initial plan ([596f45a](https://github.com/imadaitelarabi/openclaw-mc.git/commit/596f45a3f4fd24263e29d3c6c211b16476b91dd3))
+
+
+
 ## [0.4.0] - 2026-02-23
 
 ### Meta
