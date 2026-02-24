@@ -42,6 +42,13 @@ interface ChatPanelProps {
   showTools?: boolean;
   showReasoning?: boolean;
 
+  /**
+   * Whether this panel is currently visible/focused.
+   * Passed to the polling scheduler to determine priority:
+   * true → poll every 2s; false → poll every 30s.
+   */
+  isVisible?: boolean;
+
   // WebSocket ref for token usage
   wsRef?: React.RefObject<WebSocket | null>;
 }
@@ -61,6 +68,7 @@ export const ChatPanel = memo(function ChatPanel({
   skills = [],
   showTools = false,
   showReasoning = true,
+  isVisible = true,
   wsRef,
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
@@ -78,6 +86,7 @@ export const ChatPanel = memo(function ChatPanel({
     agentId,
     activeRunId,
     sendMessage,
+    isVisible,
   });
 
   // Token usage hook for context window indicator

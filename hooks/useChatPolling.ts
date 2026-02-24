@@ -1,12 +1,5 @@
 import { useEffect, useRef } from "react";
-
-// Fixed polling interval during active agent runs
-const POLL_INTERVAL_MS = 2000;
-const POLL_COOLDOWN_MS = POLL_INTERVAL_MS; // Timeout for race condition guard
-
-// Debug flag for development/troubleshooting
-// Next.js inlines NEXT_PUBLIC_* env vars at build time, so this check works in browser
-const DEBUG = process.env.NEXT_PUBLIC_DEBUG_POLLING === "true";
+import { globalChatPollingScheduler } from "./useGlobalChatPollingScheduler";
 
 /**
  * Configuration for the polling hook
@@ -18,137 +11,66 @@ interface PollConfig {
   activeRunId: string | null;
   /** Function to send messages to the Gateway */
   sendMessage: (msg: Record<string, unknown>) => void;
+  /**
+   * Whether this panel is currently visible/focused.
+   * Visible panels are polled every 2s (high priority).
+   * Background panels are polled every 30s (low priority).
+   * Defaults to true.
+   */
+  isVisible?: boolean;
 }
 
 /**
  * Hook for polling chat history during active agent runs.
  *
- * Polls chat history every 2s while an agent run is active.
- * Chat history is the sole source of truth — no live streaming.
- * Stops automatically when the run ends or the component unmounts.
+ * Delegates to the module-level `globalChatPollingScheduler` so that all open
+ * panels share a single timer.  Visible panels are polled every 2 s; background
+ * panels every 30 s.  Chat history is the sole source of truth — no streaming.
  *
  * @param config - Configuration object
- * @returns Object containing polling state
  */
 export function useChatPolling({
   agentId,
   activeRunId,
   sendMessage,
-}: PollConfig): { isPolling: boolean } {
-  // Isolated state per hook instance
-  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isPollingRef = useRef<boolean>(false);
-  const cooldownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  isVisible = true,
+}: PollConfig): void {
+  // Keep a stable ref so the scheduler always calls the latest sendMessage
+  // without needing to re-register on every render.
   const sendMessageRef = useRef(sendMessage);
-  const isCleanedUpRef = useRef<boolean>(false);
 
+  // Sync the ref and notify the scheduler whenever sendMessage changes.
   useEffect(() => {
     sendMessageRef.current = sendMessage;
-  }, [sendMessage]);
+    globalChatPollingScheduler.updateSendMessage(agentId, (msg) =>
+      sendMessageRef.current(msg)
+    );
+  }, [agentId, sendMessage]);
 
+  // Propagate visibility changes to the scheduler (affects polling priority).
   useEffect(() => {
-    // Only poll when this agent has an active run
+    globalChatPollingScheduler.setVisible(agentId, isVisible);
+  }, [agentId, isVisible]);
+
+  // Register / unregister with the scheduler based on whether a run is active.
+  useEffect(() => {
     if (!activeRunId) {
-      if (DEBUG) {
-        console.log(`[ChatPolling] No active run for ${agentId} - stopping polling`);
-      }
-      if (pollTimeoutRef.current) {
-        clearTimeout(pollTimeoutRef.current);
-        pollTimeoutRef.current = null;
-      }
-      if (cooldownTimeoutRef.current) {
-        clearTimeout(cooldownTimeoutRef.current);
-        cooldownTimeoutRef.current = null;
-      }
-      isPollingRef.current = false;
-      isCleanedUpRef.current = false;
+      globalChatPollingScheduler.unregister(agentId);
       return;
     }
 
-    if (DEBUG) {
-      console.log(`[ChatPolling] Starting polling for ${agentId} (runId: ${activeRunId})`);
-    }
+    // Wrap through ref so the scheduler always invokes the latest function.
+    globalChatPollingScheduler.register(
+      agentId,
+      (msg) => sendMessageRef.current(msg),
+      isVisible
+    );
 
-    isCleanedUpRef.current = false;
-
-    const pollHistory = () => {
-      // Race condition guard - prevent overlapping polls
-      if (isPollingRef.current) {
-        if (DEBUG) {
-          console.log(`[ChatPolling] Skipping poll for ${agentId} - request already in flight`);
-        }
-        return;
-      }
-
-      isPollingRef.current = true;
-
-      if (DEBUG) {
-        console.log(`[ChatPolling] Polling ${agentId} - fetching last 10 messages`);
-      }
-
-      try {
-        sendMessageRef.current({
-          type: "chat.history.load",
-          agentId,
-          params: {
-            sessionKey: `agent:${agentId}:main`,
-            limit: 10,
-          },
-        });
-      } catch (err) {
-        if (DEBUG) {
-          console.error(`[ChatPolling] Error sending poll request for ${agentId}:`, err);
-        }
-        isPollingRef.current = false;
-        if (cooldownTimeoutRef.current) {
-          clearTimeout(cooldownTimeoutRef.current);
-          cooldownTimeoutRef.current = null;
-        }
-        return;
-      }
-
-      cooldownTimeoutRef.current = setTimeout(() => {
-        isPollingRef.current = false;
-        if (DEBUG) {
-          console.log(`[ChatPolling] Poll cooldown complete for ${agentId}`);
-        }
-      }, POLL_COOLDOWN_MS);
-    };
-
-    const schedulePoll = () => {
-      if (isCleanedUpRef.current) return;
-
-      pollHistory();
-
-      if (isCleanedUpRef.current) return;
-
-      pollTimeoutRef.current = setTimeout(() => {
-        if (!isCleanedUpRef.current) {
-          schedulePoll();
-        }
-      }, POLL_INTERVAL_MS);
-    };
-
-    // Start first poll immediately
-    schedulePoll();
-
-    // Cleanup on unmount or when run ends
     return () => {
-      isCleanedUpRef.current = true;
-      if (DEBUG) {
-        console.log(`[ChatPolling] Cleanup - stopping polling for ${agentId}`);
-      }
-      if (pollTimeoutRef.current) {
-        clearTimeout(pollTimeoutRef.current);
-        pollTimeoutRef.current = null;
-      }
-      if (cooldownTimeoutRef.current) {
-        clearTimeout(cooldownTimeoutRef.current);
-        cooldownTimeoutRef.current = null;
-      }
-      isPollingRef.current = false;
+      globalChatPollingScheduler.unregister(agentId);
     };
+    // isVisible is intentionally omitted: the separate setVisible effect keeps
+    // the scheduler in sync without causing re-registration on focus changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, activeRunId]);
-
-  return { isPolling: isPollingRef.current };
 }

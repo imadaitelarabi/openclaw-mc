@@ -247,6 +247,7 @@ export function PanelContainer({
                 skills={skillsReport?.skills ?? []}
                 showTools={panel.settings?.showTools ?? false}
                 showReasoning={panel.settings?.showReasoning ?? true}
+                isVisible={panel.isActive}
                 wsRef={wsRef}
               />
             )}
