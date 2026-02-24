@@ -277,7 +277,7 @@ export class GatewayClient {
       };
 
       console.log("[Gateway] Sending connect request (token auth)");
-      const response = await this.request("connect", connectParams);
+      const _response = await this.request("connect", connectParams);
 
       this.authenticated = true;
       console.log("[Gateway] Authenticated successfully");

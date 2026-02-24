@@ -23,11 +23,11 @@ export function ChatInputTagDropdown({
   onSelect,
   onClose,
   isLoading = false,
-  position,
+  position: _position,
   inputRef,
 }: ChatInputTagDropdownProps) {
   const PANEL_WIDTH = 280;
-  const PANEL_GAP = 8;
+  const _PANEL_GAP = 8;
   const DROPDOWN_GAP = 8; // Gap above/below input element
   const DROPDOWN_Z_INDEX = 9999; // High z-index to appear above all panels
   const ESTIMATED_ITEM_HEIGHT = 60; // Approximate height per menu item

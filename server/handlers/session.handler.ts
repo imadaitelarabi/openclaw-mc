@@ -39,7 +39,16 @@ export async function handleSessionsPatch(
   sessionPatches: Map<string, any>
 ): Promise<void> {
   try {
-    const { sessionKey, type, thinking, verbose, reasoning, model, modelProvider, ...rest } = msg;
+    const {
+      sessionKey,
+      type: _type,
+      thinking,
+      verbose,
+      reasoning,
+      model,
+      modelProvider,
+      ...rest
+    } = msg;
 
     // Map frontend names to gateway schema names
     const patch: any = { ...rest };
@@ -59,7 +68,7 @@ export async function handleSessionsPatch(
     console.log(`[Client] Patching session ${sessionKey}:`, patch);
 
     // Track in server-side map for polling consistency
-    sessionPatches.set(sessionKey, { ...(sessionPatches.get(sessionKey) || {}), ...patch });
+    sessionPatches.set(sessionKey, { ...sessionPatches.get(sessionKey), ...patch });
 
     // Forward to Gateway
     const gatewayRes = await gateway.request("sessions.patch", { key: sessionKey, ...patch });

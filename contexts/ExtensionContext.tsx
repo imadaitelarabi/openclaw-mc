@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from "react";
-import type { Extension, ExtensionState } from "@/types/extension";
+import type { Extension } from "@/types/extension";
 import { extensionRegistry } from "@/lib/extension-registry";
 import { githubExtension } from "@/extensions/github";
 

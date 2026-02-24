@@ -141,7 +141,7 @@ function normalizeHistoryMessages(rawMessages: any[], fallbackRunId?: string): C
       content: incoming.content || existing.content,
       tool: incoming.tool
         ? {
-            ...(existing.tool || {}),
+            ...existing.tool,
             ...incoming.tool,
           }
         : existing.tool,

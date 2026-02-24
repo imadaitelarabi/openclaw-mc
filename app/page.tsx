@@ -127,8 +127,8 @@ function MissionControlInner() {
     groups: noteGroups,
     allTags: noteTags,
     tagColors,
-    loading: notesLoading,
-    error: notesError,
+    loading: _notesLoading,
+    error: _notesError,
     addNote,
     setTagColor,
     deleteTag,
@@ -138,7 +138,7 @@ function MissionControlInner() {
     uploadNoteImage,
     updateNote,
     deleteNote,
-    refreshNotes,
+    refreshNotes: _refreshNotes,
   } = useNotes({ wsRef });
 
   const [skillsFilter, setSkillsFilter] = useState("");
@@ -179,7 +179,7 @@ function MissionControlInner() {
   const {
     models,
     sessionSettings,
-    loading,
+    loading: _loading,
     updateSetting,
     setModels,
     setSessionSettings,

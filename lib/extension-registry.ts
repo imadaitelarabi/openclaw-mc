@@ -9,7 +9,6 @@ import type {
   ExtensionManifest,
   ExtensionState,
   ExtensionRegistryEntry,
-  ExtensionHooks,
 } from "@/types/extension";
 import { uiStateStore } from "./ui-state-db";
 

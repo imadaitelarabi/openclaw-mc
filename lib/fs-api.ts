@@ -40,7 +40,7 @@ export async function listFiles(dirPath: string) {
       isDirectory: e.isDirectory(),
       path: path.join(dirPath, e.name),
     }));
-  } catch (error) {
+  } catch {
     return [];
   }
 }

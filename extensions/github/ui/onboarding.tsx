@@ -11,7 +11,7 @@ import { GitHubAPI } from "../api";
 import type { GitHubConfig } from "../config";
 
 export function OnboardingPanel({
-  extensionName,
+  extensionName: _extensionName,
   onComplete,
   onCancel,
   connectionStatus,
@@ -87,7 +87,7 @@ export function OnboardingPanel({
       // Validate that we can access organization/repository graph
       try {
         await api.getOrganizations();
-      } catch (err) {
+      } catch {
         setError(
           "Failed to access your organizations and repositories. Please check token permissions."
         );
