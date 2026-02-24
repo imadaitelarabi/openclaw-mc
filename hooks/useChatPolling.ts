@@ -38,6 +38,26 @@ export function useChatPolling({
   // Keep a stable ref so the scheduler always calls the latest sendMessage
   // without needing to re-register on every render.
   const sendMessageRef = useRef(sendMessage);
+  const previousRunIdRef = useRef<string | null>(activeRunId);
+  const trailingPollTimeoutsRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+
+  const clearTrailingPolls = () => {
+    trailingPollTimeoutsRef.current.forEach((timeoutId) => {
+      clearTimeout(timeoutId);
+    });
+    trailingPollTimeoutsRef.current = [];
+  };
+
+  const pollHistoryNow = () => {
+    sendMessageRef.current({
+      type: "chat.history.load",
+      agentId,
+      params: {
+        sessionKey: `agent:${agentId}:main`,
+        limit: 10,
+      },
+    });
+  };
 
   // Sync the ref and notify the scheduler whenever sendMessage changes.
   useEffect(() => {
@@ -73,4 +93,30 @@ export function useChatPolling({
     // the scheduler in sync without causing re-registration on focus changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, activeRunId]);
+
+  // Run two trailing polls after run end to catch late-finalized assistant messages.
+  useEffect(() => {
+    const previousRunId = previousRunIdRef.current;
+    previousRunIdRef.current = activeRunId;
+
+    clearTrailingPolls();
+
+    const justEnded = previousRunId !== null && activeRunId === null;
+    if (!justEnded) return;
+
+    // Poll immediately on end, then once more after 2s.
+    pollHistoryNow();
+    const timeoutId = setTimeout(() => {
+      pollHistoryNow();
+    }, 2000);
+
+    trailingPollTimeoutsRef.current = [timeoutId];
+  }, [agentId, activeRunId]);
+
+  // Cleanup pending trailing polls on unmount.
+  useEffect(() => {
+    return () => {
+      clearTrailingPolls();
+    };
+  }, []);
 }
