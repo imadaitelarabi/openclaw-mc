@@ -48,7 +48,7 @@ export class ExtensionAPI {
    * Search for taggable items
    * @param query - Search query from user input
    */
-  async searchItems(query: string): Promise<any[]> {
+  async searchItems(_query: string): Promise<any[]> {
     try {
       // Implement item search
       // Example: search PRs, issues, deployments, etc.

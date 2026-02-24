@@ -27,11 +27,7 @@ function ensureConfigDir(): void {
 }
 
 function base64UrlEncode(buf: Buffer): string {
-  return buf
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 function derivePublicKeyRaw(publicKeyPem: string): Buffer {
@@ -86,8 +82,7 @@ export function loadOrCreateDeviceIdentity(filePath: string = IDENTITY_PATH): De
         return identity;
       }
     }
-  } catch {
-  }
+  } catch {}
 
   const identity = generateIdentity();
   const stored: StoredIdentity = {

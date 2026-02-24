@@ -1,6 +1,6 @@
 import { useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Wifi, WifiOff, Settings, Plus, Check, ChevronUp, Trash2, Globe } from "lucide-react";
+import { Wifi, WifiOff, Plus, Check, ChevronUp, Trash2, Globe } from "lucide-react";
 import type { ConnectionStatus } from "@/types";
 
 interface Gateway {

@@ -31,7 +31,7 @@ export function PairingRequired({ message, onOpenGatewaySetup }: PairingRequired
             Gateway host commands
           </p>
           <pre className="text-xs leading-relaxed overflow-x-auto bg-background/60 rounded-lg p-3">
-{`openclaw devices list
+            {`openclaw devices list
 openclaw devices approve <request-id>`}
           </pre>
           <p className="text-[11px] text-muted-foreground leading-relaxed">

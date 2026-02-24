@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 interface ChatHistoryLoaderProps {
@@ -13,7 +12,7 @@ interface ChatHistoryLoaderProps {
  * Appears at the top of the chat history when scrolled up
  */
 export function ChatHistoryLoader({
-  agentId,
+  agentId: _agentId,
   loading,
   onLoadMore,
   disabled = false,

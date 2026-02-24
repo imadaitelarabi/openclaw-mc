@@ -1,16 +1,8 @@
-import { useReducer, useRef, useCallback, useEffect, useMemo } from "react";
+import { useReducer, useRef, useCallback, useEffect } from "react";
 import type { ChatMessage } from "@/types";
 import { extractAgentId, getStreamKey, getToolId } from "@/lib/gateway-utils";
 import { uiStateStore } from "@/lib/ui-state-db";
-import {
-  isToolResultMessage,
-  isAssistantMessage,
-  isUserMessage,
-  isReasoningMessage,
-  isToolMessage,
-  hasContentParts,
-  isValidGatewayMessage,
-} from "@/lib/gateway-type-guards";
+import { isToolResultMessage, isValidGatewayMessage } from "@/lib/gateway-type-guards";
 
 function normalizeTextContent(value: unknown): string {
   if (typeof value === "string") return value;
@@ -1281,7 +1273,7 @@ export function useAgentEvents() {
           ? getToolId(runId, toolName, seq)
           : `${runId}-${toolName}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-        const resolveToolId = (currentHistory: ChatMessage[]) => {
+        const _resolveToolId = (currentHistory: ChatMessage[]) => {
           if (toolCallMapKey) {
             const mappedId = toolCallToMessageIdRef.current[toolCallMapKey];
             if (mappedId && currentHistory.some((m) => m.id === mappedId && m.role === "tool")) {
