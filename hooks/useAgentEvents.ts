@@ -1,6 +1,7 @@
 import { useReducer, useRef, useCallback, useEffect } from "react";
 import type { ChatMessage } from "@/types";
 import { extractAgentId, getStreamKey, getToolId } from "@/lib/gateway-utils";
+import { uiStateStore } from "@/lib/ui-state-db";
 import { isToolResultMessage, isValidGatewayMessage } from "@/lib/gateway-type-guards";
 
 function normalizeTextContent(value: unknown): string {
@@ -1027,6 +1028,7 @@ export function useAgentEvents() {
   const pendingToolIdsRef = useRef<Record<string, string[]>>({});
   const toolCallToMessageIdRef = useRef<Record<string, string>>({});
   const activeToolsRef = useRef<Record<string, ChatMessage>>({});
+  const persistedActiveRunAgentsRef = useRef(new Set<string>());
 
   // Keep a ref of activeRuns to avoid callback dependencies
   const activeRunsRef = useRef<Record<string, string>>({});
@@ -1504,6 +1506,60 @@ export function useAgentEvents() {
     },
     []
   );
+
+  // Restore in-progress run state on mount so run indicators survive refresh
+  useEffect(() => {
+    let mounted = true;
+
+    const restoreActiveRuns = async () => {
+      const persistedStates = await uiStateStore.getAllStreamStates();
+      if (!mounted || persistedStates.length === 0) return;
+
+      const activeRuns: Record<string, string> = {};
+      persistedStates.forEach(({ agentId, runId }) => {
+        activeRuns[agentId] = runId;
+      });
+
+      dispatch({
+        type: "RESTORE_STREAM_STATE",
+        activeRuns,
+        chatStreams: {},
+        reasoningStreams: {},
+      });
+
+      persistedActiveRunAgentsRef.current = new Set(persistedStates.map(({ agentId }) => agentId));
+    };
+
+    void restoreActiveRuns();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Persist active run IDs for refresh recovery
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const activeEntries = Object.entries(state.activeRuns);
+      const nextPersistedAgents = new Set(activeEntries.map(([agentId]) => agentId));
+
+      if (activeEntries.length > 0) {
+        void Promise.all(
+          activeEntries.map(([agentId, runId]) => uiStateStore.saveStreamState(agentId, runId, "", ""))
+        );
+      }
+
+      persistedActiveRunAgentsRef.current.forEach((agentId) => {
+        if (!nextPersistedAgents.has(agentId)) {
+          void uiStateStore.clearStreamState(agentId);
+        }
+      });
+
+      persistedActiveRunAgentsRef.current = nextPersistedAgents;
+    }, 200);
+
+    return () => clearTimeout(timeoutId);
+  }, [state.activeRuns]);
 
   // Cleanup effect to prevent memory leaks
   useEffect(() => {
