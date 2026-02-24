@@ -86,7 +86,7 @@ export function useExtensionStatusBar() {
   try {
     const context = useExtensions();
     enabledExtensions = context.enabledExtensions;
-  } catch (error) {
+  } catch {
     // Context not available (SSR or provider not set up)
     // Return empty state gracefully
   }

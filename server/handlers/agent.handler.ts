@@ -3,7 +3,6 @@
  * Handles agent creation, update, and deletion operations
  */
 
-import { v4 as uuidv4 } from "uuid";
 import type { ExtendedWebSocket } from "../types/internal";
 import type { GatewayClient } from "../core/GatewayClient";
 import { dirnameLike, joinPathLike } from "../utils/paths";

@@ -16,7 +16,6 @@ import type { Agent, Note, SkillStatusEntry } from "@/types";
 // Constants
 const HISTORY_PAGE_SIZE = 50;
 const DRAFT_SAVE_DEBOUNCE_MS = 500;
-const SCROLL_RESTORE_DELAY_MS = 100;
 
 interface ChatPanelProps {
   agentId: string;
@@ -63,7 +62,7 @@ export const ChatPanel = memo(function ChatPanel({
   assistantStream,
   reasoningStream,
   addUserMessage,
-  sessionSettings,
+  sessionSettings: _sessionSettings,
   onAbortRun,
   notes = [],
   noteGroups = [],
@@ -75,7 +74,7 @@ export const ChatPanel = memo(function ChatPanel({
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [showHistoryLoader, setShowHistoryLoader] = useState(true); // Show by default if there's history
+  const [showHistoryLoader, _setShowHistoryLoader] = useState(true); // Show by default if there's history
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);

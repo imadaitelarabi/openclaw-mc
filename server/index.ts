@@ -10,7 +10,6 @@ import { parse } from "url";
 import * as path from "path";
 import fs from "fs";
 import next from "next";
-import { ConfigManager } from "./core/ConfigManager";
 import { GatewayClient } from "./core/GatewayClient";
 import { WebSocketServer } from "./core/WebSocketServer";
 import { NotesManager } from "./core/NotesManager";

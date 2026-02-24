@@ -1,16 +1,6 @@
 "use client";
 
-import {
-  ChevronRight,
-  Settings2,
-  Shield,
-  Info,
-  Gauge,
-  Wifi,
-  Globe,
-  Trash2,
-  Plus,
-} from "lucide-react";
+import { ChevronRight, Settings2, Shield, Gauge, Wifi, Globe, Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Agent, ConnectionStatus } from "@/types";
 import { ModelSelector, ThinkingToggle, VerboseToggle, ReasoningToggle } from "../statusbar";
@@ -57,7 +47,7 @@ export function MobileControlPanel({
   onThinkingChange,
   onShowToolsChange,
   onShowReasoningChange,
-  connectionStatus,
+  connectionStatus: _connectionStatus,
   gateways,
   activeGatewayId,
   onSwitchGateway,

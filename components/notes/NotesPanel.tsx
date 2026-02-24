@@ -151,7 +151,7 @@ export function NotesPanel({
         title: "Copied to clipboard",
         description: content.length > 50 ? content.substring(0, 50) + "..." : content,
       });
-    } catch (err) {
+    } catch {
       toast({
         title: "Failed to copy",
         description: "Could not copy to clipboard",
@@ -185,7 +185,7 @@ export function NotesPanel({
         title: "Image copied to clipboard",
         description: "You can now paste the note image.",
       });
-    } catch (err) {
+    } catch {
       toast({
         title: "Failed to copy image",
         description: "Could not copy note image to clipboard",

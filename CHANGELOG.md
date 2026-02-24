@@ -1,18 +1,23 @@
 # Changelog
 
 ## [0.5.0] - 2026-02-24
+
 ### Meta
+
 - Bump: minor (score: 71)
 - Range: [629894d](https://github.com/imadaitelarabi/openclaw-mc.git/commit/629894d4a7e5892ace043056bc7f32096f1626ec)..[dbd2e24](https://github.com/imadaitelarabi/openclaw-mc.git/commit/dbd2e2430fe114d985a147cdf1b0a2b79d454cd8)
 
 ### Docs
+
 - linkify PR and commit references in CHANGELOG.md for 0.4.0 and 0.3.0 ([f63e559](https://github.com/imadaitelarabi/openclaw-mc.git/commit/f63e5592626fbbb23a5c7bf4f4459a0d3bc2f55b))
 - update CHANGELOG.md for 0.4.0 with formatting improvements and additional sections ([19bb2b2](https://github.com/imadaitelarabi/openclaw-mc.git/commit/19bb2b283bc15d0c8170d4a3d0d012a8ac048259))
 
 ### Chores
+
 - daily changelog 2026-02-23 ([1cccbad](https://github.com/imadaitelarabi/openclaw-mc.git/commit/1cccbadef92f5d8fcf0b685ed912977ab1d0142a))
 
 ### Other
+
 - Initial plan ([198c130](https://github.com/imadaitelarabi/openclaw-mc.git/commit/198c13041149349a9ace651fc19c1af965ecf4bc))
 - GitHub panels: add replacePanel, Back button, and panel-replace navigation ([594c7ba](https://github.com/imadaitelarabi/openclaw-mc.git/commit/594c7ba101132f0ee165b81e0f3626de113168b1))
 - Initial plan ([596f45a](https://github.com/imadaitelarabi/openclaw-mc.git/commit/596f45a3f4fd24263e29d3c6c211b16476b91dd3))
@@ -33,8 +38,6 @@
 - Enhance service worker fetch handling for caching and navigation requests ([10b810d](https://github.com/imadaitelarabi/openclaw-mc.git/commit/10b810dbbd62b109ce5080bd5f335de2be1717b4))
 - Add PairingRequired component and update connection status handling ([3e00e39](https://github.com/imadaitelarabi/openclaw-mc.git/commit/3e00e397ae80ba2f7b5b9f7c4b611266995b029a))
 - Refactor PairingRequired component: remove unused import and add gateway commands section ([dbd2e24](https://github.com/imadaitelarabi/openclaw-mc.git/commit/dbd2e2430fe114d985a147cdf1b0a2b79d454cd8))
-
-
 
 ## [0.4.0] - 2026-02-23
 
