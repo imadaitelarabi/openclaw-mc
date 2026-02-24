@@ -1,7 +1,6 @@
 import { useReducer, useRef, useCallback, useEffect } from "react";
 import type { ChatMessage } from "@/types";
 import { extractAgentId, getStreamKey, getToolId } from "@/lib/gateway-utils";
-import { uiStateStore } from "@/lib/ui-state-db";
 import { isToolResultMessage, isValidGatewayMessage } from "@/lib/gateway-type-guards";
 
 function normalizeTextContent(value: unknown): string {
@@ -1024,11 +1023,9 @@ export function useAgentEvents() {
     completedRuns: {},
   });
 
-  // Refs to store latest accumulated text (synchronous, no state timing issues)
-  const latestTextRef = useRef<Record<string, string>>({});
+  // Refs for tool tracking
   const pendingToolIdsRef = useRef<Record<string, string[]>>({});
   const toolCallToMessageIdRef = useRef<Record<string, string>>({});
-  const persistedStreamAgentsRef = useRef(new Set<string>());
   const activeToolsRef = useRef<Record<string, ChatMessage>>({});
 
   // Keep a ref of activeRuns to avoid callback dependencies
@@ -1187,8 +1184,6 @@ export function useAgentEvents() {
 
         // Clean up refs if we have a runId
         if (runId) {
-          const streamKey = getStreamKey(agentId, runId);
-          delete latestTextRef.current[streamKey];
           clearPendingToolQueuesForRun(runId);
         }
         return;
@@ -1254,8 +1249,6 @@ export function useAgentEvents() {
         const entries = Array.from(seenEventsRef.current);
         seenEventsRef.current = new Set(entries.slice(-500));
       }
-
-      const streamKey = getStreamKey(agentId, runId);
 
       console.log("[OpenClaw MC] Agent event:", { stream, agentId, runId, seq, data });
 
@@ -1439,58 +1432,6 @@ export function useAgentEvents() {
         }
       }
 
-      // Handle reasoning stream
-      if (stream === "reasoning") {
-        if (data?.delta) {
-          dispatch({
-            type: "UPDATE_REASONING_DELTA",
-            streamKey,
-            delta: normalizeTextContent(data.delta),
-          });
-        } else if (data?.text) {
-          // Batch the message add and stream clear
-          dispatch({
-            type: "BATCH_UPDATE",
-            updates: [
-              {
-                type: "ADD_CHAT_MESSAGE",
-                agentId,
-                message: {
-                  id: `${runId}-reasoning`,
-                  role: "reasoning" as const,
-                  content: normalizeTextContent(data.text),
-                  timestamp: Date.now(),
-                  runId,
-                },
-              },
-              {
-                type: "CLEAR_REASONING_STREAM",
-                streamKey,
-              },
-            ],
-          });
-        }
-      }
-
-      // Handle assistant stream
-      if (stream === "assistant") {
-        if (data?.text !== undefined) {
-          latestTextRef.current[streamKey] = normalizeTextContent(data.text);
-        }
-
-        if (data?.delta !== undefined) {
-          const normalizedDelta = normalizeTextContent(data.delta);
-          dispatch({
-            type: "UPDATE_STREAM_DELTA",
-            streamKey,
-            delta: normalizedDelta,
-          });
-          // Also update latestTextRef with the accumulated text
-          latestTextRef.current[streamKey] =
-            (latestTextRef.current[streamKey] || "") + normalizedDelta;
-        }
-      }
-
       // Handle lifecycle events
       if (stream === "lifecycle") {
         console.log("[OpenClaw MC] Lifecycle event:", data?.phase, "runId:", runId);
@@ -1504,29 +1445,10 @@ export function useAgentEvents() {
         }
 
         if (data?.phase === "end" || data?.phase === "error") {
-          const accumulatedText = latestTextRef.current[streamKey] || "";
-          console.log("[OpenClaw MC] Finalizing:", {
-            streamKey,
-            textLength: accumulatedText.length,
-            preview: accumulatedText.substring(0, 50),
-          });
-
           const updates: AgentEventsAction[] = [];
-
-          // Use FINALIZE_ASSISTANT_MESSAGE action which checks for duplicates in the reducer
-          if (accumulatedText) {
-            console.log("[OpenClaw MC] Adding finalized message to history");
-            updates.push({
-              type: "FINALIZE_ASSISTANT_MESSAGE",
-              agentId,
-              runId,
-              content: accumulatedText,
-            });
-          }
 
           // Handle pending tools gracefully when run ends/errors
           if (data?.phase === "error") {
-            // Use MARK_TOOLS_INTERRUPTED action to avoid reading stale state
             updates.push({
               type: "MARK_TOOLS_INTERRUPTED",
               agentId,
@@ -1535,38 +1457,26 @@ export function useAgentEvents() {
 
             clearPendingToolQueuesForRun(runId);
 
-            // Add error message if no accumulated text using ADD_ERROR_MESSAGE action
-            if (!accumulatedText) {
-              const errorMsg = data?.error || "An error occurred";
-              updates.push({
-                type: "ADD_ERROR_MESSAGE",
-                agentId,
-                runId,
-                errorMsg,
-              });
-            }
+            const errorMsg = data?.error || "An error occurred";
+            updates.push({
+              type: "ADD_ERROR_MESSAGE",
+              agentId,
+              runId,
+              errorMsg,
+            });
           }
 
           if (data?.phase === "end") {
             clearPendingToolQueuesForRun(runId);
           }
 
-          // Clear streams and active run
-          updates.push(
-            { type: "CLEAR_STREAM", streamKey },
-            { type: "CLEAR_REASONING_STREAM", streamKey },
-            { type: "CLEAR_ACTIVE_RUN", agentId, runId }
-          );
+          // Clear active run
+          updates.push({ type: "CLEAR_ACTIVE_RUN", agentId, runId });
 
-          delete latestTextRef.current[streamKey];
-
-          // Batch all updates
-          if (updates.length > 0) {
-            dispatch({
-              type: "BATCH_UPDATE",
-              updates,
-            });
-          }
+          dispatch({
+            type: "BATCH_UPDATE",
+            updates,
+          });
         }
       }
     },
@@ -1595,77 +1505,6 @@ export function useAgentEvents() {
     []
   );
 
-  // Restore in-progress stream state on mount so typing survives refresh
-  useEffect(() => {
-    let mounted = true;
-
-    const restoreStreamState = async () => {
-      const persistedStates = await uiStateStore.getAllStreamStates();
-      if (!mounted || persistedStates.length === 0) return;
-
-      const activeRuns: Record<string, string> = {};
-      const chatStreams: Record<string, string> = {};
-      const reasoningStreams: Record<string, string> = {};
-
-      persistedStates.forEach(({ agentId, runId, assistantStream, reasoningStream }) => {
-        activeRuns[agentId] = runId;
-
-        const streamKey = getStreamKey(agentId, runId);
-        if (assistantStream) {
-          chatStreams[streamKey] = assistantStream;
-        }
-        if (reasoningStream) {
-          reasoningStreams[streamKey] = reasoningStream;
-        }
-      });
-
-      dispatch({
-        type: "RESTORE_STREAM_STATE",
-        activeRuns,
-        chatStreams,
-        reasoningStreams,
-      });
-
-      persistedStreamAgentsRef.current = new Set(persistedStates.map(({ agentId }) => agentId));
-    };
-
-    void restoreStreamState();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // Persist active stream state for refresh recovery
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      const activeEntries = Object.entries(state.activeRuns);
-      const nextPersistedAgents = new Set(activeEntries.map(([agentId]) => agentId));
-
-      if (activeEntries.length > 0) {
-        void Promise.all(
-          activeEntries.map(([agentId, runId]) => {
-            const streamKey = getStreamKey(agentId, runId);
-            const assistantStream = state.chatStreams[streamKey] || "";
-            const reasoningStream = state.reasoningStreams[streamKey] || "";
-
-            return uiStateStore.saveStreamState(agentId, runId, assistantStream, reasoningStream);
-          })
-        );
-      }
-
-      persistedStreamAgentsRef.current.forEach((agentId) => {
-        if (!nextPersistedAgents.has(agentId)) {
-          void uiStateStore.clearStreamState(agentId);
-        }
-      });
-
-      persistedStreamAgentsRef.current = nextPersistedAgents;
-    }, 200);
-
-    return () => clearTimeout(timeoutId);
-  }, [state.activeRuns, state.chatStreams, state.reasoningStreams]);
-
   // Cleanup effect to prevent memory leaks
   useEffect(() => {
     return () => {
@@ -1691,8 +1530,6 @@ export function useAgentEvents() {
 
   return {
     chatHistory: state.chatHistory,
-    chatStreams: state.chatStreams,
-    reasoningStreams: state.reasoningStreams,
     activeRuns: state.activeRuns,
     completedRuns: state.completedRuns,
     handleAgentEvent,

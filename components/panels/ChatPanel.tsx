@@ -4,7 +4,6 @@ import { memo, useState, useRef, useEffect, useMemo } from "react";
 import {
   ChatMessageItem,
   ChatInput,
-  StreamingIndicator,
   ScrollToBottomButton,
   ChatHistoryLoader,
 } from "@/components/chat";
@@ -24,8 +23,6 @@ interface ChatPanelProps {
   connectionStatus: string;
   chatHistory: any[];
   activeRunId: string | null;
-  assistantStream?: string;
-  reasoningStream?: string;
   addUserMessage: (
     agentId: string,
     message: string,
@@ -45,9 +42,6 @@ interface ChatPanelProps {
   showTools?: boolean;
   showReasoning?: boolean;
 
-  // Panel state
-  isActive?: boolean;
-
   // WebSocket ref for token usage
   wsRef?: React.RefObject<WebSocket | null>;
 }
@@ -59,8 +53,6 @@ export const ChatPanel = memo(function ChatPanel({
   connectionStatus,
   chatHistory,
   activeRunId,
-  assistantStream,
-  reasoningStream,
   addUserMessage,
   sessionSettings: _sessionSettings,
   onAbortRun,
@@ -69,7 +61,6 @@ export const ChatPanel = memo(function ChatPanel({
   skills = [],
   showTools = false,
   showReasoning = true,
-  isActive = true,
   wsRef,
 }: ChatPanelProps) {
   const [chatInput, setChatInput] = useState("");
@@ -78,31 +69,19 @@ export const ChatPanel = memo(function ChatPanel({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
-  const previousChatLengthRef = useRef(0);
 
   // Chat history hook for loading older messages
   const { loading: historyLoading, loadMoreHistory } = useChatHistory({ sendMessage });
 
-  // Polling hook for real-time reasoning and enriched tool calls with adaptive intervals
-  const { trackActivity } = useChatPolling({
+  // Polling hook for real-time chat history during active runs
+  useChatPolling({
     agentId,
     activeRunId,
     sendMessage,
-    isActivePanel: isActive,
   });
 
   // Token usage hook for context window indicator
   const tokenUsage = useSessionUsage({ wsRef, agentId, activeRunId, connectionStatus });
-
-  // Track activity when chat history length increases (new messages arrive)
-  useEffect(() => {
-    const currentLength = chatHistory.length;
-    // Only track activity if length increases and it's not the initial population
-    if (currentLength > previousChatLengthRef.current && previousChatLengthRef.current > 0) {
-      trackActivity();
-    }
-    previousChatLengthRef.current = currentLength;
-  }, [chatHistory.length, trackActivity]);
 
   // Debounced scroll position save function
   const debouncedSaveScroll = useMemo(
@@ -236,7 +215,7 @@ export const ChatPanel = memo(function ChatPanel({
     if (shouldAutoScrollRef.current && chatEndRef.current && scrollContainerRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: "auto" });
     }
-  }, [chatHistory, assistantStream, agentId]);
+  }, [chatHistory, agentId]);
 
   const scrollToBottom = () => {
     if (chatEndRef.current) {
@@ -279,11 +258,15 @@ export const ChatPanel = memo(function ChatPanel({
             <ChatMessageItem key={msg.id} message={msg} showTools={showTools} />
           ))}
 
-          <StreamingIndicator
-            assistantStream={assistantStream}
-            reasoningStream={showReasoning ? reasoningStream : undefined}
-            isTyping={Boolean(activeRunId)}
-          />
+          {activeRunId && (
+            <div className="flex flex-col items-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="max-w-[85%] rounded-lg p-4 bg-secondary/40 backdrop-blur border border-secondary flex gap-1 items-center h-[44px]">
+                <div className="w-1.5 h-1.5 bg-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                <div className="w-1.5 h-1.5 bg-foreground/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <div className="w-1.5 h-1.5 bg-foreground/40 rounded-full animate-bounce" />
+              </div>
+            </div>
+          )}
 
           <div ref={chatEndRef} />
         </div>

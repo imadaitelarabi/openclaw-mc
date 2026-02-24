@@ -22,7 +22,6 @@ import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { PanelContainer } from "@/components/panels";
 import { ConfirmationModal } from "@/components/modals";
 import { uiStateStore } from "@/lib/ui-state-db";
-import { getStreamKey } from "@/lib/gateway-utils";
 import type { AgentRunStatus } from "@/components/panels/PanelHeader";
 
 export const dynamic = "force-dynamic";
@@ -85,8 +84,6 @@ function MissionControlInner() {
   // Custom hooks for WebSocket and event handling
   const {
     chatHistory,
-    chatStreams,
-    reasoningStreams,
     activeRuns,
     completedRuns,
     handleAgentEvent,
@@ -193,16 +190,8 @@ function MissionControlInner() {
   const agentStatuses = useMemo<Record<string, AgentRunStatus>>(() => {
     const statuses: Record<string, AgentRunStatus> = {};
     for (const agent of agents) {
-      const runId = activeRuns[agent.id];
-      if (runId) {
-        const streamKey = getStreamKey(agent.id, runId);
-        if (reasoningStreams[streamKey]) {
-          statuses[agent.id] = "thinking";
-        } else if (chatStreams[streamKey]) {
-          statuses[agent.id] = "text";
-        } else {
-          statuses[agent.id] = "tool";
-        }
+      if (activeRuns[agent.id]) {
+        statuses[agent.id] = "tool";
       } else if (completedRuns[agent.id]) {
         statuses[agent.id] = "completed";
       } else {
@@ -210,7 +199,7 @@ function MissionControlInner() {
       }
     }
     return statuses;
-  }, [agents, activeRuns, chatStreams, reasoningStreams, completedRuns]);
+  }, [agents, activeRuns, completedRuns]);
 
   const handleAbortRun = useCallback(
     (agentId: string) => {
@@ -1159,8 +1148,6 @@ function MissionControlInner() {
             sendMessage={sendMessage}
             connectionStatus={connectionStatus}
             chatHistory={chatHistory}
-            chatStreams={chatStreams}
-            reasoningStreams={reasoningStreams}
             activeRuns={activeRuns}
             agentStatuses={agentStatuses}
             onClearCompletedRun={clearCompletedRun}
