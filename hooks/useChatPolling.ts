@@ -62,9 +62,7 @@ export function useChatPolling({
   // Sync the ref and notify the scheduler whenever sendMessage changes.
   useEffect(() => {
     sendMessageRef.current = sendMessage;
-    globalChatPollingScheduler.updateSendMessage(agentId, (msg) =>
-      sendMessageRef.current(msg)
-    );
+    globalChatPollingScheduler.updateSendMessage(agentId, (msg) => sendMessageRef.current(msg));
   }, [agentId, sendMessage]);
 
   // Propagate visibility changes to the scheduler (affects polling priority).
@@ -80,11 +78,7 @@ export function useChatPolling({
     }
 
     // Wrap through ref so the scheduler always invokes the latest function.
-    globalChatPollingScheduler.register(
-      agentId,
-      (msg) => sendMessageRef.current(msg),
-      isVisible
-    );
+    globalChatPollingScheduler.register(agentId, (msg) => sendMessageRef.current(msg), isVisible);
 
     return () => {
       globalChatPollingScheduler.unregister(agentId);

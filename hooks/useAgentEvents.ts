@@ -1545,7 +1545,9 @@ export function useAgentEvents() {
 
       if (activeEntries.length > 0) {
         void Promise.all(
-          activeEntries.map(([agentId, runId]) => uiStateStore.saveStreamState(agentId, runId, "", ""))
+          activeEntries.map(([agentId, runId]) =>
+            uiStateStore.saveStreamState(agentId, runId, "", "")
+          )
         );
       }
 
