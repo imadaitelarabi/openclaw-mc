@@ -368,7 +368,16 @@ export class GatewayClient {
   }
 
   private async handleGatewayEvent(msg: GatewayEvent): Promise<void> {
-    // 2. Broadcast ALL events to connected clients (Thin Proxy approach)
+    // Poll-only chat mode: suppress live text/reasoning agent streams.
+    // Chat UI state is sourced exclusively from chat.history polling.
+    if (msg.event === "agent") {
+      const payload = (msg.payload || {}) as { stream?: string };
+      if (payload.stream === "assistant" || payload.stream === "reasoning") {
+        return;
+      }
+    }
+
+    // Forward remaining events to connected clients
     this.broadcast({
       type: "event",
       event: msg.event,
