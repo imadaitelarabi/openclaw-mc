@@ -114,19 +114,34 @@ export class GitHubAPI {
   /**
    * Make authenticated request to GitHub API
    */
-  private async request<T>(endpoint: string): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    options?: {
+      method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+      body?: unknown;
+    }
+  ): Promise<T> {
     const { token } = this.config;
 
     if (!token) {
       throw new Error("GitHub token not configured");
     }
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
+    const method = options?.method ?? "GET";
+    const fetchOptions: RequestInit = {
+      method,
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github.v3+json",
+        ...(options?.body !== undefined ? { "Content-Type": "application/json" } : {}),
       },
-    });
+    };
+
+    if (options?.body !== undefined) {
+      fetchOptions.body = JSON.stringify(options.body);
+    }
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, fetchOptions);
 
     if (!response.ok) {
       let details = response.statusText || "Unknown error";
@@ -146,6 +161,11 @@ export class GitHubAPI {
       }
 
       throw new Error(`GitHub API ${response.status} on ${endpoint}: ${details}`);
+    }
+
+    // DELETE responses often have no body; 204 No Content has no body
+    if (method === "DELETE" || response.status === 204) {
+      return undefined as unknown as T;
     }
 
     return response.json();
@@ -323,6 +343,103 @@ export class GitHubAPI {
       `/repos/${owner}/${repo}/pulls/${number}/comments?per_page=100`
     );
   }
+
+  // ── Write actions ────────────────────────────────────────────────────────
+
+  /**
+   * Merge a pull request.
+   */
+  async mergePR(
+    owner: string,
+    repo: string,
+    number: number,
+    options?: {
+      commit_title?: string;
+      commit_message?: string;
+      merge_method?: "merge" | "squash" | "rebase";
+    }
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/pulls/${number}/merge`, {
+      method: "PUT",
+      body: options ?? {},
+    });
+  }
+
+  /**
+   * Close a pull request.
+   */
+  async closePR(owner: string, repo: string, number: number): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/pulls/${number}`, {
+      method: "PATCH",
+      body: { state: "closed" },
+    });
+  }
+
+  /**
+   * Delete a branch (typically called after merge).
+   */
+  async deleteBranch(owner: string, repo: string, branch: string): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
+      method: "DELETE",
+    });
+  }
+
+  /**
+   * Close an issue.
+   */
+  async closeIssue(owner: string, repo: string, number: number): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/issues/${number}`, {
+      method: "PATCH",
+      body: { state: "closed" },
+    });
+  }
+
+  /**
+   * Add a comment to an issue or pull request.
+   */
+  async addComment(
+    owner: string,
+    repo: string,
+    number: number,
+    body: string
+  ): Promise<GitHubComment> {
+    return this.request<GitHubComment>(`/repos/${owner}/${repo}/issues/${number}/comments`, {
+      method: "POST",
+      body: { body },
+    });
+  }
+
+  /**
+   * Add assignees to an issue or pull request.
+   */
+  async addAssignees(
+    owner: string,
+    repo: string,
+    number: number,
+    assignees: string[]
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/issues/${number}/assignees`, {
+      method: "POST",
+      body: { assignees },
+    });
+  }
+
+  /**
+   * Remove assignees from an issue or pull request.
+   */
+  async removeAssignees(
+    owner: string,
+    repo: string,
+    number: number,
+    assignees: string[]
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/issues/${number}/assignees`, {
+      method: "DELETE",
+      body: { assignees },
+    });
+  }
+
+  // ── Configuration ────────────────────────────────────────────────────────
 
   /**
    * Update configuration

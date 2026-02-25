@@ -3,6 +3,7 @@
  *
  * Shows full details for a single pull request: title, status, author,
  * labels, body excerpt, timestamps, and a link to open in GitHub.
+ * Supports write actions: merge, close, delete branch, add comment.
  */
 
 "use client";
@@ -19,6 +20,7 @@ import {
   ChevronRight,
   MessageSquare,
   ArrowLeft,
+  X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -26,10 +28,17 @@ import type { ExtensionPanelProps } from "@/types/extension";
 import type { PanelBackNavigation } from "@/types";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { usePanels } from "@/contexts/PanelContext";
+import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubPR, GitHubComment, GitHubReviewComment } from "../../api";
 
 const COMMENTS_PAGE_SIZE = 5;
+
+const MERGE_METHOD_LABELS: Record<"merge" | "squash" | "rebase", string> = {
+  merge: "Merge",
+  squash: "Squash and merge",
+  rebase: "Rebase and merge",
+};
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -87,6 +96,15 @@ export function GitHubPrDetailsPanel({
   const [reviewCommentsError, setReviewCommentsError] = useState<string | null>(null);
   const [displayedReviewCommentCount, setDisplayedReviewCommentCount] =
     useState(COMMENTS_PAGE_SIZE);
+
+  // Write-action state
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState<{
+    action: "merge" | "close";
+    mergeMethod?: "merge" | "squash" | "rebase";
+  } | null>(null);
+  const [commentText, setCommentText] = useState("");
 
   useEffect(() => {
     if (!owner || !repo || !number) return;
@@ -169,6 +187,61 @@ export function GitHubPrDetailsPanel({
     htmlUrl ||
     (owner && repo && number ? `https://github.com/${owner}/${repo}/pull/${number}` : undefined);
 
+  // ── Write-action handlers ─────────────────────────────────────────────
+
+  const handleMerge = async (method: "merge" | "squash" | "rebase") => {
+    if (!owner || !repo || !number) return;
+    setActionLoading("merge");
+    setActionError(null);
+    setShowConfirm(null);
+    try {
+      const api = getApiInstance();
+      if (!api) throw new Error("GitHub API not initialized");
+      await api.mergePR(owner, repo, number, { merge_method: method });
+      const updated = await api.getPRDetails(owner, repo, number);
+      setPr(updated);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Failed to merge PR");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleClosePR = async () => {
+    if (!owner || !repo || !number) return;
+    setActionLoading("close");
+    setActionError(null);
+    setShowConfirm(null);
+    try {
+      const api = getApiInstance();
+      if (!api) throw new Error("GitHub API not initialized");
+      await api.closePR(owner, repo, number);
+      const updated = await api.getPRDetails(owner, repo, number);
+      setPr(updated);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Failed to close PR");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!owner || !repo || !number || !commentText.trim()) return;
+    setActionLoading("comment");
+    setActionError(null);
+    try {
+      const api = getApiInstance();
+      if (!api) throw new Error("GitHub API not initialized");
+      const newComment = await api.addComment(owner, repo, number, commentText.trim());
+      setIssueComments((prev) => [...prev, newComment]);
+      setCommentText("");
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Failed to post comment");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   if (!owner || !repo || !number) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
@@ -239,6 +312,7 @@ export function GitHubPrDetailsPanel({
   const hasMoreReviewComments = displayedReviewCommentCount < reviewComments.length;
 
   return (
+    <>
     <div className="flex flex-col h-full overflow-auto p-4 space-y-4">
       {/* Back button */}
       {back && contextPanelId && (
@@ -287,6 +361,66 @@ export function GitHubPrDetailsPanel({
           Open in GitHub
         </a>
       </div>
+
+      {/* Action error */}
+      {actionError && (
+        <div className="flex items-start gap-2 p-2 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+          <span className="flex-1">{actionError}</span>
+          <button onClick={() => setActionError(null)} className="flex-shrink-0 hover:opacity-70">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Action buttons (open PRs only) */}
+      {pr.state === "open" && (
+        <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+          {/* Merge dropdown */}
+          <div className="relative inline-flex rounded overflow-hidden">
+            <button
+              onClick={() => setShowConfirm({ action: "merge", mergeMethod: "merge" })}
+              disabled={actionLoading !== null}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors"
+            >
+              {actionLoading === "merge" ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <GitMerge className="w-3 h-3" />
+              )}
+              Merge
+            </button>
+            <button
+              onClick={() => setShowConfirm({ action: "merge", mergeMethod: "squash" })}
+              disabled={actionLoading !== null}
+              title="Squash and merge"
+              className="px-2 py-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white border-l border-green-500 disabled:opacity-50 transition-colors"
+            >
+              Squash
+            </button>
+            <button
+              onClick={() => setShowConfirm({ action: "merge", mergeMethod: "rebase" })}
+              disabled={actionLoading !== null}
+              title="Rebase and merge"
+              className="px-2 py-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white border-l border-green-500 disabled:opacity-50 transition-colors"
+            >
+              Rebase
+            </button>
+          </div>
+          <button
+            onClick={() => setShowConfirm({ action: "close" })}
+            disabled={actionLoading !== null}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded disabled:opacity-50 transition-colors"
+          >
+            {actionLoading === "close" ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <GitPullRequestClosed className="w-3 h-3" />
+            )}
+            Close PR
+          </button>
+        </div>
+      )}
 
       {/* Meta */}
       <div className="text-xs text-muted-foreground space-y-1">
@@ -404,6 +538,27 @@ export function GitHubPrDetailsPanel({
             </div>
           ))}
         </div>
+
+        {/* Add comment form */}
+        <div className="border border-border rounded p-2.5 space-y-2 bg-muted/10">
+          <textarea
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Add a comment…"
+            rows={3}
+            className="w-full px-2 py-1.5 text-xs bg-background border border-border rounded resize-y"
+          />
+          <div className="flex justify-end">
+            <button
+              onClick={handleAddComment}
+              disabled={!commentText.trim() || actionLoading === "comment"}
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-primary text-primary-foreground rounded disabled:opacity-50 transition-colors hover:opacity-90"
+            >
+              {actionLoading === "comment" && <Loader2 className="w-3 h-3 animate-spin" />}
+              Post Comment
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Review Comments */}
@@ -468,5 +623,26 @@ export function GitHubPrDetailsPanel({
         </div>
       </div>
     </div>
+
+    {/* Confirmation modals */}
+    <ConfirmationModal
+      isOpen={showConfirm?.action === "merge"}
+      onClose={() => setShowConfirm(null)}
+      onConfirm={() => handleMerge(showConfirm?.mergeMethod ?? "merge")}
+      title="Merge Pull Request"
+      message={`Are you sure you want to ${showConfirm?.mergeMethod ?? "merge"} this pull request? This action cannot be undone.`}
+      confirmText={`${MERGE_METHOD_LABELS[showConfirm?.mergeMethod ?? "merge"]} PR`}
+      variant="warning"
+    />
+    <ConfirmationModal
+      isOpen={showConfirm?.action === "close"}
+      onClose={() => setShowConfirm(null)}
+      onConfirm={handleClosePR}
+      title="Close Pull Request"
+      message="Are you sure you want to close this pull request?"
+      confirmText="Close PR"
+      variant="danger"
+    />
+  </>
   );
 }

@@ -22,6 +22,19 @@ GitHub integration for OpenClaw MC - quick access to pull requests and issues.
 - **Copy**: Copy PR/issue URL to clipboard
 - **Open**: Open PR/issue in browser
 
+### Write Actions
+
+- **Pull Requests**:
+  - Merge PR (choose merge, squash, or rebase strategy)
+  - Close PR
+  - Add comments
+
+- **Issues**:
+  - Close issue
+  - Assign to user (including Copilot)
+  - Remove assignees
+  - Add comments
+
 ## Setup
 
 1. **Enable the extension** in OpenClaw MC
@@ -103,7 +116,10 @@ Encrypted in localStorage:
 
 ## Permissions
 
-- `github:read` - Read-only access to GitHub API
+- `github:read` - Read access to GitHub API
+- `github:write` - Write access for merge, close, comment, and assign operations
+
+> **Note**: The existing `repo` token scope already includes write permissions. No changes to your token are needed.
 
 ## API Rate Limits
 
@@ -117,9 +133,8 @@ The extension caches results and debounces requests to stay within limits.
 ## Security
 
 - Token is encrypted using Web Crypto API
-- All API calls are read-only
-- No write permissions required
 - Token never leaves your browser
+- Write operations require the existing `repo` scope (no additional permissions needed)
 
 ## Troubleshooting
 
