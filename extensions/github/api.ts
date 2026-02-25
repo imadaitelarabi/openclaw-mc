@@ -106,9 +106,19 @@ export interface GitHubRepository {
 export class GitHubAPI {
   private config: GitHubConfig;
   private baseURL = "https://api.github.com";
+  private detailsCacheVersion = 0;
 
   constructor(config: GitHubConfig) {
     this.config = config;
+  }
+
+  private withDetailsCacheVersion(endpoint: string): string {
+    const separator = endpoint.includes("?") ? "&" : "?";
+    return `${endpoint}${separator}_ocmc_details_v=${this.detailsCacheVersion}`;
+  }
+
+  private invalidateDetailsCache(): void {
+    this.detailsCacheVersion += 1;
   }
 
   /**
@@ -312,14 +322,18 @@ export class GitHubAPI {
    * Get a single pull request by number.
    */
   async getPRDetails(owner: string, repo: string, number: number): Promise<GitHubPR> {
-    return this.request<GitHubPR>(`/repos/${owner}/${repo}/pulls/${number}`);
+    return this.request<GitHubPR>(
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}`)
+    );
   }
 
   /**
    * Get a single issue by number.
    */
   async getIssueDetails(owner: string, repo: string, number: number): Promise<GitHubIssue> {
-    return this.request<GitHubIssue>(`/repos/${owner}/${repo}/issues/${number}`);
+    return this.request<GitHubIssue>(
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/issues/${number}`)
+    );
   }
 
   /**
@@ -327,7 +341,7 @@ export class GitHubAPI {
    */
   async getIssueComments(owner: string, repo: string, number: number): Promise<GitHubComment[]> {
     return this.request<GitHubComment[]>(
-      `/repos/${owner}/${repo}/issues/${number}/comments?per_page=100`
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=100`)
     );
   }
 
@@ -340,7 +354,7 @@ export class GitHubAPI {
     number: number
   ): Promise<GitHubReviewComment[]> {
     return this.request<GitHubReviewComment[]>(
-      `/repos/${owner}/${repo}/pulls/${number}/comments?per_page=100`
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/comments?per_page=100`)
     );
   }
 
@@ -363,6 +377,7 @@ export class GitHubAPI {
       method: "PUT",
       body: options ?? {},
     });
+    this.invalidateDetailsCache();
   }
 
   /**
@@ -373,6 +388,7 @@ export class GitHubAPI {
       method: "PATCH",
       body: { state: "closed" },
     });
+    this.invalidateDetailsCache();
   }
 
   /**
@@ -382,6 +398,7 @@ export class GitHubAPI {
     await this.request(`/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
       method: "DELETE",
     });
+    this.invalidateDetailsCache();
   }
 
   /**
@@ -392,6 +409,7 @@ export class GitHubAPI {
       method: "PATCH",
       body: { state: "closed" },
     });
+    this.invalidateDetailsCache();
   }
 
   /**
@@ -403,10 +421,12 @@ export class GitHubAPI {
     number: number,
     body: string
   ): Promise<GitHubComment> {
-    return this.request<GitHubComment>(`/repos/${owner}/${repo}/issues/${number}/comments`, {
+    const comment = await this.request<GitHubComment>(`/repos/${owner}/${repo}/issues/${number}/comments`, {
       method: "POST",
       body: { body },
     });
+    this.invalidateDetailsCache();
+    return comment;
   }
 
   /**
@@ -422,6 +442,7 @@ export class GitHubAPI {
       method: "POST",
       body: { assignees },
     });
+    this.invalidateDetailsCache();
   }
 
   /**
@@ -437,6 +458,7 @@ export class GitHubAPI {
       method: "DELETE",
       body: { assignees },
     });
+    this.invalidateDetailsCache();
   }
 
   // ── Configuration ────────────────────────────────────────────────────────
