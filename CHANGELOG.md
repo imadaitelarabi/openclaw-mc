@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.6.0] - 2026-02-25
+### Meta
+- Bump: minor (score: 92)
+- Range: [dbd2e24](https://github.com/imadaitelarabi/openclaw-mc.git/commit/dbd2e2430fe114d985a147cdf1b0a2b79d454cd8)..[f541745](https://github.com/imadaitelarabi/openclaw-mc.git/commit/f541745b88a7b5457db031c42ecd951ca504e402)
+
+### Features
+- persist GitHub panel filters per-repo in IndexedDB ([9426a4d](https://github.com/imadaitelarabi/openclaw-mc.git/commit/9426a4d3b61cc0e845a034840d1c40384b565bd9))
+- implement state persistence for active runs to enhance recovery on refresh ([0d19a1d](https://github.com/imadaitelarabi/openclaw-mc.git/commit/0d19a1d0b38b22935177692384c3f6da61723826))
+- suppress live streams in poll-only chat mode for improved state management ([a6662e5](https://github.com/imadaitelarabi/openclaw-mc.git/commit/a6662e53246a615bc38cbf4bb30392c03e8fae4c))
+- enhance polling mechanism with trailing polls for finalized messages ([5a10caa](https://github.com/imadaitelarabi/openclaw-mc.git/commit/5a10caa3afa24263f897e136240f0662af08e6bd))
+
+### Fixes
+- resolve all formatting and lint issues ([345aa74](https://github.com/imadaitelarabi/openclaw-mc.git/commit/345aa740362deacc71d79ec68b705e4b2a75d216))
+- load-more history - slice gateway history locally when client provides before anchor ([e4faf38](https://github.com/imadaitelarabi/openclaw-mc.git/commit/e4faf38e1f8e3bc40ff01bac4be4ad31f1a6fdab))
+- enhance chat history loading - improve message normalization and anchor indexing ([cbea3ea](https://github.com/imadaitelarabi/openclaw-mc.git/commit/cbea3eae36a00968204c1636b891366f94d8cf25))
+- clean up code formatting and improve readability in various files ([42e1997](https://github.com/imadaitelarabi/openclaw-mc.git/commit/42e19970ef755021d21e16eaeb1db9456ba63179))
+
+### Refactors
+- clean up code formatting and improve readability in various components ([ef82c5c](https://github.com/imadaitelarabi/openclaw-mc.git/commit/ef82c5c891decd87e048a9369a37e91786dd0570))
+- streamline function calls in polling hooks for improved readability ([2defb66](https://github.com/imadaitelarabi/openclaw-mc.git/commit/2defb66c86cf4971fdacaf0db0cb8c82ef1ad162))
+
+### Chores
+- daily changelog 2026-02-24 ([a891840](https://github.com/imadaitelarabi/openclaw-mc.git/commit/a8918408ba83ba926b958e8879d7be563eb3f3f9))
+
+### Other
+- Initial plan ([40078a6](https://github.com/imadaitelarabi/openclaw-mc.git/commit/40078a688b5df7f0f6ac584fb07429bed2033e8b))
+- Merge pull request [#140](https://github.com/imadaitelarabi/openclaw-mc.git/pull/140) from imadaitelarabi/copilot/sub-pr-138 ([7c7fded](https://github.com/imadaitelarabi/openclaw-mc.git/commit/7c7fded126482a46b42ddc057565e58877c172c8))
+- Initial plan ([ffb252a](https://github.com/imadaitelarabi/openclaw-mc.git/commit/ffb252a6f64fbd92fa006d44e9c195332cf21fc0))
+- Merge pull request [#142](https://github.com/imadaitelarabi/openclaw-mc.git/pull/142) from imadaitelarabi/copilot/persist-panel-filters-in-indexeddb ([8210af6](https://github.com/imadaitelarabi/openclaw-mc.git/commit/8210af6a9f8d4678edbaca6c95782e56f1fe6ca5))
+- Merge pull request [#138](https://github.com/imadaitelarabi/openclaw-mc.git/pull/138) from imadaitelarabi/changelog/daily-2026-02-24 ([19bde69](https://github.com/imadaitelarabi/openclaw-mc.git/commit/19bde69fb8ba9e31a20808232556f311c2d386f8))
+- Merge pull request [#143](https://github.com/imadaitelarabi/openclaw-mc.git/pull/143) from imadaitelarabi/fix/load-more-history ([d3697ad](https://github.com/imadaitelarabi/openclaw-mc.git/commit/d3697ad1bce33b5bcdc74188b1031462d8db81b4))
+- Initial plan ([df77114](https://github.com/imadaitelarabi/openclaw-mc.git/commit/df77114374b845e011faee47dd48e507e7654502))
+- Optimize chat handling: poll-only history at 2s, remove live streaming ([741fdad](https://github.com/imadaitelarabi/openclaw-mc.git/commit/741fdad58adf431c2979ac50a9c10e10dc827a94))
+- Add global polling scheduler with high/low priority tiers for panel visibility ([b79b639](https://github.com/imadaitelarabi/openclaw-mc.git/commit/b79b63991900c964adb28097924641661e20d8f2))
+- Merge pull request [#145](https://github.com/imadaitelarabi/openclaw-mc.git/pull/145) from imadaitelarabi/copilot/optimize-chat-history-handling ([f541745](https://github.com/imadaitelarabi/openclaw-mc.git/commit/f541745b88a7b5457db031c42ecd951ca504e402))
+
+
+
 ## [0.5.0] - 2026-02-24
 
 ### Meta
