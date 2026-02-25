@@ -421,10 +421,13 @@ export class GitHubAPI {
     number: number,
     body: string
   ): Promise<GitHubComment> {
-    const comment = await this.request<GitHubComment>(`/repos/${owner}/${repo}/issues/${number}/comments`, {
-      method: "POST",
-      body: { body },
-    });
+    const comment = await this.request<GitHubComment>(
+      `/repos/${owner}/${repo}/issues/${number}/comments`,
+      {
+        method: "POST",
+        body: { body },
+      }
+    );
     this.invalidateDetailsCache();
     return comment;
   }
