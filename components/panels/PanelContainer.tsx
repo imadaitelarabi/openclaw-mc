@@ -1,7 +1,6 @@
 "use client";
 
 import type { Panel, Note } from "@/types";
-import { getStreamKey } from "@/lib/gateway-utils";
 import { PanelHeader, type AgentRunStatus } from "./PanelHeader";
 import { ChatPanel } from "./ChatPanel";
 import { CreateAgentPanel } from "./CreateAgentPanel";
@@ -30,8 +29,6 @@ interface PanelContainerProps {
   sendMessage: (msg: any) => void;
   connectionStatus: string;
   chatHistory: Record<string, any[]>;
-  chatStreams: Record<string, string>;
-  reasoningStreams: Record<string, string>;
   activeRuns: Record<string, string>;
   agentStatuses: Record<string, AgentRunStatus>;
   onClearCompletedRun?: (agentId: string) => void;
@@ -109,8 +106,6 @@ export function PanelContainer({
   sendMessage,
   connectionStatus,
   chatHistory,
-  chatStreams,
-  reasoningStreams,
   activeRuns,
   agentStatuses,
   onClearCompletedRun,
@@ -242,16 +237,6 @@ export function PanelContainer({
                 connectionStatus={connectionStatus}
                 chatHistory={chatHistory[panel.agentId] || []}
                 activeRunId={activeRuns[panel.agentId] || null}
-                assistantStream={
-                  activeRuns[panel.agentId]
-                    ? chatStreams[getStreamKey(panel.agentId, activeRuns[panel.agentId])]
-                    : undefined
-                }
-                reasoningStream={
-                  activeRuns[panel.agentId]
-                    ? reasoningStreams[getStreamKey(panel.agentId, activeRuns[panel.agentId])]
-                    : undefined
-                }
                 addUserMessage={addUserMessage}
                 models={models}
                 sessionSettings={sessionSettings}
@@ -262,7 +247,7 @@ export function PanelContainer({
                 skills={skillsReport?.skills ?? []}
                 showTools={panel.settings?.showTools ?? false}
                 showReasoning={panel.settings?.showReasoning ?? true}
-                isActive={panel.isActive}
+                isVisible={panel.isActive}
                 wsRef={wsRef}
               />
             )}
