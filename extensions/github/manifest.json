@@ -1,8 +1,8 @@
 {
   "name": "github",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "GitHub PR and issue quick access integration",
-  "permissions": ["github:read"],
+  "permissions": ["github:read", "github:write"],
   "hooks": ["status-bar", "chat-input", "onboarding", "panel"],
   "taggers": [
     {
@@ -40,5 +40,5 @@
       "requiresWrite": false
     }
   ],
-  "usage": "Displays open GitHub issues and pull requests from your repositories, with filtering by label, author, and assignee."
+  "usage": "Displays open GitHub issues and pull requests from your repositories, with filtering by label, author, and assignee. Supports write actions: merge/close PRs, close issues, assign, and comment."
 }

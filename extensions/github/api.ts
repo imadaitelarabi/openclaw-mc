@@ -106,27 +106,52 @@ export interface GitHubRepository {
 export class GitHubAPI {
   private config: GitHubConfig;
   private baseURL = "https://api.github.com";
+  private detailsCacheVersion = 0;
 
   constructor(config: GitHubConfig) {
     this.config = config;
   }
 
+  private withDetailsCacheVersion(endpoint: string): string {
+    const separator = endpoint.includes("?") ? "&" : "?";
+    return `${endpoint}${separator}_ocmc_details_v=${this.detailsCacheVersion}`;
+  }
+
+  private invalidateDetailsCache(): void {
+    this.detailsCacheVersion += 1;
+  }
+
   /**
    * Make authenticated request to GitHub API
    */
-  private async request<T>(endpoint: string): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    options?: {
+      method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+      body?: unknown;
+    }
+  ): Promise<T> {
     const { token } = this.config;
 
     if (!token) {
       throw new Error("GitHub token not configured");
     }
 
-    const response = await fetch(`${this.baseURL}${endpoint}`, {
+    const method = options?.method ?? "GET";
+    const fetchOptions: RequestInit = {
+      method,
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github.v3+json",
+        ...(options?.body !== undefined ? { "Content-Type": "application/json" } : {}),
       },
-    });
+    };
+
+    if (options?.body !== undefined) {
+      fetchOptions.body = JSON.stringify(options.body);
+    }
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, fetchOptions);
 
     if (!response.ok) {
       let details = response.statusText || "Unknown error";
@@ -146,6 +171,11 @@ export class GitHubAPI {
       }
 
       throw new Error(`GitHub API ${response.status} on ${endpoint}: ${details}`);
+    }
+
+    // DELETE responses often have no body; 204 No Content has no body
+    if (method === "DELETE" || response.status === 204) {
+      return undefined as unknown as T;
     }
 
     return response.json();
@@ -292,14 +322,18 @@ export class GitHubAPI {
    * Get a single pull request by number.
    */
   async getPRDetails(owner: string, repo: string, number: number): Promise<GitHubPR> {
-    return this.request<GitHubPR>(`/repos/${owner}/${repo}/pulls/${number}`);
+    return this.request<GitHubPR>(
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}`)
+    );
   }
 
   /**
    * Get a single issue by number.
    */
   async getIssueDetails(owner: string, repo: string, number: number): Promise<GitHubIssue> {
-    return this.request<GitHubIssue>(`/repos/${owner}/${repo}/issues/${number}`);
+    return this.request<GitHubIssue>(
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/issues/${number}`)
+    );
   }
 
   /**
@@ -307,7 +341,7 @@ export class GitHubAPI {
    */
   async getIssueComments(owner: string, repo: string, number: number): Promise<GitHubComment[]> {
     return this.request<GitHubComment[]>(
-      `/repos/${owner}/${repo}/issues/${number}/comments?per_page=100`
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=100`)
     );
   }
 
@@ -320,9 +354,117 @@ export class GitHubAPI {
     number: number
   ): Promise<GitHubReviewComment[]> {
     return this.request<GitHubReviewComment[]>(
-      `/repos/${owner}/${repo}/pulls/${number}/comments?per_page=100`
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/comments?per_page=100`)
     );
   }
+
+  // ── Write actions ────────────────────────────────────────────────────────
+
+  /**
+   * Merge a pull request.
+   */
+  async mergePR(
+    owner: string,
+    repo: string,
+    number: number,
+    options?: {
+      commit_title?: string;
+      commit_message?: string;
+      merge_method?: "merge" | "squash" | "rebase";
+    }
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/pulls/${number}/merge`, {
+      method: "PUT",
+      body: options ?? {},
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Close a pull request.
+   */
+  async closePR(owner: string, repo: string, number: number): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/pulls/${number}`, {
+      method: "PATCH",
+      body: { state: "closed" },
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Delete a branch (typically called after merge).
+   */
+  async deleteBranch(owner: string, repo: string, branch: string): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/git/refs/heads/${branch}`, {
+      method: "DELETE",
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Close an issue.
+   */
+  async closeIssue(owner: string, repo: string, number: number): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/issues/${number}`, {
+      method: "PATCH",
+      body: { state: "closed" },
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Add a comment to an issue or pull request.
+   */
+  async addComment(
+    owner: string,
+    repo: string,
+    number: number,
+    body: string
+  ): Promise<GitHubComment> {
+    const comment = await this.request<GitHubComment>(
+      `/repos/${owner}/${repo}/issues/${number}/comments`,
+      {
+        method: "POST",
+        body: { body },
+      }
+    );
+    this.invalidateDetailsCache();
+    return comment;
+  }
+
+  /**
+   * Add assignees to an issue or pull request.
+   */
+  async addAssignees(
+    owner: string,
+    repo: string,
+    number: number,
+    assignees: string[]
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/issues/${number}/assignees`, {
+      method: "POST",
+      body: { assignees },
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Remove assignees from an issue or pull request.
+   */
+  async removeAssignees(
+    owner: string,
+    repo: string,
+    number: number,
+    assignees: string[]
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/issues/${number}/assignees`, {
+      method: "DELETE",
+      body: { assignees },
+    });
+    this.invalidateDetailsCache();
+  }
+
+  // ── Configuration ────────────────────────────────────────────────────────
 
   /**
    * Update configuration
