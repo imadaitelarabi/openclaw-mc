@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.7.0] - 2026-02-27
+### Meta
+- Bump: minor (score: 26)
+- Range: [c77520c](https://github.com/imadaitelarabi/openclaw-mc.git/commit/c77520ca86c63430e16ba8427608381f8925f916)..[5e953d1](https://github.com/imadaitelarabi/openclaw-mc.git/commit/5e953d1326b1a6ba232bdeb6f6f1c1a0e91faba1)
+
+### Features
+- add caching mechanism for GitHub API requests ([2824add](https://github.com/imadaitelarabi/openclaw-mc.git/commit/2824addcddf2039e740f4fdcebade8ffe2eb282d))
+
+### Refactors
+- streamline PR details panel layout and improve button functionality ([4eba37b](https://github.com/imadaitelarabi/openclaw-mc.git/commit/4eba37b44f12e7cf806584b948bf54b2c135d948))
+
+### Other
+- Initial plan ([70ea5a8](https://github.com/imadaitelarabi/openclaw-mc.git/commit/70ea5a8a6df923a607350b8f1d9a28dd3656ea8d))
+- Add write actions to GitHub extension PR/Issue detail panels ([f01cb25](https://github.com/imadaitelarabi/openclaw-mc.git/commit/f01cb25785de8ac5a600ae62ac6bd6de5bec25c8))
+- Merge branch 'master' of https://github.com/imadaitelarabi/openclaw-mc into copilot/add-write-actions-to-extension ([74aece1](https://github.com/imadaitelarabi/openclaw-mc.git/commit/74aece1e0ca3da90ae2273ba8c18e1100e7b28ee))
+- Merge pull request [#147](https://github.com/imadaitelarabi/openclaw-mc.git/pull/147) from imadaitelarabi/copilot/add-write-actions-to-extension ([5e953d1](https://github.com/imadaitelarabi/openclaw-mc.git/commit/5e953d1326b1a6ba232bdeb6f6f1c1a0e91faba1))
+
+
+
 ## [0.6.0] - 2026-02-25
 
 ### Meta
