@@ -30,6 +30,16 @@ function Write-Warn  { param([string]$Msg) Write-Host "[openclaw-mc] $Msg" -Fore
 function Write-Err   { param([string]$Msg) Write-Host "[openclaw-mc] $Msg" -ForegroundColor Red }
 function Write-Ok    { param([string]$Msg) Write-Host "[openclaw-mc] $Msg" -ForegroundColor Green }
 
+function Test-IsAdministrator {
+  try {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+  } catch {
+    return $false
+  }
+}
+
 function Prompt-Value {
   param([string]$Question, [string]$Default)
   if ($NonInteractive) { return $Default }
@@ -251,6 +261,12 @@ function Build-App {
 function Setup-WindowsService {
   param([string]$InstallDir, [string]$LogPath, [int]$Port = 3000)
 
+  if (-not (Test-IsAdministrator)) {
+    Write-Warn "Skipping Windows service setup: administrator privileges are required."
+    Write-Warn "Re-run PowerShell as Administrator and run 'oclawmc restart' to register/start the service."
+    return $false
+  }
+
   $nodePath = (Get-Command node).Source
   $svcName  = 'OclawMC'
   $desc     = 'OpenClaw Mission Control Server'
@@ -284,6 +300,7 @@ function Setup-WindowsService {
     } catch { Write-Warn "Firewall rule not created (may require elevation)." }
   }
   Write-Ok "Windows service '$svcName' registered and started."
+  return $true
 }
 
 # ── CLI installation ───────────────────────────────────────────────────────────
@@ -360,7 +377,12 @@ function Main {
 
   if ($DoService) {
     $logPath = Join-Path $ConfigDir 'oclawmc.log'
-    Setup-WindowsService -InstallDir $InstallDir -LogPath $logPath -Port $Port
+    $serviceCreated = Setup-WindowsService -InstallDir $InstallDir -LogPath $logPath -Port $Port
+    if (-not $serviceCreated) {
+      $serviceType = 'manual'
+      Write-Config -InstallDir $InstallDir -Port $Port -ServiceType $serviceType
+      Write-Log "Continuing without service. Start manually with 'oclawmc start'."
+    }
   } else {
     Write-Log "Skipping service setup. Run 'oclawmc start' to start manually."
   }
