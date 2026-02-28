@@ -40,6 +40,22 @@ fi
 run_with_sudo() { [[ -n "$SUDO" ]] && $SUDO "$@" || "$@"; }
 
 # ── prompt helper ──────────────────────────────────────────────────────────────
+# Read input from the controlling terminal when available.
+# This is required for one-liner installs (curl ... | bash), where stdin is the
+# script stream and not user input.
+read_user_input() {
+  local __var_name="$1" __prompt="$2"
+  local __answer=""
+
+  if [[ -r /dev/tty ]]; then
+    IFS= read -r -p "$__prompt" __answer </dev/tty || __answer=""
+  else
+    IFS= read -r -p "$__prompt" __answer || __answer=""
+  fi
+
+  printf -v "$__var_name" '%s' "$__answer"
+}
+
 # prompt <var_name> <question> <default>
 prompt() {
   local var="$1" question="$2" default="$3"
@@ -48,7 +64,7 @@ prompt() {
     return
   fi
   local answer
-  read -r -p "$(printf "${BOLD}?${NC} ${question} [${GREEN}${default}${NC}]: ")" answer
+  read_user_input answer "$(printf "${BOLD}?${NC} ${question} [${GREEN}${default}${NC}]: ")"
   printf -v "$var" '%s' "${answer:-$default}"
 }
 
@@ -60,7 +76,7 @@ prompt_yn() {
   fi
   local answer
   local hint; [[ "$default" == "y" ]] && hint="Y/n" || hint="y/N"
-  read -r -p "$(printf "${BOLD}?${NC} ${question} [${hint}]: ")" answer
+  read_user_input answer "$(printf "${BOLD}?${NC} ${question} [${hint}]: ")"
   answer="${answer:-$default}"
   [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]
 }
