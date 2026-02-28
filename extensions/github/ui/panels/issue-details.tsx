@@ -437,7 +437,6 @@ export function GitHubIssueDetailsPanel({
   };
 
   // Filtered assignable users for search
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const filteredAssignableUsers = useMemo(() => {
     const q = assignSearch.toLowerCase().trim();
     if (!q) return assignableUsers;
