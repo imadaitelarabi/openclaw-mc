@@ -169,7 +169,7 @@ function Setup-OpenClaw {
     switch ($choice) {
       '1' {
         Write-Log "Installing openclaw globally…"
-        npm install -g openclaw 2>$null
+        & cmd.exe /c "npm install -g openclaw 2>&1"
         if (Get-Command openclaw -ErrorAction SilentlyContinue) {
           Write-Ok "openclaw installed."
           $gwUrl = 'http://127.0.0.1:18789'
@@ -228,16 +228,16 @@ function Build-App {
   Push-Location $InstallDir
   try {
     Write-Log "Installing Node dependencies…"
-    & cmd.exe /c "npm ci --legacy-peer-deps"
+    & cmd.exe /c "npm ci --legacy-peer-deps 2>&1"
     if ($LASTEXITCODE -ne 0) {
       Write-Warn "'npm ci' failed, falling back to 'npm install'…"
-      & cmd.exe /c "npm install --legacy-peer-deps"
+      & cmd.exe /c "npm install --legacy-peer-deps 2>&1"
       if ($LASTEXITCODE -ne 0) {
         throw "npm install failed with exit code $LASTEXITCODE"
       }
     }
     Write-Log "Building production bundle…"
-    & cmd.exe /c "npm run build"
+    & cmd.exe /c "npm run build 2>&1"
     if ($LASTEXITCODE -ne 0) {
       throw "npm run build failed with exit code $LASTEXITCODE"
     }
