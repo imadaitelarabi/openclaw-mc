@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Loader2, Sparkles } from "lucide-react";
+import { Check, GitBranch, Loader2, Sparkles } from "lucide-react";
 import type {
   ExtensionModalProps,
 } from "@/types/extension";
@@ -31,9 +31,17 @@ export function AssignCopilotModal({
   const [agentMode, setAgentMode] = useState<"default" | "copilot" | "custom">("default");
   const [customAgent, setCustomAgent] = useState("");
 
+  const [branchSearch, setBranchSearch] = useState("");
+  const [branchOpen, setBranchOpen] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branches, setBranches] = useState<string[]>([]);
+
+  const filteredBranches = useMemo(() => {
+    const q = branchSearch.toLowerCase().trim();
+    return q ? branches.filter((b) => b.toLowerCase().includes(q)) : branches;
+  }, [branches, branchSearch]);
 
   const targetRepo = `${payload.owner}/${payload.repo}`;
 
@@ -125,23 +133,48 @@ export function AssignCopilotModal({
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="copilot-base-branch" className="text-xs text-muted-foreground">
-              Base branch
-            </label>
-            <select
-              id="copilot-base-branch"
-              value={branch}
-              onChange={(e) => setBranch(e.target.value)}
-              disabled={loading || branches.length === 0}
-              className="w-full px-2 py-1.5 text-xs bg-background border border-border rounded"
-            >
-              {branches.length === 0 && <option value="">Default branch</option>}
-              {branches.map((branchName) => (
-                <option key={branchName} value={branchName}>
-                  {branchName}
-                </option>
-              ))}
-            </select>
+            <label className="text-xs text-muted-foreground">Base branch</label>
+            {branch && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded text-xs text-foreground">
+                <GitBranch className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                <span className="truncate font-medium">{branch}</span>
+              </div>
+            )}
+            <input
+              type="text"
+              value={branchSearch}
+              onChange={(e) => setBranchSearch(e.target.value)}
+              onFocus={() => setBranchOpen(true)}
+              onBlur={() => setTimeout(() => setBranchOpen(false), 150)}
+              placeholder={loading ? "Loading branches…" : "Search branches…"}
+              disabled={loading}
+              className="w-full px-2 py-1.5 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+            />
+            {!loading && branchOpen && branches.length > 0 && (
+              <div className="max-h-36 overflow-y-auto space-y-0.5 border border-border rounded">
+                {filteredBranches.map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => { setBranch(b); setBranchSearch(""); setBranchOpen(false); }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted/60 transition-colors text-left"
+                  >
+                    <GitBranch className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
+                    <span className={`truncate ${b === branch ? "font-medium text-primary" : "text-foreground"}`}>{b}</span>
+                    {b === branch && <Check className="w-3 h-3 ml-auto flex-shrink-0 text-primary" />}
+                  </button>
+                ))}
+                {filteredBranches.length === 0 && branchSearch && (
+                  <p className="px-2 py-1.5 text-xs text-muted-foreground">No branches found.</p>
+                )}
+              </div>
+            )}
+            {loading && (
+              <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Loading branches…
+              </div>
+            )}
           </div>
 
           <div className="space-y-1">
