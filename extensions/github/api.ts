@@ -495,43 +495,95 @@ export class GitHubAPI {
       "GraphQL-Features": "issues_copilot_assignment_api_support,coding_agent_model_selection",
     };
 
-    // Step 1: Fetch the issue node ID and the copilot-swe-agent actor ID in one query.
-    const fetchData = await this.graphqlRequest<{
-      repository: {
-        issue: { id: string } | null;
-        suggestedActors: {
-          nodes: Array<{ id: string; login: string }>;
-        };
-      };
-    }>(
-      `query GetIssueAndCopilotActor($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $number) {
-            id
-          }
-          suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 20) {
-            nodes {
+    // Step 1: Fetch the issue node ID and locate copilot-swe-agent in suggested actors.
+    // Actor is an interface and does not expose id directly, so we fetch id via concrete-type fragments.
+    const query = `query GetIssueAndCopilotActor(
+      $owner: String!
+      $repo: String!
+      $number: Int!
+      $after: String
+    ) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $number) {
+          id
+        }
+        suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 50, after: $after) {
+          nodes {
+            __typename
+            login
+            ... on User {
               id
-              login
+            }
+            ... on Bot {
+              id
+            }
+            ... on Organization {
+              id
+            }
+            ... on Mannequin {
+              id
+            }
+            ... on EnterpriseUserAccount {
+              id
             }
           }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
         }
-      }`,
-      { owner, repo, number },
-      COPILOT_HEADERS
-    );
+      }
+    }`;
 
-    const issue = fetchData.repository?.issue;
-    if (!issue) {
+    type SuggestedActorNode = {
+      login: string;
+      id?: string;
+    };
+
+    let issueId: string | null = null;
+    let copilotActorId: string | null = null;
+    let after: string | null = null;
+
+    do {
+      const fetchData = await this.graphqlRequest<{
+        repository: {
+          issue: { id: string } | null;
+          suggestedActors: {
+            nodes: SuggestedActorNode[];
+            pageInfo: {
+              hasNextPage: boolean;
+              endCursor: string | null;
+            };
+          };
+        };
+      }>(query, { owner, repo, number, after }, COPILOT_HEADERS);
+
+      const issue = fetchData.repository?.issue;
+      if (!issue) {
+        throw new Error(`Issue #${number} not found in ${owner}/${repo}`);
+      }
+
+      issueId = issue.id;
+
+      const actors = fetchData.repository?.suggestedActors?.nodes ?? [];
+      const copilotActor = actors.find(
+        (a) => a.login.toLowerCase() === "copilot-swe-agent" || a.login.toLowerCase() === "copilot"
+      );
+
+      if (copilotActor?.id) {
+        copilotActorId = copilotActor.id;
+        break;
+      }
+
+      const pageInfo = fetchData.repository?.suggestedActors?.pageInfo;
+      after = pageInfo?.hasNextPage ? pageInfo.endCursor : null;
+    } while (after);
+
+    if (!issueId) {
       throw new Error(`Issue #${number} not found in ${owner}/${repo}`);
     }
 
-    const actors = fetchData.repository?.suggestedActors?.nodes ?? [];
-    const copilotActor = actors.find(
-      (a) => a.login.toLowerCase() === "copilot-swe-agent" || a.login.toLowerCase() === "copilot"
-    );
-
-    if (!copilotActor) {
+    if (!copilotActorId) {
       throw new Error(
         "Copilot agent not available for this repository. Ensure GitHub Copilot is enabled."
       );
@@ -547,7 +599,7 @@ export class GitHubAPI {
           clientMutationId
         }
       }`,
-      { assignableId: issue.id, assigneeIds: [copilotActor.id] },
+      { assignableId: issueId, assigneeIds: [copilotActorId] },
       COPILOT_HEADERS
     );
 
