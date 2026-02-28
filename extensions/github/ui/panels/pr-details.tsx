@@ -177,6 +177,7 @@ export function GitHubPrDetailsPanel({
   } | null>(null);
   const panelRootRef = useRef<HTMLDivElement | null>(null);
   const reviewDropdownRef = useRef<HTMLDivElement | null>(null);
+  const postActionRefreshTimersRef = useRef<number[]>([]);
 
   const pendingSilentRefreshRef = useRef(false);
 
@@ -187,6 +188,17 @@ export function GitHubPrDetailsPanel({
     setFetchTick((n) => n + 1);
   }, []);
   const refresh = useCallback(() => triggerRefresh(false), [triggerRefresh]);
+  const refreshSilently = useCallback(() => triggerRefresh(true), [triggerRefresh]);
+  const refreshAfterAction = useCallback(() => {
+    refreshSilently();
+    const timer = window.setTimeout(() => {
+      refreshSilently();
+      postActionRefreshTimersRef.current = postActionRefreshTimersRef.current.filter(
+        (id) => id !== timer
+      );
+    }, 1500);
+    postActionRefreshTimersRef.current.push(timer);
+  }, [refreshSilently]);
 
   // Write-action state
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -500,6 +512,13 @@ export function GitHubPrDetailsPanel({
     };
   }, [showReviewDropdown]);
 
+  useEffect(() => {
+    return () => {
+      postActionRefreshTimersRef.current.forEach((id) => window.clearTimeout(id));
+      postActionRefreshTimersRef.current = [];
+    };
+  }, []);
+
   const fallbackUrl =
     htmlUrl ||
     (owner && repo && number ? `https://github.com/${owner}/${repo}/pull/${number}` : undefined);
@@ -522,6 +541,7 @@ export function GitHubPrDetailsPanel({
       await api.mergePR(owner, repo, number, { merge_method: method });
       const updated = await api.getPRDetails(owner, repo, number);
       setPr(updated);
+      refreshAfterAction();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Failed to merge PR");
     } finally {
@@ -540,6 +560,7 @@ export function GitHubPrDetailsPanel({
       await api.closePR(owner, repo, number);
       const updated = await api.getPRDetails(owner, repo, number);
       setPr(updated);
+      refreshAfterAction();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Failed to close PR");
     } finally {
