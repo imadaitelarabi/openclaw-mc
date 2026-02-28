@@ -13,6 +13,8 @@
  *   attributes so screen-readers get context on disabled states.
  */
 
+import { Fragment } from "react";
+
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { AlertCircle, ChevronDown, Loader2, X } from "lucide-react";
 import type { ExtensionActionBarState, ActionBarAction, ActionBarVariant } from "@/hooks/useExtensionActionBar";
@@ -105,7 +107,7 @@ function ActionButton({ action, anyLoading }: ActionButtonProps) {
               className="z-[120] min-w-[180px] bg-popover border border-border rounded-md shadow-lg p-1"
             >
               {action.dropdownItems.map((item) => (
-                <span key={item.id}>
+                <Fragment key={item.id}>
                   {item.separator && (
                     <DropdownMenu.Separator className="my-1 h-px bg-border" />
                   )}
@@ -117,7 +119,7 @@ function ActionButton({ action, anyLoading }: ActionButtonProps) {
                   >
                     {item.label}
                   </DropdownMenu.Item>
-                </span>
+                </Fragment>
               ))}
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
