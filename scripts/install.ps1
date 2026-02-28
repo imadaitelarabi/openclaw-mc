@@ -315,12 +315,21 @@ function Install-CLI {
 
   if (-not (Test-Path $BinDir)) { New-Item -ItemType Directory -Path $BinDir -Force | Out-Null }
 
-  # Copy the PowerShell script
-  Copy-Item $cliSrc (Join-Path $BinDir 'oclawmc.ps1') -Force
+  # Copy the PowerShell script under a non-primary name so `oclawmc` resolves
+  # to the .cmd shim (which sets -ExecutionPolicy Bypass).
+  $cliTargetPs1 = Join-Path $BinDir 'oclawmc-cli.ps1'
+  Copy-Item $cliSrc $cliTargetPs1 -Force
+
+  # Remove legacy target that can trigger execution-policy errors when
+  # PowerShell resolves `oclawmc` to oclawmc.ps1 directly.
+  $legacyPs1 = Join-Path $BinDir 'oclawmc.ps1'
+  if (Test-Path $legacyPs1) {
+    Remove-Item $legacyPs1 -Force -ErrorAction SilentlyContinue
+  }
 
   # Create a .cmd shim so 'oclawmc' works from cmd.exe as well
   $shim = Join-Path $BinDir 'oclawmc.cmd'
-  "@echo off`r`npowershell -ExecutionPolicy Bypass -File `"%~dp0oclawmc.ps1`" %*" | Set-Content -Path $shim -Encoding ASCII
+  "@echo off`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"%~dp0oclawmc-cli.ps1`" %*" | Set-Content -Path $shim -Encoding ASCII
 
   # Add BinDir to user PATH if not already there
   $userPath = [System.Environment]::GetEnvironmentVariable('PATH', 'User')
