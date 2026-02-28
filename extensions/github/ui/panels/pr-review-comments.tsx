@@ -110,7 +110,6 @@ function DiffHunk({ hunk }: { hunk: string }) {
   );
 }
 
-
 interface Thread {
   root: GitHubReviewComment;
   replies: GitHubReviewComment[];
@@ -514,9 +513,7 @@ function ThreadGroup({ thread, owner, repo, prNumber, onRefresh }: ThreadGroupPr
   return (
     <div className="space-y-1">
       {/* Diff hunk */}
-      {thread.root.diff_hunk && !collapsed && (
-        <DiffHunk hunk={thread.root.diff_hunk} />
-      )}
+      {thread.root.diff_hunk && !collapsed && <DiffHunk hunk={thread.root.diff_hunk} />}
 
       <CommentCard
         comment={thread.root}

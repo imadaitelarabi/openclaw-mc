@@ -465,6 +465,7 @@ export function ChatInput({
           {isTagDropdownOpen && (
             <ChatInputTagDropdown
               options={tagOptions}
+              query={tagQuery}
               onSelect={handleSelectTagOption}
               onClose={handleCloseTagDropdown}
               isLoading={isTagLoading}
