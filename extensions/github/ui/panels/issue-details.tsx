@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ExternalLink,
   AlertCircle,
@@ -161,6 +161,8 @@ export function GitHubIssueDetailsPanel({
   const [assignableUsers, setAssignableUsers] = useState<GitHubAssignableUser[]>([]);
   const [assignableLoading, setAssignableLoading] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
+  const [assignDropdownPos, setAssignDropdownPos] = useState<{ left: number; bottom: number } | null>(null);
+  const panelRootRef = useRef<HTMLDivElement | null>(null);
 
   // Trigger counter — incrementing causes a re-fetch
   const [fetchTick, setFetchTick] = useState(0);
@@ -309,6 +311,34 @@ export function GitHubIssueDetailsPanel({
       .catch(() => setAssignableUsers([]))
       .finally(() => setAssignableLoading(false));
   }, [showAssignModal, owner, repo]);
+
+  useEffect(() => {
+    if (!showAssignModal) return;
+
+    const updatePosition = () => {
+      const root = panelRootRef.current;
+      if (!root) return;
+      const assignAction = root.querySelector<HTMLElement>('[data-action-id="assign"]');
+      if (!assignAction) return;
+
+      const rootRect = root.getBoundingClientRect();
+      const actionRect = assignAction.getBoundingClientRect();
+
+      const left = Math.max(12, actionRect.left - rootRect.left - 8);
+      const bottom = Math.max(44, rootRect.bottom - actionRect.top + 8);
+
+      setAssignDropdownPos({ left, bottom });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [showAssignModal]);
 
   const fallbackUrl =
     htmlUrl ||
@@ -534,7 +564,7 @@ export function GitHubIssueDetailsPanel({
   const hasMoreActivity = displayedActivityCount < activityItems.length;
 
   return (
-    <div className="flex flex-col h-full">
+    <div ref={panelRootRef} className="relative flex flex-col h-full">
       <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* Back button */}
         {back && contextPanelId && (
@@ -584,114 +614,6 @@ export function GitHubIssueDetailsPanel({
 
         {/* Action error */}
         {/* (Errors are displayed in the ExtensionActionBar below) */}
-
-        {/* Assign modal */}
-        {showAssignModal && (
-          <div className="border border-border rounded p-3 space-y-3 bg-muted/10">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-foreground">Assign issue</span>
-              <button
-                onClick={() => setShowAssignModal(false)}
-                aria-label="Close assign panel"
-                className="hover:opacity-70"
-              >
-                <X className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
-            </div>
-
-            {/* Current assignees */}
-            {issue.assignees && issue.assignees.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Current</p>
-                <div className="flex flex-wrap gap-1">
-                  {issue.assignees.map((a) => (
-                    <span
-                      key={a.login}
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-muted border border-border rounded"
-                    >
-                      <UserAvatar src={a.avatar_url} alt={a.login} size={12} />
-                      {a.login}
-                      <button
-                        onClick={() => handleRemoveAssignee(a.login)}
-                        disabled={actionLoading !== null}
-                        aria-label={`Remove ${a.login}`}
-                        className="hover:opacity-70 disabled:opacity-50"
-                      >
-                        {actionLoading === `remove-${a.login}` ? (
-                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                        ) : (
-                          <X className="w-2.5 h-2.5" />
-                        )}
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Search input */}
-            <input
-              type="text"
-              value={assignSearch}
-              onChange={(e) => setAssignSearch(e.target.value)}
-              placeholder="Search users…"
-              aria-label="Search assignable users"
-              className="w-full px-2 py-1.5 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-
-            {/* Assignable users list */}
-            <div className="max-h-48 overflow-y-auto space-y-0.5" role="listbox" aria-label="Assignable users">
-              {/* Copilot option */}
-              <button
-                role="option"
-                aria-selected={false}
-                onClick={() => handleAddAssignees(["copilot"])}
-                disabled={actionLoading !== null}
-                className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted/60 transition-colors disabled:opacity-50 text-left"
-              >
-                <span className="text-sm flex-shrink-0" aria-hidden="true">✨</span>
-                <span className="font-medium text-foreground">Assign to Copilot</span>
-                <span className="text-muted-foreground ml-auto text-[10px]">AI</span>
-              </button>
-
-              {assignableLoading && (
-                <div className="flex items-center gap-2 py-2 px-2 text-xs text-muted-foreground">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Loading users…
-                </div>
-              )}
-
-              {!assignableLoading && filteredAssignableUsers.length === 0 && assignSearch && (
-                <p className="px-2 py-1.5 text-xs text-muted-foreground">No users found.</p>
-              )}
-
-              {filteredAssignableUsers.map((user) => {
-                const isAssigned = issue.assignees?.some((a) => a.login === user.login) ?? false;
-                return (
-                  <button
-                    key={user.login}
-                    role="option"
-                    aria-selected={isAssigned}
-                    onClick={() => handleAddAssignees([user.login])}
-                    disabled={actionLoading !== null || isAssigned}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted/60 transition-colors disabled:opacity-50 text-left"
-                  >
-                    <UserAvatar src={user.avatar_url} alt={user.login} size={20} />
-                    <span className="font-medium text-foreground truncate">{user.login}</span>
-                    {user.name && (
-                      <span className="text-muted-foreground truncate ml-0.5">{user.name}</span>
-                    )}
-                    {isAssigned && (
-                      <span className="ml-auto text-[10px] text-muted-foreground flex-shrink-0">
-                        assigned
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Meta */}
         <div className="text-xs text-muted-foreground space-y-1.5">
@@ -930,6 +852,116 @@ export function GitHubIssueDetailsPanel({
           </div>
         </div>
       </div>
+
+      {/* Assign dropdown */}
+      {showAssignModal && (
+        <div
+          className="absolute z-20 w-[340px] max-w-[calc(100%-24px)] border border-border rounded-md p-2.5 space-y-2 bg-popover shadow-lg"
+          style={{
+            left: assignDropdownPos?.left ?? 12,
+            bottom: assignDropdownPos?.bottom ?? 44,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-foreground">Assign</span>
+            <button
+              onClick={() => setShowAssignModal(false)}
+              aria-label="Close assign dropdown"
+              className="hover:opacity-70"
+            >
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </div>
+
+          {issue.assignees && issue.assignees.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Current</p>
+              <div className="flex flex-wrap gap-1">
+                {issue.assignees.map((a) => (
+                  <span
+                    key={a.login}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] bg-muted border border-border rounded"
+                  >
+                    <UserAvatar src={a.avatar_url} alt={a.login} size={12} />
+                    {a.login}
+                    <button
+                      onClick={() => handleRemoveAssignee(a.login)}
+                      disabled={actionLoading !== null}
+                      aria-label={`Remove ${a.login}`}
+                      className="hover:opacity-70 disabled:opacity-50"
+                    >
+                      {actionLoading === `remove-${a.login}` ? (
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                      ) : (
+                        <X className="w-2.5 h-2.5" />
+                      )}
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <input
+            type="text"
+            value={assignSearch}
+            onChange={(e) => setAssignSearch(e.target.value)}
+            placeholder="Search users…"
+            aria-label="Search assignable users"
+            className="w-full px-2 py-1.5 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+
+          <div className="max-h-44 overflow-y-auto space-y-0.5" role="listbox" aria-label="Assignable users">
+            <button
+              role="option"
+              aria-selected={false}
+              onClick={() => handleAddAssignees(["copilot"])}
+              disabled={actionLoading !== null}
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted/60 transition-colors disabled:opacity-50 text-left"
+            >
+              <span className="text-sm flex-shrink-0" aria-hidden="true">✨</span>
+              <span className="font-medium text-foreground">Assign to Copilot</span>
+              <span className="text-muted-foreground ml-auto text-[10px]">AI</span>
+            </button>
+
+            {assignableLoading && (
+              <div className="flex items-center gap-2 py-2 px-2 text-xs text-muted-foreground">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Loading users…
+              </div>
+            )}
+
+            {!assignableLoading && filteredAssignableUsers.length === 0 && assignSearch && (
+              <p className="px-2 py-1.5 text-xs text-muted-foreground">No users found.</p>
+            )}
+
+            {filteredAssignableUsers.map((user) => {
+              const isAssigned = issue.assignees?.some((a) => a.login === user.login) ?? false;
+              return (
+                <button
+                  key={user.login}
+                  role="option"
+                  aria-selected={isAssigned}
+                  onClick={() => handleAddAssignees([user.login])}
+                  disabled={actionLoading !== null || isAssigned}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted/60 transition-colors disabled:opacity-50 text-left"
+                >
+                  <UserAvatar src={user.avatar_url} alt={user.login} size={18} />
+                  <span className="font-medium text-foreground truncate">{user.login}</span>
+                  {user.name && (
+                    <span className="text-muted-foreground truncate ml-0.5">{user.name}</span>
+                  )}
+                  {isAssigned && (
+                    <span className="ml-auto text-[10px] text-muted-foreground flex-shrink-0">
+                      assigned
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Action bar (Close/Reopen / Assign / Open in GitHub) */}
       <ExtensionActionBar bar={actionBar} />
