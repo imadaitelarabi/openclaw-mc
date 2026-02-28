@@ -22,6 +22,7 @@ export interface GitHubPR {
   draft?: boolean;
   labels?: Array<{ name: string; color: string }>;
   assignees?: Array<{ login: string; avatar_url?: string; html_url?: string }>;
+  requested_reviewers?: Array<{ login: string; avatar_url?: string; html_url?: string }>;
   body?: string | null;
 }
 
@@ -611,6 +612,38 @@ export class GitHubAPI {
     await this.request(`/repos/${owner}/${repo}/issues/${number}/assignees`, {
       method: "DELETE",
       body: { assignees },
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Request reviewers for a pull request.
+   */
+  async requestReviewers(
+    owner: string,
+    repo: string,
+    number: number,
+    reviewers: string[]
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/pulls/${number}/requested_reviewers`, {
+      method: "POST",
+      body: { reviewers },
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Remove requested reviewers from a pull request.
+   */
+  async removeReviewers(
+    owner: string,
+    repo: string,
+    number: number,
+    reviewers: string[]
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/pulls/${number}/requested_reviewers`, {
+      method: "DELETE",
+      body: { reviewers },
     });
     this.invalidateDetailsCache();
   }
