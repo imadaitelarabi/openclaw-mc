@@ -102,20 +102,14 @@ function groupByFile(comments: GitHubReviewComment[]): Map<string, Thread[]> {
 
   for (const c of comments) {
     if (c.in_reply_to_id) {
-      // walk up to the actual root
-      let rootId = c.in_reply_to_id;
-      while (replyMap.has(rootId) === false && rootsById.has(rootId) === false) {
-        // shouldn't happen in well-formed data, but be safe
-        break;
-      }
-      // find the true root
+      // find the true root by walking up the reply chain
       let candidate = c.in_reply_to_id;
       let parent = comments.find((x) => x.id === candidate);
       while (parent?.in_reply_to_id) {
         candidate = parent.in_reply_to_id;
         parent = comments.find((x) => x.id === candidate);
       }
-      rootId = candidate;
+      const rootId = candidate;
       const bucket = replyMap.get(rootId);
       if (bucket) {
         bucket.push(c);
@@ -180,6 +174,7 @@ function CommentCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [reactionLoading, setReactionLoading] = useState<string | null>(null);
+  const [reactionError, setReactionError] = useState<string | null>(null);
   const [showReactions, setShowReactions] = useState(false);
 
   const isOutdated = comment.position === null || comment.position === undefined;
@@ -248,8 +243,8 @@ function CommentCard({
           content as Parameters<typeof api.addReviewCommentReaction>[3]
         );
         setShowReactions(false);
-      } catch {
-        // silently ignore – reactions are best-effort
+      } catch (e) {
+        setReactionError(e instanceof Error ? e.message : "Failed to add reaction");
       } finally {
         setReactionLoading(null);
       }
@@ -334,6 +329,12 @@ function CommentCard({
               )}
             </button>
           ))}
+          {reactionError && (
+            <div className="w-full text-xs text-destructive flex items-center gap-1 mt-1">
+              <AlertCircle className="w-3 h-3 flex-shrink-0" />
+              {reactionError}
+            </div>
+          )}
         </div>
       )}
 
