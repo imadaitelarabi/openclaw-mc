@@ -163,6 +163,7 @@ export function GitHubIssueDetailsPanel({
   const [assignSearch, setAssignSearch] = useState("");
   const [assignDropdownPos, setAssignDropdownPos] = useState<{ left: number; bottom: number } | null>(null);
   const panelRootRef = useRef<HTMLDivElement | null>(null);
+  const assignDropdownRef = useRef<HTMLDivElement | null>(null);
   const postActionRefreshTimersRef = useRef<number[]>([]);
   const pendingSilentRefreshRef = useRef(false);
 
@@ -359,6 +360,25 @@ export function GitHubIssueDetailsPanel({
     return () => {
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [showAssignModal]);
+
+  useEffect(() => {
+    if (!showAssignModal) return;
+
+    const handleOutsidePointer = (event: MouseEvent | TouchEvent) => {
+      const targetNode = event.target as Node | null;
+      if (!targetNode) return;
+      if (assignDropdownRef.current?.contains(targetNode)) return;
+      setShowAssignModal(false);
+    };
+
+    document.addEventListener("mousedown", handleOutsidePointer);
+    document.addEventListener("touchstart", handleOutsidePointer);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsidePointer);
+      document.removeEventListener("touchstart", handleOutsidePointer);
     };
   }, [showAssignModal]);
 
@@ -880,6 +900,7 @@ export function GitHubIssueDetailsPanel({
       {/* Assign dropdown */}
       {showAssignModal && (
         <div
+          ref={assignDropdownRef}
           className="absolute z-20 w-[340px] max-w-[calc(100%-24px)] border border-border rounded-md p-2.5 space-y-2 bg-popover shadow-lg"
           style={{
             left: assignDropdownPos?.left ?? 12,
