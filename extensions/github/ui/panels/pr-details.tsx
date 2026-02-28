@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   ExternalLink,
   AlertCircle,
@@ -21,6 +21,7 @@ import {
   MessageSquare,
   ArrowLeft,
   X,
+  RefreshCw,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -96,6 +97,10 @@ export function GitHubPrDetailsPanel({
   const [reviewCommentsError, setReviewCommentsError] = useState<string | null>(null);
   const [displayedReviewCommentCount, setDisplayedReviewCommentCount] =
     useState(COMMENTS_PAGE_SIZE);
+
+  // Trigger counter — incrementing causes a re-fetch
+  const [fetchTick, setFetchTick] = useState(0);
+  const refresh = useCallback(() => setFetchTick((n) => n + 1), []);
 
   // Write-action state
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -181,7 +186,7 @@ export function GitHubPrDetailsPanel({
     return () => {
       cancelled = true;
     };
-  }, [owner, repo, number, isExtensionContextLoading, isGitHubEnabled]);
+  }, [owner, repo, number, isExtensionContextLoading, isGitHubEnabled, fetchTick]);
 
   const fallbackUrl =
     htmlUrl ||
@@ -350,7 +355,7 @@ export function GitHubPrDetailsPanel({
         </div>
 
         {/* Open in GitHub */}
-        <div>
+        <div className="flex items-center justify-between">
           <a
             href={pr.html_url}
             target="_blank"
@@ -360,6 +365,18 @@ export function GitHubPrDetailsPanel({
             <ExternalLink className="w-3 h-3" />
             Open in GitHub
           </a>
+          <button
+            onClick={refresh}
+            disabled={loading}
+            title="Refresh"
+            className="flex items-center justify-center w-6 h-6 rounded hover:bg-accent disabled:opacity-50 text-muted-foreground transition-colors"
+          >
+            {loading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5" />
+            )}
+          </button>
         </div>
 
         {/* Action error */}

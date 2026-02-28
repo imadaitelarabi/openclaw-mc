@@ -34,6 +34,8 @@ export default function MissionControl() {
   );
 }
 
+const NOTE_TAG_FILTERS_STORAGE_KEY = "oc-note-tag-filters";
+
 function MissionControlInner() {
   const {
     layout,
@@ -137,6 +139,31 @@ function MissionControlInner() {
     deleteNote,
     refreshNotes: _refreshNotes,
   } = useNotes({ wsRef });
+
+  // Persisted note tag filters (for status bar count and chat input "#" mentions)
+  const [noteTagFilters, setNoteTagFilters] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem(NOTE_TAG_FILTERS_STORAGE_KEY);
+      return stored ? (JSON.parse(stored) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(NOTE_TAG_FILTERS_STORAGE_KEY, JSON.stringify(noteTagFilters));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [noteTagFilters]);
+
+  // Notes visible in the status bar and chat input ("#" mentions), filtered by configured tags
+  const statusBarNotes =
+    noteTagFilters.length > 0
+      ? notes.filter((n) => n.tags?.some((t) => noteTagFilters.includes(t)))
+      : notes;
 
   const [skillsFilter, setSkillsFilter] = useState("");
   const [skillsWorkspaceFilter, setSkillsWorkspaceFilter] = useState("all");
@@ -1185,6 +1212,8 @@ function MissionControlInner() {
             onDeleteNoteGroup={handleDeleteNoteGroup}
             onUploadNoteImage={handleUploadNoteImage}
             onDeleteNote={handleDeleteNote}
+            noteTagFilters={noteTagFilters}
+            onNoteTagFiltersChange={setNoteTagFilters}
             skillsReport={skillsReport}
             skillsLoading={skillsLoading}
             skillsError={skillsError}
@@ -1233,7 +1262,7 @@ function MissionControlInner() {
           }}
           onSelectCronJob={handleSelectCronJob}
           onCreateCronJob={handleOpenCreateCronPanel}
-          notes={notes}
+          notes={statusBarNotes}
           noteGroups={noteGroups}
           isNotesMenuOpen={isNotesMenuOpen}
           onToggleNotesMenu={() => setIsNotesMenuOpen(!isNotesMenuOpen)}
