@@ -79,6 +79,10 @@ function getPanelTitle(type: PanelType, data?: any): string {
       return data?.number
         ? `Issue #${data.number}${data.repo ? ` — ${data.repo}` : ""}`
         : "Issue Details";
+    case "github-pr-review-comments":
+      return data?.number
+        ? `Review Comments — PR #${data.number}${data.repo ? ` (${data.repo})` : ""}`
+        : "Review Comments";
     default:
       return type;
   }

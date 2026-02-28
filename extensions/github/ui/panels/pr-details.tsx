@@ -139,7 +139,7 @@ export function GitHubPrDetailsPanel({
   contextPanelId,
   back,
 }: GitHubPrDetailsPanelProps) {
-  const { replacePanel } = usePanels();
+  const { replacePanel, openPanel } = usePanels();
   const extensionContext = useOptionalExtensions();
   const isExtensionContextLoading = extensionContext?.isLoading ?? false;
   const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
@@ -274,6 +274,21 @@ export function GitHubPrDetailsPanel({
                 },
               ]
             : []),
+          {
+            id: "review-comments",
+            label: "Review Comments",
+            variant: "ghost" as const,
+            onClick: () =>
+              openPanel("github-pr-review-comments", {
+                owner,
+                repo,
+                number,
+                back: {
+                  type: "github-pr-details" as const,
+                  data: { owner, repo, number, htmlUrl, back },
+                },
+              }),
+          },
           {
             id: "open-github",
             label: "Open in GitHub",

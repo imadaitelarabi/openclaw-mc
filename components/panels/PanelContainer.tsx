@@ -16,6 +16,7 @@ import { NotesPanel } from "../notes";
 import { SkillsPanel } from "../skills";
 import { GitHubPrDetailsPanel } from "@/extensions/github/ui/panels/pr-details";
 import { GitHubIssueDetailsPanel } from "@/extensions/github/ui/panels/issue-details";
+import { GitHubPrReviewCommentsPanel } from "@/extensions/github/ui/panels/pr-review-comments";
 import type { CronJob, SkillStatusReport } from "@/types";
 
 interface PanelContainerProps {
@@ -469,6 +470,20 @@ export function PanelContainer({
                   />
                 </div>
               </ExtensionModalProvider>
+            )}
+
+            {panel.type === "github-pr-review-comments" && (
+              <div className="h-full overflow-auto bg-background text-foreground">
+                <GitHubPrReviewCommentsPanel
+                  extensionName="github"
+                  panelId="pr-review-comments"
+                  contextPanelId={panel.id}
+                  owner={panel.data?.owner}
+                  repo={panel.data?.repo}
+                  number={panel.data?.number}
+                  back={panel.data?.back}
+                />
+              </div>
             )}
           </div>
         </div>
