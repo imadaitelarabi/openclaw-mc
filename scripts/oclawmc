@@ -1,0 +1,392 @@
+#!/usr/bin/env bash
+# OpenClaw MC – cross-platform CLI
+# Installed to PATH by scripts/install.sh
+# Usage: oclawmc <command> [args]
+set -euo pipefail
+
+# ── config ────────────────────────────────────────────────────────────────────
+CONFIG_DIR="${HOME}/.oclawmc"
+CONFIG_FILE="${CONFIG_DIR}/config.json"
+PID_FILE="${CONFIG_DIR}/oclawmc.pid"
+LOG_FILE="${CONFIG_DIR}/oclawmc.log"
+
+# ── colours ───────────────────────────────────────────────────────────────────
+RED='\033[0;31m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'
+GREEN='\033[0;32m'; BOLD='\033[1m'; NC='\033[0m'
+
+log()  { printf "${BLUE}[oclawmc]${NC} %s\n" "$*"; }
+warn() { printf "${YELLOW}[oclawmc]${NC} %s\n" "$*"; }
+err()  { printf "${RED}[oclawmc]${NC} %s\n" "$*" >&2; }
+ok()   { printf "${GREEN}[oclawmc]${NC} %s\n" "$*"; }
+
+# ── config helpers ────────────────────────────────────────────────────────────
+config_get() {
+  local key="$1"
+  if [[ -f "$CONFIG_FILE" ]]; then
+    # Simple JSON field extraction without requiring jq
+    grep -o "\"${key}\"[[:space:]]*:[[:space:]]*[^,}]*" "$CONFIG_FILE" \
+      | head -1 | sed 's/.*:[[:space:]]*//' | tr -d '"' | xargs
+  fi
+}
+
+INSTALL_DIR=""
+APP_PORT=""
+SERVICE_TYPE=""
+
+load_config() {
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    err "Config not found at ${CONFIG_FILE}. Run the installer first."
+    exit 1
+  fi
+  INSTALL_DIR="$(config_get install_dir)"
+  APP_PORT="$(config_get port)"
+  SERVICE_TYPE="$(config_get service_type)"
+}
+
+# ── process helpers ───────────────────────────────────────────────────────────
+is_running() {
+  if [[ -f "$PID_FILE" ]]; then
+    local pid; pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+stop_process() {
+  if [[ -f "$PID_FILE" ]]; then
+    local pid; pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      kill "$pid"
+      local i=0
+      while kill -0 "$pid" 2>/dev/null && [[ $i -lt 10 ]]; do
+        sleep 0.5; ((i++))
+      done
+      kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+      ok "Process ${pid} stopped."
+    fi
+    rm -f "$PID_FILE"
+  fi
+}
+
+# ── env loading ───────────────────────────────────────────────────────────────
+load_env() {
+  local env_file="${INSTALL_DIR}/.env.local"
+  if [[ -f "$env_file" ]]; then
+    set -o allexport
+    # shellcheck disable=SC1090
+    source "$env_file"
+    set +o allexport
+  fi
+}
+
+# ── subcommands ───────────────────────────────────────────────────────────────
+cmd_start() {
+  load_config
+  load_env
+  log "Starting OpenClaw MC in foreground (Ctrl+C to stop)…"
+  export NODE_ENV=production
+  cd "$INSTALL_DIR"
+  exec node dist/server/index.js
+}
+
+cmd_daemon() {
+  load_config
+  if is_running; then
+    warn "OpenClaw MC is already running (PID $(cat "$PID_FILE"))."
+    return 0
+  fi
+  load_env
+  mkdir -p "$CONFIG_DIR"
+  log "Starting OpenClaw MC in background…"
+  cd "$INSTALL_DIR"
+  export NODE_ENV=production
+  nohup node dist/server/index.js >> "$LOG_FILE" 2>&1 &
+  local pid=$!
+  echo "$pid" > "$PID_FILE"
+  sleep 1
+  if kill -0 "$pid" 2>/dev/null; then
+    ok "OpenClaw MC started (PID ${pid}). Logs: ${LOG_FILE}"
+  else
+    err "Process exited immediately. Check logs: ${LOG_FILE}"
+    exit 1
+  fi
+}
+
+cmd_stop() {
+  load_config
+  case "$SERVICE_TYPE" in
+    systemd)
+      sudo systemctl stop oclawmc && ok "systemd service stopped." || err "Failed to stop systemd service." ;;
+    launchd)
+      launchctl unload -w "${HOME}/Library/LaunchAgents/com.oclawmc.plist" 2>/dev/null \
+        || launchctl bootout gui/"$(id -u)" "${HOME}/Library/LaunchAgents/com.oclawmc.plist" 2>/dev/null \
+        || true
+      ok "launchd service unloaded." ;;
+    *)
+      if is_running; then
+        stop_process
+      else
+        warn "OpenClaw MC is not running."
+      fi
+      ;;
+  esac
+}
+
+cmd_restart() {
+  cmd_stop 2>/dev/null || true
+  sleep 1
+  case "$SERVICE_TYPE" in
+    systemd) sudo systemctl start oclawmc && ok "systemd service started." ;;
+    launchd)
+      launchctl load -w "${HOME}/Library/LaunchAgents/com.oclawmc.plist" 2>/dev/null \
+        || launchctl bootstrap gui/"$(id -u)" "${HOME}/Library/LaunchAgents/com.oclawmc.plist" 2>/dev/null \
+        || true
+      ok "launchd service loaded." ;;
+    *) cmd_daemon ;;
+  esac
+}
+
+cmd_status() {
+  load_config
+  printf "\n${BOLD}OpenClaw MC status${NC}\n"
+  printf "  Install dir : %s\n" "$INSTALL_DIR"
+  printf "  Port        : %s\n" "${APP_PORT:-3000}"
+  printf "  Service     : %s\n" "${SERVICE_TYPE:-nohup}"
+  printf "\n"
+
+  # Process / service status
+  case "$SERVICE_TYPE" in
+    systemd)
+      printf "${BOLD}Service (systemd):${NC}\n"
+      systemctl status oclawmc --no-pager 2>/dev/null || warn "systemd service not found."
+      ;;
+    launchd)
+      printf "${BOLD}Service (launchd):${NC}\n"
+      launchctl list 2>/dev/null | grep -i oclawmc || warn "launchd service not loaded."
+      ;;
+    *)
+      if is_running; then
+        ok "Process running (PID $(cat "$PID_FILE"))."
+      else
+        warn "Process not running."
+      fi
+      ;;
+  esac
+
+  # Tailscale status
+  printf "\n${BOLD}Tailscale:${NC}\n"
+  if command -v tailscale >/dev/null 2>&1; then
+    tailscale status 2>/dev/null || warn "Tailscale not connected."
+  else
+    warn "Tailscale not installed."
+  fi
+}
+
+cmd_logs() {
+  load_config
+  local lines="${1:-100}"
+  if [[ -f "$LOG_FILE" ]]; then
+    tail -n "$lines" -f "$LOG_FILE"
+  else
+    case "$SERVICE_TYPE" in
+      systemd) sudo journalctl -u oclawmc -f --no-pager ;;
+      *)       warn "No log file found at ${LOG_FILE}." ;;
+    esac
+  fi
+}
+
+cmd_update() {
+  load_config
+  local branch; branch="$(config_get branch)"
+  branch="${branch:-master}"
+  log "Pulling latest changes from ${branch}…"
+  git -C "$INSTALL_DIR" fetch --all --prune
+  git -C "$INSTALL_DIR" checkout "$branch"
+  git -C "$INSTALL_DIR" pull --ff-only origin "$branch"
+
+  log "Reinstalling dependencies…"
+  cd "$INSTALL_DIR"
+  if ! npm ci --legacy-peer-deps 2>/dev/null; then
+    npm install --legacy-peer-deps
+  fi
+
+  log "Rebuilding…"
+  npm run build
+  ok "Update complete. Restarting…"
+  cmd_restart
+}
+
+cmd_tailscale() {
+  local subcmd="${1:-status}"
+  case "$subcmd" in
+    status) tailscale status ;;
+    up)
+      # Remove the 'up' subcommand so remaining args pass through to tailscale
+      shift
+      sudo tailscale up "$@"
+      ;;
+    down)   sudo tailscale down ;;
+    *)      err "Unknown tailscale subcommand: ${subcmd}. Use status|up|down."; exit 1 ;;
+  esac
+}
+
+cmd_doctor() {
+  load_config
+  load_env
+  local ok_count=0 fail_count=0
+
+  printf "\n${BOLD}OpenClaw MC doctor${NC}\n\n"
+
+  # Node.js
+  if command -v node >/dev/null 2>&1; then
+    ok "Node.js: $(node --version)"
+    ((ok_count++))
+  else
+    err "Node.js: not found"
+    ((fail_count++))
+  fi
+
+  # Build artifacts
+  if [[ -f "${INSTALL_DIR}/dist/server/index.js" ]]; then
+    ok "Build: dist/server/index.js exists"
+    ((ok_count++))
+  else
+    err "Build: dist/server/index.js not found (run 'oclawmc update' or rebuild)"
+    ((fail_count++))
+  fi
+
+  # Port check
+  local port="${APP_PORT:-3000}"
+  if command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | grep -q ":${port} "; then
+    ok "Port ${port}: in use (app may already be running)"
+    ((ok_count++))
+  elif command -v netstat >/dev/null 2>&1 && netstat -ltn 2>/dev/null | grep -q ":${port} "; then
+    ok "Port ${port}: in use"
+    ((ok_count++))
+  else
+    warn "Port ${port}: not in use (app not running?)"
+  fi
+
+  # Gateway URL
+  if [[ -n "${OPENCLAW_GATEWAY_URL:-}" ]]; then
+    ok "Gateway URL: ${OPENCLAW_GATEWAY_URL}"
+    ((ok_count++))
+  else
+    warn "Gateway URL: not configured (set OPENCLAW_GATEWAY_URL in ${INSTALL_DIR}/.env.local)"
+  fi
+
+  # Gateway token
+  if [[ -n "${OPENCLAW_GATEWAY_TOKEN:-}" ]]; then
+    ok "Gateway token: configured (***masked***)"
+    ((ok_count++))
+  else
+    warn "Gateway token: not configured (set OPENCLAW_GATEWAY_TOKEN in ${INSTALL_DIR}/.env.local)"
+  fi
+
+  # Tailscale
+  if command -v tailscale >/dev/null 2>&1; then
+    if tailscale status >/dev/null 2>&1; then
+      ok "Tailscale: connected"
+      ((ok_count++))
+    else
+      warn "Tailscale: installed but not connected (run 'oclawmc tailscale up')"
+    fi
+  else
+    warn "Tailscale: not installed (optional)"
+  fi
+
+  printf "\nResult: ${GREEN}${ok_count} OK${NC}  ${RED}${fail_count} FAIL${NC}\n\n"
+  [[ $fail_count -eq 0 ]]
+}
+
+cmd_uninstall() {
+  load_config
+
+  printf "${BOLD}${RED}This will stop OpenClaw MC and remove the CLI symlink.${NC}\n"
+  read -r -p "$(printf "${BOLD}?${NC} Continue? [y/N]: ")" ans
+  [[ "${ans,,}" == "y" || "${ans,,}" == "yes" ]] || { log "Uninstall cancelled."; return; }
+
+  # Stop service
+  case "$SERVICE_TYPE" in
+    systemd)
+      sudo systemctl stop  oclawmc 2>/dev/null || true
+      sudo systemctl disable oclawmc 2>/dev/null || true
+      sudo rm -f /etc/systemd/system/oclawmc.service
+      sudo systemctl daemon-reload 2>/dev/null || true
+      ;;
+    launchd)
+      local plist="${HOME}/Library/LaunchAgents/com.oclawmc.plist"
+      launchctl unload -w "$plist" 2>/dev/null \
+        || launchctl bootout gui/"$(id -u)" "$plist" 2>/dev/null || true
+      rm -f "$plist"
+      ;;
+    *)
+      stop_process 2>/dev/null || true
+      ;;
+  esac
+
+  # Remove CLI symlink
+  for bin_dir in "/usr/local/bin" "${HOME}/.local/bin"; do
+    if [[ -L "${bin_dir}/oclawmc" ]]; then
+      rm -f "${bin_dir}/oclawmc"
+      ok "Removed ${bin_dir}/oclawmc"
+    fi
+  done
+
+  # Optionally remove config / build
+  read -r -p "$(printf "${BOLD}?${NC} Delete config directory ${CONFIG_DIR}? [y/N]: ")" ans
+  if [[ "${ans,,}" == "y" || "${ans,,}" == "yes" ]]; then
+    rm -rf "$CONFIG_DIR"
+    ok "Config directory removed."
+  fi
+
+  read -r -p "$(printf "${BOLD}?${NC} Delete installation directory ${INSTALL_DIR}? [y/N]: ")" ans
+  if [[ "${ans,,}" == "y" || "${ans,,}" == "yes" ]]; then
+    rm -rf "$INSTALL_DIR"
+    ok "Installation directory removed."
+  fi
+
+  ok "Uninstall complete."
+}
+
+usage() {
+  printf "${BOLD}Usage:${NC} oclawmc <command> [args]\n\n"
+  printf "${BOLD}Commands:${NC}\n"
+  printf "  start                   Start in foreground\n"
+  printf "  daemon                  Start in background (nohup)\n"
+  printf "  stop                    Stop the running server\n"
+  printf "  restart                 Restart the server\n"
+  printf "  status                  Show server + Tailscale status\n"
+  printf "  logs [lines]            Tail log output (default: 100 lines)\n"
+  printf "  update                  Pull latest, rebuild, and restart\n"
+  printf "  tailscale <status|up|down>\n"
+  printf "                          Manage Tailscale connection\n"
+  printf "  doctor                  Run preflight health checks\n"
+  printf "  uninstall               Remove service, CLI, and optionally data\n"
+  printf "  help                    Show this message\n\n"
+}
+
+# ── dispatch ──────────────────────────────────────────────────────────────────
+CMD="${1:-help}"
+shift || true
+
+case "$CMD" in
+  start)     cmd_start ;;
+  daemon)    cmd_daemon ;;
+  stop)      cmd_stop ;;
+  restart)   cmd_restart ;;
+  status)    cmd_status ;;
+  logs)      cmd_logs "$@" ;;
+  update)    cmd_update ;;
+  tailscale) cmd_tailscale "$@" ;;
+  doctor)    cmd_doctor ;;
+  uninstall) cmd_uninstall ;;
+  help|-h|--help) usage ;;
+  *)
+    err "Unknown command: ${CMD}"
+    usage
+    exit 1
+    ;;
+esac
