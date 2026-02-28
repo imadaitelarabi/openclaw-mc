@@ -15,3 +15,11 @@
 
 - The `scripts/install-and-run.sh` helper now scans common install directories, avoids re-cloning when a valid checkout already exists, and updates it in place instead. It also warns when the existing installation lives outside the default directory and reuses that path.
 - The script still installs or upgrades prerequisites (git/curl, Node.js) but now reuses the existing repo state whenever possible, simplifying repeat runs on a machine that already has OpenClaw MC installed.
+
+## GitHub extension: write actions in detail panels
+
+- The GitHub extension's issue and PR detail panels now support write actions, allowing users to comment, edit, or perform actions directly from the panels without leaving the app.
+
+## GitHub API caching mechanism
+
+- Added caching for GitHub API requests to improve performance and reduce rate limiting issues. The cache stores responses for a configurable duration, speeding up repeated requests for the same data.
