@@ -17,7 +17,11 @@ import { Fragment } from "react";
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { AlertCircle, ChevronDown, Loader2, X } from "lucide-react";
-import type { ExtensionActionBarState, ActionBarAction, ActionBarVariant } from "@/hooks/useExtensionActionBar";
+import type {
+  ExtensionActionBarState,
+  ActionBarAction,
+  ActionBarVariant,
+} from "@/hooks/useExtensionActionBar";
 
 // ── Style helpers ────────────────────────────────────────────────────────────
 
@@ -82,9 +86,7 @@ function ActionButton({ action, anyLoading }: ActionButtonProps) {
           aria-label={action.label}
           className={splitLeftCls(action.variant)}
         >
-          {action.loading ? (
-            <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
-          ) : null}
+          {action.loading ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : null}
           {action.label}
         </button>
 
@@ -108,9 +110,7 @@ function ActionButton({ action, anyLoading }: ActionButtonProps) {
             >
               {action.dropdownItems.map((item) => (
                 <Fragment key={item.id}>
-                  {item.separator && (
-                    <DropdownMenu.Separator className="my-1 h-px bg-border" />
-                  )}
+                  {item.separator && <DropdownMenu.Separator className="my-1 h-px bg-border" />}
                   <DropdownMenu.Item
                     disabled={item.disabled}
                     onSelect={item.onClick}
@@ -137,9 +137,7 @@ function ActionButton({ action, anyLoading }: ActionButtonProps) {
       aria-label={action.label}
       className={simpleCls(action.variant)}
     >
-      {action.loading ? (
-        <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
-      ) : null}
+      {action.loading ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : null}
       {action.label}
     </button>
   );

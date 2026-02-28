@@ -109,25 +109,26 @@ export function GitHubIssueDetailsPanel({
 
   // ── Action bar (built before early returns to satisfy Rules of Hooks) ───
   const actionBar = useExtensionActionBar({
-    actions: issue?.state === "open"
-      ? [
-          {
-            id: "close",
-            label: "Close Issue",
-            variant: "danger",
-            disabled: actionLoading !== null,
-            loading: actionLoading === "close",
-            onClick: () => setShowCloseConfirm(true),
-          },
-          {
-            id: "assign",
-            label: "Assign",
-            variant: "default",
-            disabled: actionLoading !== null,
-            onClick: () => setShowAssignModal(true),
-          },
-        ]
-      : [],
+    actions:
+      issue?.state === "open"
+        ? [
+            {
+              id: "close",
+              label: "Close Issue",
+              variant: "danger",
+              disabled: actionLoading !== null,
+              loading: actionLoading === "close",
+              onClick: () => setShowCloseConfirm(true),
+            },
+            {
+              id: "assign",
+              label: "Assign",
+              variant: "default",
+              disabled: actionLoading !== null,
+              onClick: () => setShowAssignModal(true),
+            },
+          ]
+        : [],
     error: actionError,
     onDismissError: () => setActionError(null),
   });
