@@ -269,8 +269,18 @@ export class GitHubAPI {
   /**
    * Get the authenticated user's profile.
    */
-  async getUser(): Promise<{ login: string; name: string | null; avatar_url: string; html_url: string }> {
-    return this.request<{ login: string; name: string | null; avatar_url: string; html_url: string }>("/user");
+  async getUser(): Promise<{
+    login: string;
+    name: string | null;
+    avatar_url: string;
+    html_url: string;
+  }> {
+    return this.request<{
+      login: string;
+      name: string | null;
+      avatar_url: string;
+      html_url: string;
+    }>("/user");
   }
 
   /**
@@ -482,11 +492,16 @@ export class GitHubAPI {
    * There is no REST endpoint for this; GraphQL is required.
    * Accepts an optional `pullRequestId` (GraphQL node_id) to avoid a redundant REST call.
    */
-  async markPrReadyForReview(owner: string, repo: string, number: number, pullRequestId?: string): Promise<void> {
+  async markPrReadyForReview(
+    owner: string,
+    repo: string,
+    number: number,
+    pullRequestId?: string
+  ): Promise<void> {
     // Fetch the PR node_id via REST only if not provided by the caller
-    const nodeId = pullRequestId ?? (
-      await this.request<{ node_id: string }>(`/repos/${owner}/${repo}/pulls/${number}`)
-    ).node_id;
+    const nodeId =
+      pullRequestId ??
+      (await this.request<{ node_id: string }>(`/repos/${owner}/${repo}/pulls/${number}`)).node_id;
 
     await this.graphqlRequest<unknown>(
       `mutation MarkPullRequestReadyForReview($pullRequestId: ID!) {
@@ -582,9 +597,7 @@ export class GitHubAPI {
     const agentAssignment = {
       target_repo: options?.targetRepo ?? `${owner}/${repo}`,
       ...(options?.baseBranch ? { base_branch: options.baseBranch } : {}),
-      ...(options?.customInstructions
-        ? { custom_instructions: options.customInstructions }
-        : {}),
+      ...(options?.customInstructions ? { custom_instructions: options.customInstructions } : {}),
       ...(options?.customAgent ? { custom_agent: options.customAgent } : {}),
       ...(options?.model ? { model: options.model } : {}),
     };
@@ -663,9 +676,7 @@ export class GitHubAPI {
    * Get users that can be assigned to issues in a repository.
    */
   async getAssignableUsers(owner: string, repo: string): Promise<GitHubAssignableUser[]> {
-    return this.request<GitHubAssignableUser[]>(
-      `/repos/${owner}/${repo}/assignees?per_page=100`
-    );
+    return this.request<GitHubAssignableUser[]>(`/repos/${owner}/${repo}/assignees?per_page=100`);
   }
 
   /**

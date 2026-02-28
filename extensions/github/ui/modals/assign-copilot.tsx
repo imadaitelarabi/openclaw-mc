@@ -3,9 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, GitBranch, Loader2, Sparkles } from "lucide-react";
-import type {
-  ExtensionModalProps,
-} from "@/types/extension";
+import type { ExtensionModalProps } from "@/types/extension";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubCopilotAgentAssignmentOptions } from "../../api";
 
@@ -156,12 +154,22 @@ export function AssignCopilotModal({
                   <button
                     key={b}
                     type="button"
-                    onClick={() => { setBranch(b); setBranchSearch(""); setBranchOpen(false); }}
+                    onClick={() => {
+                      setBranch(b);
+                      setBranchSearch("");
+                      setBranchOpen(false);
+                    }}
                     className="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted/60 transition-colors text-left"
                   >
                     <GitBranch className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
-                    <span className={`truncate ${b === branch ? "font-medium text-primary" : "text-foreground"}`}>{b}</span>
-                    {b === branch && <Check className="w-3 h-3 ml-auto flex-shrink-0 text-primary" />}
+                    <span
+                      className={`truncate ${b === branch ? "font-medium text-primary" : "text-foreground"}`}
+                    >
+                      {b}
+                    </span>
+                    {b === branch && (
+                      <Check className="w-3 h-3 ml-auto flex-shrink-0 text-primary" />
+                    )}
                   </button>
                 ))}
                 {filteredBranches.length === 0 && branchSearch && (

@@ -68,15 +68,7 @@ function labelTextColor(hex: string): string {
   return luminance > 0.5 ? "#000000" : "#ffffff";
 }
 
-function UserAvatar({
-  src,
-  alt,
-  size = 16,
-}: {
-  src?: string;
-  alt: string;
-  size?: number;
-}) {
+function UserAvatar({ src, alt, size = 16 }: { src?: string; alt: string; size?: number }) {
   if (src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -179,7 +171,10 @@ export function GitHubPrDetailsPanel({
   const [reviewableLoading, setReviewableLoading] = useState(false);
   const [reviewSearch, setReviewSearch] = useState("");
   const [showReviewDropdown, setShowReviewDropdown] = useState(false);
-  const [reviewDropdownPos, setReviewDropdownPos] = useState<{ left: number; bottom: number } | null>(null);
+  const [reviewDropdownPos, setReviewDropdownPos] = useState<{
+    left: number;
+    bottom: number;
+  } | null>(null);
   const panelRootRef = useRef<HTMLDivElement | null>(null);
   const reviewDropdownRef = useRef<HTMLDivElement | null>(null);
 
@@ -219,7 +214,10 @@ export function GitHubPrDetailsPanel({
                   label: "Request Review",
                   variant: "default" as const,
                   disabled: actionLoading !== null,
-                  onClick: () => { setReviewSearch(""); setShowReviewDropdown(true); },
+                  onClick: () => {
+                    setReviewSearch("");
+                    setShowReviewDropdown(true);
+                  },
                 },
                 ...(pr.draft
                   ? [
@@ -340,8 +338,8 @@ export function GitHubPrDetailsPanel({
       setError(
         githubInitError ??
           (isGitHubEnabled
-          ? "GitHub extension is still initializing. Please retry in a moment."
-          : "GitHub extension is not initialized. Please complete onboarding.")
+            ? "GitHub extension is still initializing. Please retry in a moment."
+            : "GitHub extension is not initialized. Please complete onboarding.")
       );
       return;
     }
@@ -406,9 +404,15 @@ export function GitHubPrDetailsPanel({
 
     api
       .getIssueTimeline(owner, repo, number)
-      .then((result) => { if (!cancelled) setTimeline(result); })
-      .catch(() => { if (!cancelled) setTimeline([]); })
-      .finally(() => { if (!cancelled) setTimelineLoading(false); });
+      .then((result) => {
+        if (!cancelled) setTimeline(result);
+      })
+      .catch(() => {
+        if (!cancelled) setTimeline([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTimelineLoading(false);
+      });
 
     return () => {
       cancelled = true;
@@ -526,9 +530,7 @@ export function GitHubPrDetailsPanel({
       const updated = await api.getPRDetails(owner, repo, number);
       setPr(updated);
     } catch (e) {
-      setActionError(
-        e instanceof Error ? e.message : "Failed to mark PR as ready for review"
-      );
+      setActionError(e instanceof Error ? e.message : "Failed to mark PR as ready for review");
     } finally {
       setActionLoading(null);
     }
@@ -604,9 +606,7 @@ export function GitHubPrDetailsPanel({
     const q = reviewSearch.toLowerCase().trim();
     if (!q) return reviewableUsers;
     return reviewableUsers.filter(
-      (u) =>
-        u.login.toLowerCase().includes(q) ||
-        (u.name && u.name.toLowerCase().includes(q))
+      (u) => u.login.toLowerCase().includes(q) || (u.name && u.name.toLowerCase().includes(q))
     );
   }, [reviewableUsers, reviewSearch]);
 
@@ -764,7 +764,12 @@ export function GitHubPrDetailsPanel({
             <span className="font-medium text-foreground">Author:</span>
             <UserAvatar src={pr.user.avatar_url} alt={pr.user.login} size={16} />
             {pr.user.html_url ? (
-              <a href={pr.user.html_url} target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">
+              <a
+                href={pr.user.html_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground hover:underline"
+              >
                 {pr.user.login}
               </a>
             ) : (
@@ -780,7 +785,14 @@ export function GitHubPrDetailsPanel({
                 <span key={a.login} className="inline-flex items-center gap-1">
                   <UserAvatar src={a.avatar_url} alt={a.login} size={14} />
                   {a.html_url ? (
-                    <a href={a.html_url} target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">{a.login}</a>
+                    <a
+                      href={a.html_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-foreground hover:underline"
+                    >
+                      {a.login}
+                    </a>
                   ) : (
                     <span className="text-foreground">{a.login}</span>
                   )}
@@ -797,7 +809,14 @@ export function GitHubPrDetailsPanel({
                 <span key={r.login} className="inline-flex items-center gap-1">
                   <UserAvatar src={r.avatar_url} alt={r.login} size={14} />
                   {r.html_url ? (
-                    <a href={r.html_url} target="_blank" rel="noopener noreferrer" className="text-foreground hover:underline">{r.login}</a>
+                    <a
+                      href={r.html_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-foreground hover:underline"
+                    >
+                      {r.login}
+                    </a>
                   ) : (
                     <span className="text-foreground">{r.login}</span>
                   )}
@@ -891,9 +910,12 @@ export function GitHubPrDetailsPanel({
             </div>
           )}
 
-          {!issueCommentsLoading && !timelineLoading && !issueCommentsError && activityItems.length === 0 && (
-            <p className="text-xs text-muted-foreground">No conversation yet.</p>
-          )}
+          {!issueCommentsLoading &&
+            !timelineLoading &&
+            !issueCommentsError &&
+            activityItems.length === 0 && (
+              <p className="text-xs text-muted-foreground">No conversation yet.</p>
+            )}
 
           {hasMoreActivity && (
             <button
@@ -950,9 +972,16 @@ export function GitHubPrDetailsPanel({
                 <div key={item.id} className="border border-border rounded p-2.5 bg-muted/5">
                   <div className="flex items-start gap-2 text-xs">
                     {item.event.actor ? (
-                      <UserAvatar src={item.event.actor.avatar_url} alt={item.event.actor.login} size={16} />
+                      <UserAvatar
+                        src={item.event.actor.avatar_url}
+                        alt={item.event.actor.login}
+                        size={16}
+                      />
                     ) : (
-                      <div className="w-4 h-4 rounded-full bg-muted flex-shrink-0" aria-hidden="true" />
+                      <div
+                        className="w-4 h-4 rounded-full bg-muted flex-shrink-0"
+                        aria-hidden="true"
+                      />
                     )}
                     <span className="text-muted-foreground flex-1 min-w-0">
                       {item.event.actor?.login && (
@@ -967,7 +996,9 @@ export function GitHubPrDetailsPanel({
                               {item.event.actor.login}
                             </a>
                           ) : (
-                            <span className="font-medium text-foreground">{item.event.actor.login}</span>
+                            <span className="font-medium text-foreground">
+                              {item.event.actor.login}
+                            </span>
                           )}{" "}
                         </>
                       )}
@@ -1055,7 +1086,9 @@ export function GitHubPrDetailsPanel({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <UserAvatar src={comment.user.avatar_url} alt={comment.user.login} size={16} />
-                    <span className="text-xs font-medium text-foreground truncate">{comment.user.login}</span>
+                    <span className="text-xs font-medium text-foreground truncate">
+                      {comment.user.login}
+                    </span>
                   </div>
                   <span className="text-[10px] text-muted-foreground flex-shrink-0">
                     {formatDate(comment.created_at)}
@@ -1079,7 +1112,13 @@ export function GitHubPrDetailsPanel({
       {showReviewDropdown && reviewDropdownPos && (
         <div
           ref={reviewDropdownRef}
-          style={{ position: "absolute", left: reviewDropdownPos.left, bottom: reviewDropdownPos.bottom, width: 280, zIndex: 50 }}
+          style={{
+            position: "absolute",
+            left: reviewDropdownPos.left,
+            bottom: reviewDropdownPos.bottom,
+            width: 280,
+            zIndex: 50,
+          }}
           className="bg-popover border border-border rounded-md shadow-lg overflow-hidden"
           role="listbox"
           aria-label="Select reviewer"
@@ -1099,7 +1138,8 @@ export function GitHubPrDetailsPanel({
           <div className="max-h-48 overflow-auto">
             {reviewableLoading ? (
               <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />Loading…
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Loading…
               </div>
             ) : filteredReviewableUsers.length === 0 ? (
               <p className="p-3 text-xs text-muted-foreground">No users found.</p>

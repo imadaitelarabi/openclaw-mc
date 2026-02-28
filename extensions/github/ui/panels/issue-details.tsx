@@ -40,10 +40,7 @@ import type {
   GitHubTimelineEvent,
   GitHubCopilotAgentAssignmentOptions,
 } from "../../api";
-import type {
-  AssignCopilotModalPayload,
-  AssignCopilotModalResult,
-} from "../modals/assign-copilot";
+import type { AssignCopilotModalPayload, AssignCopilotModalResult } from "../modals/assign-copilot";
 
 const ACTIVITY_PAGE_SIZE = 10;
 
@@ -65,15 +62,7 @@ function labelTextColor(hex: string): string {
   return luminance > 0.5 ? "#000000" : "#ffffff";
 }
 
-function UserAvatar({
-  src,
-  alt,
-  size = 16,
-}: {
-  src?: string;
-  alt: string;
-  size?: number;
-}) {
+function UserAvatar({ src, alt, size = 16 }: { src?: string; alt: string; size?: number }) {
   if (src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -176,7 +165,10 @@ export function GitHubIssueDetailsPanel({
   const [assignableUsers, setAssignableUsers] = useState<GitHubAssignableUser[]>([]);
   const [assignableLoading, setAssignableLoading] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
-  const [assignDropdownPos, setAssignDropdownPos] = useState<{ left: number; bottom: number } | null>(null);
+  const [assignDropdownPos, setAssignDropdownPos] = useState<{
+    left: number;
+    bottom: number;
+  } | null>(null);
   const panelRootRef = useRef<HTMLDivElement | null>(null);
   const assignDropdownRef = useRef<HTMLDivElement | null>(null);
   const postActionRefreshTimersRef = useRef<number[]>([]);
@@ -316,8 +308,8 @@ export function GitHubIssueDetailsPanel({
       setError(
         githubInitError ??
           (isGitHubEnabled
-          ? "GitHub extension is still initializing. Please retry in a moment."
-          : "GitHub extension is not initialized. Please complete onboarding.")
+            ? "GitHub extension is still initializing. Please retry in a moment."
+            : "GitHub extension is not initialized. Please complete onboarding.")
       );
       return;
     }
@@ -605,9 +597,7 @@ export function GitHubIssueDetailsPanel({
     const q = assignSearch.toLowerCase().trim();
     if (!q) return assignableUsers;
     return assignableUsers.filter(
-      (u) =>
-        u.login.toLowerCase().includes(q) ||
-        (u.name && u.name.toLowerCase().includes(q))
+      (u) => u.login.toLowerCase().includes(q) || (u.name && u.name.toLowerCase().includes(q))
     );
   }, [assignableUsers, assignSearch]);
 
@@ -927,9 +917,16 @@ export function GitHubIssueDetailsPanel({
                 <div key={item.id} className="border border-border rounded p-2.5 bg-muted/5">
                   <div className="flex items-start gap-2 text-xs">
                     {item.event.actor ? (
-                      <UserAvatar src={item.event.actor.avatar_url} alt={item.event.actor.login} size={16} />
+                      <UserAvatar
+                        src={item.event.actor.avatar_url}
+                        alt={item.event.actor.login}
+                        size={16}
+                      />
                     ) : (
-                      <div className="w-4 h-4 rounded-full bg-muted flex-shrink-0" aria-hidden="true" />
+                      <div
+                        className="w-4 h-4 rounded-full bg-muted flex-shrink-0"
+                        aria-hidden="true"
+                      />
                     )}
                     <span className="text-muted-foreground flex-1 min-w-0">
                       {item.event.actor?.login && (
@@ -944,7 +941,9 @@ export function GitHubIssueDetailsPanel({
                               {item.event.actor.login}
                             </a>
                           ) : (
-                            <span className="font-medium text-foreground">{item.event.actor.login}</span>
+                            <span className="font-medium text-foreground">
+                              {item.event.actor.login}
+                            </span>
                           )}{" "}
                         </>
                       )}
@@ -1048,7 +1047,11 @@ export function GitHubIssueDetailsPanel({
             className="w-full px-2 py-1.5 text-xs bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-ring"
           />
 
-          <div className="max-h-44 overflow-y-auto space-y-0.5" role="listbox" aria-label="Assignable users">
+          <div
+            className="max-h-44 overflow-y-auto space-y-0.5"
+            role="listbox"
+            aria-label="Assignable users"
+          >
             <button
               role="option"
               aria-selected={false}
@@ -1056,7 +1059,9 @@ export function GitHubIssueDetailsPanel({
               disabled={actionLoading !== null}
               className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted/60 transition-colors disabled:opacity-50 text-left"
             >
-              <span className="text-sm flex-shrink-0" aria-hidden="true">✨</span>
+              <span className="text-sm flex-shrink-0" aria-hidden="true">
+                ✨
+              </span>
               <span className="font-medium text-foreground">Assign to Copilot</span>
               <span className="text-muted-foreground ml-auto text-[10px]">AI</span>
             </button>
