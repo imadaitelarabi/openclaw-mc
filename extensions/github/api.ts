@@ -182,6 +182,44 @@ export class GitHubAPI {
   }
 
   /**
+   * Make an authenticated GraphQL request to the GitHub API.
+   * Optionally accepts extra headers (e.g. for Copilot feature flags).
+   */
+  private async graphqlRequest<T>(
+    query: string,
+    variables: Record<string, unknown>,
+    extraHeaders?: Record<string, string>
+  ): Promise<T> {
+    const { token } = this.config;
+
+    if (!token) {
+      throw new Error("GitHub token not configured");
+    }
+
+    const response = await fetch("https://api.github.com/graphql", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...extraHeaders,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub GraphQL API ${response.status}: ${response.statusText}`);
+    }
+
+    const json = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
+
+    if (json.errors && json.errors.length > 0) {
+      throw new Error(json.errors.map((e) => e.message).join("; "));
+    }
+
+    return json.data as T;
+  }
+
+  /**
    * Test API connection
    */
   async testConnection(): Promise<boolean> {
@@ -445,6 +483,74 @@ export class GitHubAPI {
       method: "POST",
       body: { assignees },
     });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Assign Copilot (copilot-swe-agent) to an issue using the GitHub GraphQL API
+   * with the required feature-flag headers for agent assignment.
+   */
+  async assignCopilotToIssue(owner: string, repo: string, number: number): Promise<void> {
+    const COPILOT_HEADERS = {
+      "GraphQL-Features": "issues_copilot_assignment_api_support,coding_agent_model_selection",
+    };
+
+    // Step 1: Fetch the issue node ID and the copilot-swe-agent actor ID in one query.
+    const fetchData = await this.graphqlRequest<{
+      repository: {
+        issue: { id: string } | null;
+        suggestedActors: {
+          nodes: Array<{ id: string; login: string }>;
+        };
+      };
+    }>(
+      `query GetIssueAndCopilotActor($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $number) {
+            id
+          }
+          suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 20) {
+            nodes {
+              id
+              login
+            }
+          }
+        }
+      }`,
+      { owner, repo, number },
+      COPILOT_HEADERS
+    );
+
+    const issue = fetchData.repository?.issue;
+    if (!issue) {
+      throw new Error(`Issue #${number} not found in ${owner}/${repo}`);
+    }
+
+    const actors = fetchData.repository?.suggestedActors?.nodes ?? [];
+    const copilotActor = actors.find(
+      (a) => a.login.toLowerCase() === "copilot-swe-agent" || a.login.toLowerCase() === "copilot"
+    );
+
+    if (!copilotActor) {
+      throw new Error(
+        "Copilot agent not available for this repository. Ensure GitHub Copilot is enabled."
+      );
+    }
+
+    // Step 2: Add the Copilot actor as an assignee via the agent assignment mutation.
+    await this.graphqlRequest<unknown>(
+      `mutation AssignCopilot($assignableId: ID!, $assigneeIds: [ID!]!) {
+        addAssigneesToAssignable(input: {
+          assignableId: $assignableId,
+          assigneeIds: $assigneeIds
+        }) {
+          clientMutationId
+        }
+      }`,
+      { assignableId: issue.id, assigneeIds: [copilotActor.id] },
+      COPILOT_HEADERS
+    );
+
     this.invalidateDetailsCache();
   }
 

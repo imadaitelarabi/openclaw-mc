@@ -83,6 +83,8 @@ interface PanelContainerProps {
   onDeleteNoteGroup?: (group: string) => Promise<void>;
   onUploadNoteImage?: (file: File) => Promise<string>;
   onDeleteNote?: (id: string) => Promise<void>;
+  noteTagFilters?: string[];
+  onNoteTagFiltersChange?: (filters: string[]) => void;
 
   // Skills-related props
   skillsReport?: SkillStatusReport | null;
@@ -144,6 +146,8 @@ export function PanelContainer({
   onDeleteNoteGroup,
   onUploadNoteImage,
   onDeleteNote,
+  noteTagFilters = [],
+  onNoteTagFiltersChange,
   skillsReport = null,
   skillsLoading = false,
   skillsError = null,
@@ -242,7 +246,11 @@ export function PanelContainer({
                 sessionSettings={sessionSettings}
                 updateSetting={updateSetting}
                 onAbortRun={onAbortRun}
-                notes={notes}
+                notes={
+                  noteTagFilters.length > 0
+                    ? notes.filter((n) => n.tags?.some((t) => noteTagFilters.includes(t)))
+                    : notes
+                }
                 noteGroups={noteGroups}
                 skills={skillsReport?.skills ?? []}
                 showTools={panel.settings?.showTools ?? false}
@@ -420,6 +428,8 @@ export function PanelContainer({
                 onSetTagColor={onSetTagColor}
                 onDeleteTag={onDeleteTag}
                 onCreateTag={onCreateTag}
+                noteTagFilters={noteTagFilters}
+                onNoteTagFiltersChange={onNoteTagFiltersChange}
               />
             )}
 
