@@ -276,7 +276,7 @@ export function GitHubPrDetailsPanel({
             : []),
           {
             id: "review-comments",
-            label: "Review Comments",
+            label: "Changes",
             variant: "ghost" as const,
             onClick: () =>
               contextPanelId

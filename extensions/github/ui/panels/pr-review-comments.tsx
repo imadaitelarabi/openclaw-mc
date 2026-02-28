@@ -1,9 +1,8 @@
 /**
- * GitHub PR Review Comments Panel
+ * GitHub PR Changes Panel
  *
- * Displays inline review comments for a pull request grouped by file and
- * thread, with filtering, pagination, and write actions (reply, edit, delete,
- * reactions).
+ * Displays changed files in a pull request and any inline review threads on
+ * each file, with filtering, pagination, and write actions.
  */
 
 "use client";
@@ -32,7 +31,7 @@ import type { PanelBackNavigation } from "@/types";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { usePanels } from "@/contexts/PanelContext";
 import { getApiInstance } from "../../api-instance";
-import type { GitHubReviewComment } from "../../api";
+import type { GitHubPRFile, GitHubReviewComment } from "../../api";
 
 const PAGE_SIZE = 20;
 
@@ -88,8 +87,7 @@ interface Thread {
   replies: GitHubReviewComment[];
 }
 
-/** Group threads by file path. */
-function groupByFile(comments: GitHubReviewComment[]): Map<string, Thread[]> {
+function groupThreadsByFile(comments: GitHubReviewComment[]): Map<string, Thread[]> {
   const rootsById = new Map<number, GitHubReviewComment>();
   const replyMap = new Map<number, GitHubReviewComment[]>();
 
@@ -208,9 +206,11 @@ function CommentCard({
     setDeleteError(null);
     try {
       await api.deleteReviewComment(owner, repo, comment.id);
+      setConfirmDelete(false);
       onRefresh();
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : "Failed to delete comment");
+    } finally {
       setDeleteLoading(false);
     }
   }, [api, owner, repo, comment.id, onRefresh]);
@@ -523,6 +523,7 @@ function ThreadGroup({ thread, owner, repo, prNumber, onRefresh }: ThreadGroupPr
 }
 
 interface FileGroupProps {
+  file: GitHubPRFile;
   filePath: string;
   threads: Thread[];
   owner: string;
@@ -531,11 +532,12 @@ interface FileGroupProps {
   onRefresh: () => void;
 }
 
-function FileGroup({ filePath, threads, owner, repo, prNumber, onRefresh }: FileGroupProps) {
+function FileGroup({ file, filePath, threads, owner, repo, prNumber, onRefresh }: FileGroupProps) {
   const [collapsed, setCollapsed] = useState(false);
   const outdatedCount = threads.filter(
     (t) => t.root.position === null || t.root.position === undefined
   ).length;
+  const totalComments = threads.reduce((sum, t) => sum + 1 + t.replies.length, 0);
 
   return (
     <div className="border border-border rounded overflow-hidden">
@@ -549,8 +551,15 @@ function FileGroup({ filePath, threads, owner, repo, prNumber, onRefresh }: File
           <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
         )}
         <span className="font-mono text-xs text-foreground truncate flex-1">{filePath}</span>
+        <span className="text-[9px] px-1 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wide flex-shrink-0">
+          {file.status}
+        </span>
+        <span className="text-[10px] text-muted-foreground flex-shrink-0">
+          +{file.additions} -{file.deletions}
+        </span>
         <span className="text-[10px] text-muted-foreground flex-shrink-0">
           {threads.length} {threads.length === 1 ? "thread" : "threads"}
+          {totalComments > 0 ? ` · ${totalComments} comments` : ""}
         </span>
         {outdatedCount > 0 && (
           <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 font-medium flex-shrink-0">
@@ -561,6 +570,18 @@ function FileGroup({ filePath, threads, owner, repo, prNumber, onRefresh }: File
 
       {!collapsed && (
         <div className="p-3 space-y-3">
+          {file.patch ? (
+            <pre className="text-[10px] font-mono bg-muted/30 border border-border rounded p-2 overflow-x-auto whitespace-pre-wrap leading-4 max-h-64">
+              {file.patch}
+            </pre>
+          ) : (
+            <div className="text-xs text-muted-foreground">No patch preview available for this file.</div>
+          )}
+
+          {threads.length === 0 && (
+            <div className="text-xs text-muted-foreground">No review comments on this file.</div>
+          )}
+
           {threads.map((thread) => (
             <ThreadGroup
               key={thread.root.id}
@@ -597,6 +618,7 @@ export function GitHubPrReviewCommentsPanel({
   const isExtensionContextLoading = extensionContext?.isLoading ?? false;
   const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
 
+  const [files, setFiles] = useState<GitHubPRFile[]>([]);
   const [comments, setComments] = useState<GitHubReviewComment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -613,7 +635,7 @@ export function GitHubPrReviewCommentsPanel({
 
   const triggerRefresh = useCallback(() => setFetchTick((n) => n + 1), []);
 
-  // Fetch review comments
+  // Fetch changed files and review comments
   useEffect(() => {
     if (isExtensionContextLoading || !isGitHubEnabled) return;
     if (!owner || !repo || !number) return;
@@ -623,13 +645,13 @@ export function GitHubPrReviewCommentsPanel({
     setError(null);
 
     const api = getApiInstance();
-    api
-      .getPRReviewComments(owner, repo, number)
-      .then((result) => {
-        if (!cancelled) setComments(result);
+    Promise.all([api.getPRFiles(owner, repo, number), api.getPRReviewComments(owner, repo, number)])
+      .then(([prFiles, reviewComments]) => {
+        if (!cancelled) setFiles(prFiles);
+        if (!cancelled) setComments(reviewComments);
       })
       .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load review comments");
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load PR changes");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -640,8 +662,7 @@ export function GitHubPrReviewCommentsPanel({
     };
   }, [owner, repo, number, isGitHubEnabled, isExtensionContextLoading, fetchTick]);
 
-  // Build file groups from comments, applying filters
-  const fileMap = useMemo(() => {
+  const filteredThreadsByFile = useMemo(() => {
     let filtered = comments;
 
     if (filterAuthor.trim()) {
@@ -649,39 +670,45 @@ export function GitHubPrReviewCommentsPanel({
       filtered = filtered.filter((c) => c.user.login.toLowerCase().includes(q));
     }
     if (filterStatus === "active") {
-      filtered = filtered.filter(
-        (c) => c.position !== null && c.position !== undefined
-      );
+      filtered = filtered.filter((c) => c.position !== null && c.position !== undefined);
     } else if (filterStatus === "outdated") {
-      filtered = filtered.filter(
-        (c) => c.position === null || c.position === undefined
-      );
+      filtered = filtered.filter((c) => c.position === null || c.position === undefined);
     }
     if (filterText.trim()) {
       const q = filterText.trim().toLowerCase();
       filtered = filtered.filter((c) => c.body.toLowerCase().includes(q));
     }
 
-    let grouped = groupByFile(filtered);
+    return groupThreadsByFile(filtered);
+  }, [comments, filterAuthor, filterStatus, filterText]);
 
-    if (filterFile.trim()) {
-      const q = filterFile.trim().toLowerCase();
-      const next = new Map<string, Thread[]>();
-      for (const [path, threads] of grouped) {
-        if (path.toLowerCase().includes(q)) next.set(path, threads);
-      }
-      grouped = next;
-    }
+  // Build visible file entries, preserving PR file order
+  const fileEntries = useMemo(() => {
+    const hasCommentFilters =
+      filterAuthor.trim().length > 0 || filterText.trim().length > 0 || filterStatus !== "all";
+    const fileQuery = filterFile.trim().toLowerCase();
 
-    return grouped;
-  }, [comments, filterFile, filterAuthor, filterStatus, filterText]);
+    return files
+      .filter((file) => (fileQuery ? file.filename.toLowerCase().includes(fileQuery) : true))
+      .map((file) => [file.filename, { file, threads: filteredThreadsByFile.get(file.filename) ?? [] }] as const)
+      .filter(([, group]) => (!hasCommentFilters ? true : group.threads.length > 0));
+  }, [files, filteredThreadsByFile, filterFile, filterAuthor, filterText, filterStatus]);
 
-  const fileEntries = useMemo(() => Array.from(fileMap.entries()), [fileMap]);
   const visibleEntries = fileEntries.slice(0, visibleFiles);
   const hasMore = visibleFiles < fileEntries.length;
 
   const totalThreads = useMemo(
-    () => fileEntries.reduce((sum, [, threads]) => sum + threads.length, 0),
+    () => fileEntries.reduce((sum, [, group]) => sum + group.threads.length, 0),
+    [fileEntries]
+  );
+
+  const totalComments = useMemo(
+    () =>
+      fileEntries.reduce(
+        (sum, [, group]) =>
+          sum + group.threads.reduce((threadSum, thread) => threadSum + 1 + thread.replies.length, 0),
+        0
+      ),
     [fileEntries]
   );
 
@@ -704,7 +731,6 @@ export function GitHubPrReviewCommentsPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-background sticky top-0 z-10">
         {back && contextPanelId && (
           <button
@@ -718,12 +744,14 @@ export function GitHubPrReviewCommentsPanel({
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
           <span className="text-xs font-medium truncate">
-            Review Comments — PR #{number}
+            Changes — PR #{number}
             {repo ? ` (${repo})` : ""}
           </span>
-          {comments.length > 0 && (
+          {files.length > 0 && (
             <span className="text-[10px] text-muted-foreground flex-shrink-0">
-              {totalThreads} {totalThreads === 1 ? "thread" : "threads"} · {comments.length} comments
+              {fileEntries.length} {fileEntries.length === 1 ? "file" : "files"}
+              {totalThreads > 0 ? ` · ${totalThreads} ${totalThreads === 1 ? "thread" : "threads"}` : ""}
+              {totalComments > 0 ? ` · ${totalComments} comments` : ""}
             </span>
           )}
         </div>
@@ -737,7 +765,6 @@ export function GitHubPrReviewCommentsPanel({
         </button>
       </div>
 
-      {/* Filters */}
       <div className="px-3 py-2 border-b border-border bg-background space-y-1.5">
         <div className="flex gap-1.5 flex-wrap">
           <input
@@ -768,9 +795,9 @@ export function GitHubPrReviewCommentsPanel({
             }}
             className="text-xs border border-border rounded px-2 py-1 bg-background"
           >
-            <option value="all">All</option>
-            <option value="active">Active</option>
-            <option value="outdated">Outdated</option>
+            <option value="all">All comments</option>
+            <option value="active">Active comments</option>
+            <option value="outdated">Outdated comments</option>
           </select>
         </div>
         <input
@@ -785,12 +812,11 @@ export function GitHubPrReviewCommentsPanel({
         />
       </div>
 
-      {/* Body */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {loading && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground py-4">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            Loading review comments…
+            Loading PR changes…
           </div>
         )}
 
@@ -801,19 +827,20 @@ export function GitHubPrReviewCommentsPanel({
           </div>
         )}
 
-        {!loading && !error && comments.length === 0 && (
-          <p className="text-xs text-muted-foreground py-4">No review comments yet.</p>
+        {!loading && !error && files.length === 0 && (
+          <p className="text-xs text-muted-foreground py-4">No changed files in this pull request.</p>
         )}
 
-        {!loading && !error && comments.length > 0 && fileEntries.length === 0 && (
-          <p className="text-xs text-muted-foreground py-4">No comments match the current filters.</p>
+        {!loading && !error && files.length > 0 && fileEntries.length === 0 && (
+          <p className="text-xs text-muted-foreground py-4">No files match the current filters.</p>
         )}
 
-        {visibleEntries.map(([filePath, threads]) => (
+        {visibleEntries.map(([filePath, group]) => (
           <FileGroup
             key={filePath}
+            file={group.file}
             filePath={filePath}
-            threads={threads}
+            threads={group.threads}
             owner={owner}
             repo={repo}
             prNumber={number}

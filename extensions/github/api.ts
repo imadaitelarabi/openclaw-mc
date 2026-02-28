@@ -108,6 +108,19 @@ export interface GitHubPRCommit {
   author: { login: string; avatar_url?: string; html_url?: string } | null;
 }
 
+export interface GitHubPRFile {
+  sha: string;
+  filename: string;
+  status: "added" | "removed" | "modified" | "renamed" | "copied" | "changed" | "unchanged";
+  additions: number;
+  deletions: number;
+  changes: number;
+  blob_url?: string;
+  raw_url?: string;
+  patch?: string;
+  previous_filename?: string;
+}
+
 export interface GitHubOrganization {
   login: string;
   type: "Organization" | "User";
@@ -516,6 +529,15 @@ export class GitHubAPI {
   ): Promise<GitHubPRCommit[]> {
     return this.request<GitHubPRCommit[]>(
       this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/commits?per_page=100`)
+    );
+  }
+
+  /**
+   * Get changed files in a pull request.
+   */
+  async getPRFiles(owner: string, repo: string, number: number): Promise<GitHubPRFile[]> {
+    return this.request<GitHubPRFile[]>(
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/files?per_page=100`)
     );
   }
 
