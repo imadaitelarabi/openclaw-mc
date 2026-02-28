@@ -98,8 +98,8 @@ export function TagsSettingsPanel({
             <span className="text-xs font-medium">Note tag filters</span>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            When active, only notes with selected tags appear in the status bar count and chat
-            input mentions.
+            When active, only notes with selected tags appear in the status bar count and chat input
+            mentions.
           </p>
           <div className="flex flex-wrap gap-1.5">
             {allTags.map((tag) => {
