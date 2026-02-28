@@ -13,12 +13,14 @@ export interface GitHubPR {
   html_url: string;
   user: {
     login: string;
+    avatar_url?: string;
+    html_url?: string;
   };
   created_at: string;
   updated_at: string;
   draft?: boolean;
   labels?: Array<{ name: string; color: string }>;
-  assignees?: Array<{ login: string }>;
+  assignees?: Array<{ login: string; avatar_url?: string; html_url?: string }>;
   body?: string | null;
 }
 
@@ -29,21 +31,40 @@ export interface GitHubIssue {
   html_url: string;
   user: {
     login: string;
+    avatar_url?: string;
+    html_url?: string;
   };
   created_at: string;
   updated_at: string;
   labels: Array<{ name: string; color: string }>;
-  assignees?: Array<{ login: string }>;
+  assignees?: Array<{ login: string; avatar_url?: string; html_url?: string }>;
   body?: string | null;
 }
 
 export interface GitHubComment {
   id: number;
-  user: { login: string };
+  user: { login: string; avatar_url?: string; html_url?: string };
   body: string;
   created_at: string;
   updated_at: string;
   html_url: string;
+}
+
+export interface GitHubAssignableUser {
+  login: string;
+  avatar_url: string;
+  html_url: string;
+  name?: string | null;
+}
+
+export interface GitHubTimelineEvent {
+  event: string;
+  id?: number;
+  created_at?: string;
+  actor?: { login: string; avatar_url?: string; html_url?: string };
+  assignee?: { login: string; avatar_url?: string; html_url?: string };
+  label?: { name: string; color: string };
+  state?: string;
 }
 
 export interface GitHubReviewComment {
@@ -129,6 +150,7 @@ export class GitHubAPI {
     options?: {
       method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
       body?: unknown;
+      accept?: string;
     }
   ): Promise<T> {
     const { token } = this.config;
@@ -142,7 +164,7 @@ export class GitHubAPI {
       method,
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github.v3+json",
+        Accept: options?.accept ?? "application/vnd.github.v3+json",
         ...(options?.body !== undefined ? { "Content-Type": "application/json" } : {}),
       },
     };
@@ -620,6 +642,40 @@ export class GitHubAPI {
       body: { assignees },
     });
     this.invalidateDetailsCache();
+  }
+
+  /**
+   * Reopen a closed issue.
+   */
+  async reopenIssue(owner: string, repo: string, number: number): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/issues/${number}`, {
+      method: "PATCH",
+      body: { state: "open" },
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Get users that can be assigned to issues in a repository.
+   */
+  async getAssignableUsers(owner: string, repo: string): Promise<GitHubAssignableUser[]> {
+    return this.request<GitHubAssignableUser[]>(
+      `/repos/${owner}/${repo}/assignees?per_page=100`
+    );
+  }
+
+  /**
+   * Get the timeline of events for an issue.
+   */
+  async getIssueTimeline(
+    owner: string,
+    repo: string,
+    number: number
+  ): Promise<GitHubTimelineEvent[]> {
+    return this.request<GitHubTimelineEvent[]>(
+      `/repos/${owner}/${repo}/issues/${number}/timeline?per_page=100`,
+      { accept: "application/vnd.github.mockingbird-preview+json" }
+    );
   }
 
   // ── Configuration ────────────────────────────────────────────────────────
