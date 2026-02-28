@@ -163,10 +163,21 @@ export function GitHubIssueDetailsPanel({
   const [assignSearch, setAssignSearch] = useState("");
   const [assignDropdownPos, setAssignDropdownPos] = useState<{ left: number; bottom: number } | null>(null);
   const panelRootRef = useRef<HTMLDivElement | null>(null);
+  const postActionRefreshTimersRef = useRef<number[]>([]);
 
   // Trigger counter — incrementing causes a re-fetch
   const [fetchTick, setFetchTick] = useState(0);
   const refresh = useCallback(() => setFetchTick((n) => n + 1), []);
+  const refreshAfterAction = useCallback(() => {
+    refresh();
+    const timer = window.setTimeout(() => {
+      refresh();
+      postActionRefreshTimersRef.current = postActionRefreshTimersRef.current.filter(
+        (id) => id !== timer
+      );
+    }, 1500);
+    postActionRefreshTimersRef.current.push(timer);
+  }, [refresh]);
 
   // Write-action state
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -340,6 +351,13 @@ export function GitHubIssueDetailsPanel({
     };
   }, [showAssignModal]);
 
+  useEffect(() => {
+    return () => {
+      postActionRefreshTimersRef.current.forEach((id) => window.clearTimeout(id));
+      postActionRefreshTimersRef.current = [];
+    };
+  }, []);
+
   const fallbackUrl =
     htmlUrl ||
     (owner && repo && number ? `https://github.com/${owner}/${repo}/issues/${number}` : undefined);
@@ -355,8 +373,7 @@ export function GitHubIssueDetailsPanel({
       const api = getApiInstance();
       if (!api) throw new Error("GitHub API not initialized");
       await api.closeIssue(owner, repo, number);
-      const updated = await api.getIssueDetails(owner, repo, number);
-      setIssue(updated);
+      refreshAfterAction();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Failed to close issue");
     } finally {
@@ -373,8 +390,7 @@ export function GitHubIssueDetailsPanel({
       const api = getApiInstance();
       if (!api) throw new Error("GitHub API not initialized");
       await api.reopenIssue(owner, repo, number);
-      const updated = await api.getIssueDetails(owner, repo, number);
-      setIssue(updated);
+      refreshAfterAction();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Failed to reopen issue");
     } finally {
@@ -417,9 +433,7 @@ export function GitHubIssueDetailsPanel({
       } else {
         await api.addAssignees(owner, repo, number, assignees);
       }
-
-      const updated = await api.getIssueDetails(owner, repo, number);
-      setIssue(updated);
+      refreshAfterAction();
     } catch (e) {
       // Rollback on failure
       setIssue(previousIssue);
@@ -438,8 +452,7 @@ export function GitHubIssueDetailsPanel({
       const api = getApiInstance();
       if (!api) throw new Error("GitHub API not initialized");
       await api.removeAssignees(owner, repo, number, [login]);
-      const updated = await api.getIssueDetails(owner, repo, number);
-      setIssue(updated);
+      refreshAfterAction();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Failed to remove assignee");
     } finally {
@@ -454,9 +467,9 @@ export function GitHubIssueDetailsPanel({
     try {
       const api = getApiInstance();
       if (!api) throw new Error("GitHub API not initialized");
-      const newComment = await api.addComment(owner, repo, number, commentText.trim());
-      setComments((prev) => [...prev, newComment]);
+      await api.addComment(owner, repo, number, commentText.trim());
       setCommentText("");
+      refreshAfterAction();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Failed to post comment");
     } finally {
