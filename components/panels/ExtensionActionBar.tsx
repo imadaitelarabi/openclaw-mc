@@ -25,38 +25,27 @@ import type {
 
 // ── Style helpers ────────────────────────────────────────────────────────────
 
-function variantBase(variant: ActionBarVariant = "default"): string {
+function variantColor(variant: ActionBarVariant = "default"): string {
   switch (variant) {
     case "success":
-      return "bg-green-600 hover:bg-green-700 text-white";
+      return "text-green-600 hover:text-green-700";
     case "danger":
-      return "bg-red-600 hover:bg-red-700 text-white";
+      return "text-red-600 hover:text-red-700";
     case "ghost":
-      return "text-muted-foreground hover:text-foreground hover:bg-accent";
+      return "text-muted-foreground hover:text-foreground";
     default:
-      return "bg-muted hover:bg-muted/80 text-foreground border border-border";
+      return "text-foreground/90 hover:text-foreground";
   }
 }
 
-function splitLeftCls(variant: ActionBarVariant = "default"): string {
-  const base = variantBase(variant);
-  return `inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-l transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${base}`;
+function textActionCls(variant: ActionBarVariant = "default"): string {
+  const color = variantColor(variant);
+  return `inline-flex items-center gap-1 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${color}`;
 }
 
-function splitRightCls(variant: ActionBarVariant = "default"): string {
-  switch (variant) {
-    case "success":
-      return "px-1.5 py-1.5 text-xs bg-green-600 hover:bg-green-700 text-white border-l border-green-500 rounded-r transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
-    case "danger":
-      return "px-1.5 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white border-l border-red-500 rounded-r transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
-    default:
-      return "px-1.5 py-1.5 text-xs bg-muted hover:bg-muted/80 text-foreground border border-l border-border rounded-r transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
-  }
-}
-
-function simpleCls(variant: ActionBarVariant = "default"): string {
-  const base = variantBase(variant);
-  return `inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${base}`;
+function menuItemCls(variant: ActionBarVariant = "default"): string {
+  const color = variantColor(variant);
+  return `outline-none focus:bg-accent hover:bg-accent text-xs ${color} cursor-pointer data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed`;
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
@@ -75,30 +64,22 @@ function ActionButton({ action, anyLoading }: ActionButtonProps) {
       : undefined;
 
   if (action.dropdownItems && action.dropdownItems.length > 0) {
-    // Split-button: left segment fires primary onClick, right opens dropdown
+    // Text action with dropdown menu
     return (
-      <div className="relative inline-flex rounded overflow-hidden">
-        {/* Primary segment */}
-        <button
-          onClick={action.onClick}
-          disabled={isDisabled}
-          title={titleAttr}
-          aria-label={action.label}
-          className={splitLeftCls(action.variant)}
-        >
-          {action.loading ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : null}
-          {action.label}
-        </button>
-
-        {/* Dropdown chevron segment */}
+      <div className="relative inline-flex items-center">
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button
               disabled={isDisabled}
               title="More options"
               aria-label={`${action.label} options`}
-              className={splitRightCls(action.variant)}
+              className={textActionCls(action.variant)}
+              onClick={action.onClick}
             >
+              {action.loading ? (
+                <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+              ) : null}
+              <span>{action.label}</span>
               <ChevronDown className="w-3 h-3" aria-hidden="true" />
             </button>
           </DropdownMenu.Trigger>
@@ -115,7 +96,7 @@ function ActionButton({ action, anyLoading }: ActionButtonProps) {
                     disabled={item.disabled}
                     onSelect={item.onClick}
                     title={item.disabled ? (item.disabledReason ?? "Unavailable") : undefined}
-                    className="px-3 py-1.5 rounded-md outline-none focus:bg-accent hover:bg-accent text-xs text-foreground cursor-pointer data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed"
+                    className={`px-3 py-1.5 rounded-md ${menuItemCls(action.variant)}`}
                   >
                     {item.label}
                   </DropdownMenu.Item>
@@ -135,7 +116,7 @@ function ActionButton({ action, anyLoading }: ActionButtonProps) {
       disabled={isDisabled}
       title={titleAttr}
       aria-label={action.label}
-      className={simpleCls(action.variant)}
+      className={textActionCls(action.variant)}
     >
       {action.loading ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : null}
       {action.label}
@@ -184,9 +165,12 @@ export function ExtensionActionBar({ bar }: ExtensionActionBarProps) {
 
       {/* Action buttons */}
       {actions.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
-          {actions.map((action) => (
-            <ActionButton key={action.id} action={action} anyLoading={anyLoading} />
+        <div className="flex flex-wrap items-center px-3 py-2.5 text-muted-foreground">
+          {actions.map((action, index) => (
+            <Fragment key={action.id}>
+              {index > 0 && <span className="mx-2 text-border">|</span>}
+              <ActionButton action={action} anyLoading={anyLoading} />
+            </Fragment>
           ))}
         </div>
       )}
