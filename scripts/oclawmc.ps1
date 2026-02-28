@@ -25,6 +25,7 @@ $ConfigDir  = Join-Path $env:USERPROFILE '.oclawmc'
 $ConfigFile = Join-Path $ConfigDir 'config.json'
 $PidFile    = Join-Path $ConfigDir 'oclawmc.pid'
 $LogFile    = Join-Path $ConfigDir 'oclawmc.log'
+$ErrLogFile = Join-Path $ConfigDir 'oclawmc.err.log'
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 function Write-Log  { param([string]$Msg) Write-Host "[oclawmc] $Msg" -ForegroundColor Cyan }
@@ -108,14 +109,14 @@ function Cmd-Daemon {
   $proc = Start-Process node -ArgumentList (Join-Path $installDir 'dist\server\index.js') `
     -WorkingDirectory $installDir `
     -RedirectStandardOutput $LogFile `
-    -RedirectStandardError  $LogFile `
+    -RedirectStandardError  $ErrLogFile `
     -PassThru -WindowStyle Hidden
   $proc.Id | Set-Content $PidFile
   Start-Sleep -Seconds 1
   if (-not $proc.HasExited) {
-    Write-Ok "OpenClaw MC started (PID $($proc.Id)). Logs: $LogFile"
+    Write-Ok "OpenClaw MC started (PID $($proc.Id)). Logs: $LogFile (stdout), $ErrLogFile (stderr)"
   } else {
-    Write-Err "Process exited immediately. Check logs: $LogFile"
+    Write-Err "Process exited immediately. Check logs: $LogFile and $ErrLogFile"
     exit 1
   }
 }
@@ -184,8 +185,15 @@ function Cmd-Logs {
   Load-Config
   $lines = if ($Args.Count -gt 0) { [int]$Args[0] } else { 100 }
   $svcType = Get-ServiceType
-  if (Test-Path $LogFile) {
-    Get-Content $LogFile -Tail $lines -Wait
+  if ((Test-Path $LogFile) -or (Test-Path $ErrLogFile)) {
+    Write-Host "Tailing stdout: $LogFile" -ForegroundColor White
+    if (Test-Path $ErrLogFile) {
+      Write-Host "Tailing stderr: $ErrLogFile" -ForegroundColor White
+    }
+    $targets = @()
+    if (Test-Path $LogFile) { $targets += $LogFile }
+    if (Test-Path $ErrLogFile) { $targets += $ErrLogFile }
+    Get-Content $targets -Tail $lines -Wait
   } elseif ($svcType -eq 'windows-service') {
     Write-Warn "Use Windows Event Viewer or check the service log path."
   } else {
@@ -205,10 +213,18 @@ function Cmd-Update {
   Write-Log "Reinstalling dependencies…"
   Push-Location $installDir
   try {
-    npm ci --legacy-peer-deps 2>$null
-    if ($LASTEXITCODE -ne 0) { npm install --legacy-peer-deps }
+    & cmd.exe /c "npm ci --legacy-peer-deps 2>&1"
+    if ($LASTEXITCODE -ne 0) {
+      & cmd.exe /c "npm install --legacy-peer-deps 2>&1"
+      if ($LASTEXITCODE -ne 0) {
+        throw "npm install failed with exit code $LASTEXITCODE"
+      }
+    }
     Write-Log "Rebuilding…"
-    npm run build
+    & cmd.exe /c "npm run build 2>&1"
+    if ($LASTEXITCODE -ne 0) {
+      throw "npm run build failed with exit code $LASTEXITCODE"
+    }
   } finally { Pop-Location }
 
   Write-Ok "Update complete. Restarting…"
