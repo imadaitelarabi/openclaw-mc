@@ -8,17 +8,21 @@ import type { GitHubConfig } from "./config";
 
 export interface GitHubPR {
   number: number;
+  node_id?: string;
   title: string;
   state: "open" | "closed";
   html_url: string;
   user: {
     login: string;
+    avatar_url?: string;
+    html_url?: string;
   };
   created_at: string;
   updated_at: string;
   draft?: boolean;
   labels?: Array<{ name: string; color: string }>;
-  assignees?: Array<{ login: string }>;
+  assignees?: Array<{ login: string; avatar_url?: string; html_url?: string }>;
+  requested_reviewers?: Array<{ login: string; avatar_url?: string; html_url?: string }>;
   body?: string | null;
 }
 
@@ -29,32 +33,70 @@ export interface GitHubIssue {
   html_url: string;
   user: {
     login: string;
+    avatar_url?: string;
+    html_url?: string;
   };
   created_at: string;
   updated_at: string;
   labels: Array<{ name: string; color: string }>;
-  assignees?: Array<{ login: string }>;
+  assignees?: Array<{ login: string; avatar_url?: string; html_url?: string }>;
   body?: string | null;
 }
 
 export interface GitHubComment {
   id: number;
-  user: { login: string };
+  user: { login: string; avatar_url?: string; html_url?: string };
   body: string;
   created_at: string;
   updated_at: string;
   html_url: string;
 }
 
+export interface GitHubAssignableUser {
+  login: string;
+  avatar_url: string;
+  html_url: string;
+  name?: string | null;
+}
+
+export interface GitHubTimelineEvent {
+  event: string;
+  id?: number;
+  created_at?: string;
+  actor?: { login: string; avatar_url?: string; html_url?: string };
+  assignee?: { login: string; avatar_url?: string; html_url?: string };
+  label?: { name: string; color: string };
+  state?: string;
+}
+
 export interface GitHubReviewComment {
   id: number;
-  user: { login: string };
+  user: { login: string; avatar_url?: string; html_url?: string };
   body: string;
   created_at: string;
   updated_at: string;
   html_url: string;
   path?: string;
   diff_hunk?: string;
+}
+
+export interface GitHubPRReview {
+  id: number;
+  user: { login: string; avatar_url?: string; html_url?: string };
+  body: string | null;
+  state: "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED" | "PENDING";
+  submitted_at: string | null;
+  html_url: string;
+}
+
+export interface GitHubPRCommit {
+  sha: string;
+  commit: {
+    message: string;
+    author: { name: string; date: string } | null;
+  };
+  html_url: string;
+  author: { login: string; avatar_url?: string; html_url?: string } | null;
 }
 
 export interface GitHubOrganization {
@@ -67,6 +109,18 @@ export interface GitHubRepoRef {
   fullName: string;
   owner: string;
   name: string;
+}
+
+export interface GitHubBranchRef {
+  name: string;
+}
+
+export interface GitHubCopilotAgentAssignmentOptions {
+  targetRepo?: string;
+  baseBranch?: string;
+  customInstructions?: string;
+  customAgent?: string;
+  model?: string;
 }
 
 /** Filters for issues panel searches */
@@ -95,6 +149,7 @@ export interface GitHubRepository {
   name: string;
   full_name: string;
   html_url: string;
+  default_branch?: string;
   updated_at: string;
   private: boolean;
   owner: {
@@ -129,6 +184,7 @@ export class GitHubAPI {
     options?: {
       method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
       body?: unknown;
+      accept?: string;
     }
   ): Promise<T> {
     const { token } = this.config;
@@ -142,7 +198,7 @@ export class GitHubAPI {
       method,
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github.v3+json",
+        Accept: options?.accept ?? "application/vnd.github.v3+json",
         ...(options?.body !== undefined ? { "Content-Type": "application/json" } : {}),
       },
     };
@@ -173,7 +229,6 @@ export class GitHubAPI {
       throw new Error(`GitHub API ${response.status} on ${endpoint}: ${details}`);
     }
 
-    // DELETE responses often have no body; 204 No Content has no body
     if (method === "DELETE" || response.status === 204) {
       return undefined as unknown as T;
     }
@@ -196,55 +251,74 @@ export class GitHubAPI {
       throw new Error("GitHub token not configured");
     }
 
-    const response = await fetch("https://api.github.com/graphql", {
+    const response = await fetch(`${this.baseURL}/graphql`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
         "Content-Type": "application/json",
-        ...extraHeaders,
+        ...(extraHeaders ?? {}),
       },
       body: JSON.stringify({ query, variables }),
     });
 
     if (!response.ok) {
-      throw new Error(`GitHub GraphQL API ${response.status}: ${response.statusText}`);
+      let details = response.statusText || "Unknown error";
+      try {
+        const payload = await response.json();
+        if (payload?.message) details = payload.message;
+        if (Array.isArray(payload?.errors) && payload.errors.length > 0) {
+          details = payload.errors.map((e: { message?: string }) => e.message).join("; ");
+        }
+      } catch {}
+      throw new Error(`GitHub GraphQL ${response.status}: ${details}`);
     }
 
-    const json = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
-
-    if (json.errors && json.errors.length > 0) {
-      throw new Error(json.errors.map((e) => e.message).join("; "));
+    const result = (await response.json()) as { data?: T; errors?: Array<{ message: string }> };
+    if (result.errors?.length) {
+      throw new Error(result.errors.map((e) => e.message).join("; "));
+    }
+    if (!result.data) {
+      throw new Error("GitHub GraphQL returned no data");
     }
 
-    return json.data as T;
+    return result.data;
   }
 
   /**
-   * Test API connection
+   * Get the authenticated user's profile.
+   */
+  async getUser(): Promise<{
+    login: string;
+    name: string | null;
+    avatar_url: string;
+    html_url: string;
+  }> {
+    return this.request<{
+      login: string;
+      name: string | null;
+      avatar_url: string;
+      html_url: string;
+    }>("/user");
+  }
+
+  /**
+   * Test whether the current token can reach the GitHub API.
    */
   async testConnection(): Promise<boolean> {
     try {
-      await this.request("/user");
+      await this.request<unknown>("/user");
       return true;
-    } catch (error) {
-      console.error("[GitHubAPI] Connection test failed:", error);
+    } catch {
       return false;
     }
   }
 
   /**
-   * Get authenticated user information
-   */
-  async getUser(): Promise<GitHubUser> {
-    return this.request<GitHubUser>("/user");
-  }
-
-  /**
-   * Get organizations available to the authenticated user.
-   * Includes the authenticated user as a pseudo-organization for personal repositories.
+   * Get organizations and user account available to the token.
    */
   async getOrganizations(): Promise<GitHubOrganization[]> {
-    const { maxOrganizations = 8 } = this.config;
+    const { maxOrganizations = 5 } = this.config;
 
     try {
       const [user, orgs] = await Promise.all([
@@ -264,6 +338,20 @@ export class GitHubAPI {
       console.error("[GitHubAPI] Failed to fetch organizations:", error);
       return [];
     }
+  }
+
+  /**
+   * Get repository details.
+   */
+  async getRepository(owner: string, repo: string): Promise<GitHubRepository> {
+    return this.request<GitHubRepository>(`/repos/${owner}/${repo}`);
+  }
+
+  /**
+   * List repository branches.
+   */
+  async getRepositoryBranches(owner: string, repo: string): Promise<GitHubBranchRef[]> {
+    return this.request<GitHubBranchRef[]>(`/repos/${owner}/${repo}/branches?per_page=100`);
   }
 
   /**
@@ -396,6 +484,32 @@ export class GitHubAPI {
     );
   }
 
+  /**
+   * Get review summaries (top-level review submissions) for a pull request.
+   */
+  async getPRReviews(
+    owner: string,
+    repo: string,
+    number: number
+  ): Promise<GitHubPRReview[]> {
+    return this.request<GitHubPRReview[]>(
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/reviews?per_page=100`)
+    );
+  }
+
+  /**
+   * Get the commits in a pull request.
+   */
+  async getPRCommits(
+    owner: string,
+    repo: string,
+    number: number
+  ): Promise<GitHubPRCommit[]> {
+    return this.request<GitHubPRCommit[]>(
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/commits?per_page=100`)
+    );
+  }
+
   // ── Write actions ────────────────────────────────────────────────────────
 
   /**
@@ -415,6 +529,36 @@ export class GitHubAPI {
       method: "PUT",
       body: options ?? {},
     });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Mark a draft pull request as ready for review using the GitHub GraphQL API.
+   * There is no REST endpoint for this; GraphQL is required.
+   * Accepts an optional `pullRequestId` (GraphQL node_id) to avoid a redundant REST call.
+   */
+  async markPrReadyForReview(
+    owner: string,
+    repo: string,
+    number: number,
+    pullRequestId?: string
+  ): Promise<void> {
+    // Fetch the PR node_id via REST only if not provided by the caller
+    const nodeId =
+      pullRequestId ??
+      (await this.request<{ node_id: string }>(`/repos/${owner}/${repo}/pulls/${number}`)).node_id;
+
+    await this.graphqlRequest<unknown>(
+      `mutation MarkPullRequestReadyForReview($pullRequestId: ID!) {
+        markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) {
+          pullRequest {
+            isDraft
+          }
+        }
+      }`,
+      { pullRequestId: nodeId }
+    );
+
     this.invalidateDetailsCache();
   }
 
@@ -487,121 +631,29 @@ export class GitHubAPI {
   }
 
   /**
-   * Assign Copilot (copilot-swe-agent) to an issue using the GitHub GraphQL API
-   * with the required feature-flag headers for agent assignment.
+   * Assign Copilot to an issue and optionally provide coding-agent assignment details.
    */
-  async assignCopilotToIssue(owner: string, repo: string, number: number): Promise<void> {
-    const COPILOT_HEADERS = {
-      "GraphQL-Features": "issues_copilot_assignment_api_support,coding_agent_model_selection",
+  async assignCopilotToIssue(
+    owner: string,
+    repo: string,
+    number: number,
+    options?: GitHubCopilotAgentAssignmentOptions
+  ): Promise<void> {
+    const agentAssignment = {
+      target_repo: options?.targetRepo ?? `${owner}/${repo}`,
+      ...(options?.baseBranch ? { base_branch: options.baseBranch } : {}),
+      ...(options?.customInstructions ? { custom_instructions: options.customInstructions } : {}),
+      ...(options?.customAgent ? { custom_agent: options.customAgent } : {}),
+      ...(options?.model ? { model: options.model } : {}),
     };
 
-    // Step 1: Fetch the issue node ID and locate copilot-swe-agent in suggested actors.
-    // Actor is an interface and does not expose id directly, so we fetch id via concrete-type fragments.
-    const query = `query GetIssueAndCopilotActor(
-      $owner: String!
-      $repo: String!
-      $number: Int!
-      $after: String
-    ) {
-      repository(owner: $owner, name: $repo) {
-        issue(number: $number) {
-          id
-        }
-        suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 50, after: $after) {
-          nodes {
-            __typename
-            login
-            ... on User {
-              id
-            }
-            ... on Bot {
-              id
-            }
-            ... on Organization {
-              id
-            }
-            ... on Mannequin {
-              id
-            }
-            ... on EnterpriseUserAccount {
-              id
-            }
-          }
-          pageInfo {
-            hasNextPage
-            endCursor
-          }
-        }
-      }
-    }`;
-
-    type SuggestedActorNode = {
-      login: string;
-      id?: string;
-    };
-
-    let issueId: string | null = null;
-    let copilotActorId: string | null = null;
-    let after: string | null = null;
-
-    do {
-      const fetchData = await this.graphqlRequest<{
-        repository: {
-          issue: { id: string } | null;
-          suggestedActors: {
-            nodes: SuggestedActorNode[];
-            pageInfo: {
-              hasNextPage: boolean;
-              endCursor: string | null;
-            };
-          };
-        };
-      }>(query, { owner, repo, number, after }, COPILOT_HEADERS);
-
-      const issue = fetchData.repository?.issue;
-      if (!issue) {
-        throw new Error(`Issue #${number} not found in ${owner}/${repo}`);
-      }
-
-      issueId = issue.id;
-
-      const actors = fetchData.repository?.suggestedActors?.nodes ?? [];
-      const copilotActor = actors.find(
-        (a) => a.login.toLowerCase() === "copilot-swe-agent" || a.login.toLowerCase() === "copilot"
-      );
-
-      if (copilotActor?.id) {
-        copilotActorId = copilotActor.id;
-        break;
-      }
-
-      const pageInfo = fetchData.repository?.suggestedActors?.pageInfo;
-      after = pageInfo?.hasNextPage ? pageInfo.endCursor : null;
-    } while (after);
-
-    if (!issueId) {
-      throw new Error(`Issue #${number} not found in ${owner}/${repo}`);
-    }
-
-    if (!copilotActorId) {
-      throw new Error(
-        "Copilot agent not available for this repository. Ensure GitHub Copilot is enabled."
-      );
-    }
-
-    // Step 2: Add the Copilot actor as an assignee via the agent assignment mutation.
-    await this.graphqlRequest<unknown>(
-      `mutation AssignCopilot($assignableId: ID!, $assigneeIds: [ID!]!) {
-        addAssigneesToAssignable(input: {
-          assignableId: $assignableId,
-          assigneeIds: $assigneeIds
-        }) {
-          clientMutationId
-        }
-      }`,
-      { assignableId: issueId, assigneeIds: [copilotActorId] },
-      COPILOT_HEADERS
-    );
+    await this.request(`/repos/${owner}/${repo}/issues/${number}/assignees`, {
+      method: "POST",
+      body: {
+        assignees: ["copilot-swe-agent[bot]"],
+        agent_assignment: agentAssignment,
+      },
+    });
 
     this.invalidateDetailsCache();
   }
@@ -620,6 +672,70 @@ export class GitHubAPI {
       body: { assignees },
     });
     this.invalidateDetailsCache();
+  }
+
+  /**
+   * Request reviewers for a pull request.
+   */
+  async requestReviewers(
+    owner: string,
+    repo: string,
+    number: number,
+    reviewers: string[]
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/pulls/${number}/requested_reviewers`, {
+      method: "POST",
+      body: { reviewers },
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Remove requested reviewers from a pull request.
+   */
+  async removeReviewers(
+    owner: string,
+    repo: string,
+    number: number,
+    reviewers: string[]
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/pulls/${number}/requested_reviewers`, {
+      method: "DELETE",
+      body: { reviewers },
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Reopen a closed issue.
+   */
+  async reopenIssue(owner: string, repo: string, number: number): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/issues/${number}`, {
+      method: "PATCH",
+      body: { state: "open" },
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Get users that can be assigned to issues in a repository.
+   */
+  async getAssignableUsers(owner: string, repo: string): Promise<GitHubAssignableUser[]> {
+    return this.request<GitHubAssignableUser[]>(`/repos/${owner}/${repo}/assignees?per_page=100`);
+  }
+
+  /**
+   * Get the timeline of events for an issue.
+   */
+  async getIssueTimeline(
+    owner: string,
+    repo: string,
+    number: number
+  ): Promise<GitHubTimelineEvent[]> {
+    return this.request<GitHubTimelineEvent[]>(
+      `/repos/${owner}/${repo}/issues/${number}/timeline?per_page=100`,
+      { accept: "application/vnd.github.mockingbird-preview+json" }
+    );
   }
 
   // ── Configuration ────────────────────────────────────────────────────────

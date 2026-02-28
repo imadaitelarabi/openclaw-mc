@@ -1,6 +1,7 @@
 "use client";
 
 import { useExtensions } from "@/contexts/ExtensionContext";
+import { ExtensionModalProvider } from "@/contexts/ExtensionModalContext";
 
 interface ExtensionPanelProps {
   extensionName: string;
@@ -14,6 +15,7 @@ export function ExtensionPanel({ extensionName, panelId, contextPanelId }: Exten
   const extension = getExtension(extensionName);
 
   const PanelComponent = extension?.hooks.panel?.[panelId];
+  const modalMap = extension?.hooks.modal;
 
   if (!extension) {
     return (
@@ -32,12 +34,14 @@ export function ExtensionPanel({ extensionName, panelId, contextPanelId }: Exten
   }
 
   return (
-    <div className="h-full overflow-auto bg-background text-foreground border-border">
-      <PanelComponent
-        extensionName={extensionName}
-        panelId={panelId}
-        contextPanelId={contextPanelId}
-      />
-    </div>
+    <ExtensionModalProvider extensionName={extensionName} modals={modalMap}>
+      <div className="h-full overflow-auto bg-background text-foreground border-border">
+        <PanelComponent
+          extensionName={extensionName}
+          panelId={panelId}
+          contextPanelId={contextPanelId}
+        />
+      </div>
+    </ExtensionModalProvider>
   );
 }
