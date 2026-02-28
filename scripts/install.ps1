@@ -228,13 +228,19 @@ function Build-App {
   Push-Location $InstallDir
   try {
     Write-Log "Installing Node dependencies…"
-    npm ci --legacy-peer-deps 2>$null
+    & cmd.exe /c "npm ci --legacy-peer-deps"
     if ($LASTEXITCODE -ne 0) {
       Write-Warn "'npm ci' failed, falling back to 'npm install'…"
-      npm install --legacy-peer-deps
+      & cmd.exe /c "npm install --legacy-peer-deps"
+      if ($LASTEXITCODE -ne 0) {
+        throw "npm install failed with exit code $LASTEXITCODE"
+      }
     }
     Write-Log "Building production bundle…"
-    npm run build
+    & cmd.exe /c "npm run build"
+    if ($LASTEXITCODE -ne 0) {
+      throw "npm run build failed with exit code $LASTEXITCODE"
+    }
     Write-Ok "Build complete."
   } finally {
     Pop-Location
