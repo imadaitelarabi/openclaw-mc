@@ -279,15 +279,25 @@ export function GitHubPrDetailsPanel({
             label: "Review Comments",
             variant: "ghost" as const,
             onClick: () =>
-              openPanel("github-pr-review-comments", {
-                owner,
-                repo,
-                number,
-                back: {
-                  type: "github-pr-details" as const,
-                  data: { owner, repo, number, htmlUrl, back },
-                },
-              }),
+              contextPanelId
+                ? replacePanel(contextPanelId, "github-pr-review-comments", {
+                    owner,
+                    repo,
+                    number,
+                    back: {
+                      type: "github-pr-details" as const,
+                      data: { owner, repo, number, htmlUrl, back },
+                    },
+                  })
+                : openPanel("github-pr-review-comments", {
+                    owner,
+                    repo,
+                    number,
+                    back: {
+                      type: "github-pr-details" as const,
+                      data: { owner, repo, number, htmlUrl, back },
+                    },
+                  }),
           },
           {
             id: "open-github",
