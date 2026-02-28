@@ -1046,7 +1046,7 @@ export function GitHubPrDetailsPanel({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <UserAvatar alt={comment.user.login} size={16} />
+                    <UserAvatar src={comment.user.avatar_url} alt={comment.user.login} size={16} />
                     <span className="text-xs font-medium text-foreground truncate">{comment.user.login}</span>
                   </div>
                   <span className="text-[10px] text-muted-foreground flex-shrink-0">

@@ -71,7 +71,7 @@ export interface GitHubTimelineEvent {
 
 export interface GitHubReviewComment {
   id: number;
-  user: { login: string };
+  user: { login: string; avatar_url?: string; html_url?: string };
   body: string;
   created_at: string;
   updated_at: string;
