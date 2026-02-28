@@ -164,20 +164,26 @@ export function GitHubIssueDetailsPanel({
   const [assignDropdownPos, setAssignDropdownPos] = useState<{ left: number; bottom: number } | null>(null);
   const panelRootRef = useRef<HTMLDivElement | null>(null);
   const postActionRefreshTimersRef = useRef<number[]>([]);
+  const pendingSilentRefreshRef = useRef(false);
 
   // Trigger counter — incrementing causes a re-fetch
   const [fetchTick, setFetchTick] = useState(0);
-  const refresh = useCallback(() => setFetchTick((n) => n + 1), []);
+  const triggerRefresh = useCallback((silent = false) => {
+    pendingSilentRefreshRef.current = silent;
+    setFetchTick((n) => n + 1);
+  }, []);
+  const refresh = useCallback(() => triggerRefresh(false), [triggerRefresh]);
+  const refreshSilently = useCallback(() => triggerRefresh(true), [triggerRefresh]);
   const refreshAfterAction = useCallback(() => {
-    refresh();
+    refreshSilently();
     const timer = window.setTimeout(() => {
-      refresh();
+      refreshSilently();
       postActionRefreshTimersRef.current = postActionRefreshTimersRef.current.filter(
         (id) => id !== timer
       );
     }, 1500);
     postActionRefreshTimersRef.current.push(timer);
-  }, [refresh]);
+  }, [refreshSilently]);
 
   // Write-action state
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -255,12 +261,17 @@ export function GitHubIssueDetailsPanel({
     }
 
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setCommentsError(null);
-    setCommentsLoading(true);
-    setTimelineLoading(true);
-    setDisplayedActivityCount(ACTIVITY_PAGE_SIZE);
+    const isSilentRefresh = pendingSilentRefreshRef.current;
+    pendingSilentRefreshRef.current = false;
+
+    if (!isSilentRefresh) {
+      setLoading(true);
+      setError(null);
+      setCommentsError(null);
+      setCommentsLoading(true);
+      setTimelineLoading(true);
+      setDisplayedActivityCount(ACTIVITY_PAGE_SIZE);
+    }
 
     api
       .getIssueDetails(owner, repo, number)
@@ -268,12 +279,12 @@ export function GitHubIssueDetailsPanel({
         if (!cancelled) setIssue(result);
       })
       .catch((e) => {
-        if (!cancelled) {
+        if (!cancelled && !isSilentRefresh) {
           setError(e instanceof Error ? e.message : "Failed to load issue details");
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && !isSilentRefresh) setLoading(false);
       });
 
     api
@@ -282,12 +293,12 @@ export function GitHubIssueDetailsPanel({
         if (!cancelled) setComments(result);
       })
       .catch((e) => {
-        if (!cancelled) {
+        if (!cancelled && !isSilentRefresh) {
           setCommentsError(e instanceof Error ? e.message : "Failed to load comments");
         }
       })
       .finally(() => {
-        if (!cancelled) setCommentsLoading(false);
+        if (!cancelled && !isSilentRefresh) setCommentsLoading(false);
       });
 
     api
@@ -300,7 +311,7 @@ export function GitHubIssueDetailsPanel({
         if (!cancelled) setTimeline([]);
       })
       .finally(() => {
-        if (!cancelled) setTimelineLoading(false);
+        if (!cancelled && !isSilentRefresh) setTimelineLoading(false);
       });
 
     return () => {
