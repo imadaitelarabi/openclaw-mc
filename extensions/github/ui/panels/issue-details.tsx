@@ -21,7 +21,6 @@ import {
   ArrowLeft,
   X,
   RefreshCw,
-  Clock,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -35,7 +34,7 @@ import { useExtensionActionBar } from "@/hooks/useExtensionActionBar";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubIssue, GitHubComment, GitHubAssignableUser, GitHubTimelineEvent } from "../../api";
 
-const COMMENTS_PAGE_SIZE = 5;
+const ACTIVITY_PAGE_SIZE = 10;
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -152,12 +151,11 @@ export function GitHubIssueDetailsPanel({
   const [comments, setComments] = useState<GitHubComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState<string | null>(null);
-  const [displayedCommentCount, setDisplayedCommentCount] = useState(COMMENTS_PAGE_SIZE);
+  const [displayedActivityCount, setDisplayedActivityCount] = useState(ACTIVITY_PAGE_SIZE);
 
   // Timeline state
   const [timeline, setTimeline] = useState<GitHubTimelineEvent[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
-  const [timelineExpanded, setTimelineExpanded] = useState(false);
 
   // Assignable users state
   const [assignableUsers, setAssignableUsers] = useState<GitHubAssignableUser[]>([]);
@@ -249,7 +247,7 @@ export function GitHubIssueDetailsPanel({
     setCommentsError(null);
     setCommentsLoading(true);
     setTimelineLoading(true);
-    setDisplayedCommentCount(COMMENTS_PAGE_SIZE);
+    setDisplayedActivityCount(ACTIVITY_PAGE_SIZE);
 
     api
       .getIssueDetails(owner, repo, number)
@@ -447,6 +445,33 @@ export function GitHubIssueDetailsPanel({
     );
   }, [assignableUsers, assignSearch]);
 
+  const activityItems = useMemo(() => {
+    const commentItems = comments.map((comment) => ({
+      type: "comment" as const,
+      id: `comment-${comment.id}`,
+      createdAt: comment.created_at,
+      comment,
+    }));
+
+    const timelineItems = timeline
+      .map((event, index) => {
+        const label = timelineEventLabel(event);
+        if (!label || !event.created_at) return null;
+        return {
+          type: "timeline" as const,
+          id: `timeline-${event.id ?? `${event.event}-${index}`}`,
+          createdAt: event.created_at,
+          event,
+          label,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    return [...commentItems, ...timelineItems].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  }, [comments, timeline]);
+
   if (!owner || !repo || !number) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
@@ -502,9 +527,11 @@ export function GitHubIssueDetailsPanel({
   const statusColor = isOpen ? "text-green-500" : "text-purple-500";
   const statusLabel = isOpen ? "Open" : "Closed";
 
-  // Show newest N comments in chronological order; "Load more" reveals older ones
-  const visibleComments = comments.slice(Math.max(0, comments.length - displayedCommentCount));
-  const hasMoreComments = displayedCommentCount < comments.length;
+  // Show newest N activity items in chronological order; "Load more" reveals older ones
+  const visibleActivity = activityItems.slice(
+    Math.max(0, activityItems.length - displayedActivityCount)
+  );
+  const hasMoreActivity = displayedActivityCount < activityItems.length;
 
   return (
     <div className="flex flex-col h-full">
@@ -759,98 +786,20 @@ export function GitHubIssueDetailsPanel({
           </div>
         )}
 
-        {/* Timeline */}
-        {(timeline.length > 0 || timelineLoading) && (
-          <div className="border border-border rounded bg-muted/10">
-            <button
-              onClick={() => setTimelineExpanded((v) => !v)}
-              aria-expanded={timelineExpanded}
-              className="flex items-center gap-1.5 w-full px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {timelineExpanded ? (
-                <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
-              )}
-              <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-              Timeline
-              {timeline.length > 0 && (
-                <span className="text-muted-foreground">({timeline.length})</span>
-              )}
-            </button>
-            {timelineExpanded && (
-              <div className="px-3 pb-3 border-t border-border space-y-1.5 pt-2">
-                {timelineLoading && (
-                  <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Loading timeline…
-                  </div>
-                )}
-                {timeline
-                  .filter((event) => timelineEventLabel(event) !== null)
-                  .slice(-20)
-                  .map((event, i) => {
-                    const label = timelineEventLabel(event);
-                    if (!label) return null;
-                    return (
-                      <div key={`${event.event}-${i}`} className="flex items-start gap-2 text-xs">
-                        {event.actor ? (
-                          <UserAvatar
-                            src={event.actor.avatar_url}
-                            alt={event.actor.login}
-                            size={14}
-                          />
-                        ) : (
-                          <div className="w-3.5 h-3.5 flex-shrink-0" />
-                        )}
-                        <span className="text-muted-foreground flex-1 min-w-0">
-                          {event.actor?.login && (
-                            <>
-                              {event.actor.html_url ? (
-                                <a
-                                  href={event.actor.html_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="font-medium text-foreground hover:underline"
-                                >
-                                  {event.actor.login}
-                                </a>
-                              ) : (
-                                <span className="font-medium text-foreground">
-                                  {event.actor.login}
-                                </span>
-                              )}{" "}
-                            </>
-                          )}
-                          {label}
-                        </span>
-                        {event.created_at && (
-                          <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                            {formatDate(event.created_at)}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Comments */}
+        {/* Conversation (comments + timeline) */}
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
             <MessageSquare className="w-3.5 h-3.5" />
-            Comments
-            {comments.length > 0 && (
-              <span className="text-muted-foreground">({comments.length})</span>
+            Conversation
+            {activityItems.length > 0 && (
+              <span className="text-muted-foreground">({activityItems.length})</span>
             )}
           </div>
 
-          {commentsLoading && (
+          {(commentsLoading || timelineLoading) && (
             <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Loading comments…
+              Loading activity…
             </div>
           )}
 
@@ -861,56 +810,95 @@ export function GitHubIssueDetailsPanel({
             </div>
           )}
 
-          {!commentsLoading && !commentsError && comments.length === 0 && (
-            <p className="text-xs text-muted-foreground">No comments yet.</p>
+          {!commentsLoading && !timelineLoading && !commentsError && activityItems.length === 0 && (
+            <p className="text-xs text-muted-foreground">No conversation yet.</p>
           )}
 
-          {hasMoreComments && (
+          {hasMoreActivity && (
             <button
-              onClick={() => setDisplayedCommentCount((c) => c + COMMENTS_PAGE_SIZE)}
+              onClick={() => setDisplayedActivityCount((c) => c + ACTIVITY_PAGE_SIZE)}
               className="text-xs text-primary hover:underline"
             >
-              Load more ({comments.length - displayedCommentCount} older)
+              Load more ({activityItems.length - displayedActivityCount} older)
             </button>
           )}
 
           <div className="space-y-2">
-            {visibleComments.map((comment) => (
-              <div
-                key={comment.id}
-                className="border border-border rounded p-2.5 bg-muted/10 space-y-1.5"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <UserAvatar
-                      src={comment.user.avatar_url}
-                      alt={comment.user.login}
-                      size={16}
-                    />
-                    {comment.user.html_url ? (
-                      <a
-                        href={comment.user.html_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-medium text-foreground hover:underline truncate"
-                      >
-                        {comment.user.login}
-                      </a>
-                    ) : (
-                      <span className="text-xs font-medium text-foreground truncate">
-                        {comment.user.login}
+            {visibleActivity.map((item) => {
+              if (item.type === "comment") {
+                const comment = item.comment;
+                return (
+                  <div
+                    key={item.id}
+                    className="border border-border rounded p-2.5 bg-muted/10 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <UserAvatar
+                          src={comment.user.avatar_url}
+                          alt={comment.user.login}
+                          size={16}
+                        />
+                        {comment.user.html_url ? (
+                          <a
+                            href={comment.user.html_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-foreground hover:underline truncate"
+                          >
+                            {comment.user.login}
+                          </a>
+                        ) : (
+                          <span className="text-xs font-medium text-foreground truncate">
+                            {comment.user.login}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                        {formatDate(comment.created_at)}
                       </span>
-                    )}
+                    </div>
+                    <div className="markdown-content break-words select-text max-w-none text-xs">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.body}</ReactMarkdown>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                    {formatDate(comment.created_at)}
-                  </span>
+                );
+              }
+
+              return (
+                <div key={item.id} className="border border-border rounded p-2.5 bg-muted/5">
+                  <div className="flex items-start gap-2 text-xs">
+                    {item.event.actor ? (
+                      <UserAvatar src={item.event.actor.avatar_url} alt={item.event.actor.login} size={16} />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full bg-muted flex-shrink-0" aria-hidden="true" />
+                    )}
+                    <span className="text-muted-foreground flex-1 min-w-0">
+                      {item.event.actor?.login && (
+                        <>
+                          {item.event.actor.html_url ? (
+                            <a
+                              href={item.event.actor.html_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-foreground hover:underline"
+                            >
+                              {item.event.actor.login}
+                            </a>
+                          ) : (
+                            <span className="font-medium text-foreground">{item.event.actor.login}</span>
+                          )}{" "}
+                        </>
+                      )}
+                      {item.label}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                      {formatDate(item.createdAt)}
+                    </span>
+                  </div>
                 </div>
-                <div className="markdown-content break-words select-text max-w-none text-xs">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.body}</ReactMarkdown>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Add comment form */}
