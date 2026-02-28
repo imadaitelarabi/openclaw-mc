@@ -37,6 +37,8 @@ import type {
   GitHubPR,
   GitHubComment,
   GitHubReviewComment,
+  GitHubPRReview,
+  GitHubPRCommit,
   GitHubTimelineEvent,
   GitHubAssignableUser,
 } from "../../api";
@@ -161,6 +163,12 @@ export function GitHubPrDetailsPanel({
   const [reviewCommentsError, setReviewCommentsError] = useState<string | null>(null);
   const [displayedReviewCommentCount, setDisplayedReviewCommentCount] =
     useState(COMMENTS_PAGE_SIZE);
+
+  // PR review summaries state
+  const [prReviews, setPrReviews] = useState<GitHubPRReview[]>([]);
+
+  // PR commits state
+  const [prCommits, setPrCommits] = useState<GitHubPRCommit[]>([]);
 
   // Timeline state
   const [timeline, setTimeline] = useState<GitHubTimelineEvent[]>([]);
@@ -414,6 +422,26 @@ export function GitHubPrDetailsPanel({
         if (!cancelled) setTimelineLoading(false);
       });
 
+    api
+      .getPRReviews(owner, repo, number)
+      .then((result) => {
+        if (!cancelled) setPrReviews(result);
+      })
+      .catch((e) => {
+        console.error("[PRDetails] Failed to fetch PR reviews:", e);
+        if (!cancelled) setPrReviews([]);
+      });
+
+    api
+      .getPRCommits(owner, repo, number)
+      .then((result) => {
+        if (!cancelled) setPrCommits(result);
+      })
+      .catch((e) => {
+        console.error("[PRDetails] Failed to fetch PR commits:", e);
+        if (!cancelled) setPrCommits([]);
+      });
+
     return () => {
       cancelled = true;
     };
@@ -610,7 +638,7 @@ export function GitHubPrDetailsPanel({
     );
   }, [reviewableUsers, reviewSearch]);
 
-  // Merged activity: issue comments + timeline events
+  // Merged activity: issue comments + timeline events + review summaries + commits
   const activityItems = useMemo(() => {
     const commentItems = issueComments.map((comment) => ({
       type: "comment" as const,
@@ -633,10 +661,28 @@ export function GitHubPrDetailsPanel({
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
-    return [...commentItems, ...timelineItems].sort(
+    const reviewItems = prReviews
+      .filter((r) => r.submitted_at && r.body)
+      .map((r) => ({
+        type: "review" as const,
+        id: `review-${r.id}`,
+        createdAt: r.submitted_at!,
+        review: r,
+      }));
+
+    const commitItems = prCommits
+      .filter((c) => c.commit.author?.date)
+      .map((c) => ({
+        type: "commit" as const,
+        id: `commit-${c.sha}`,
+        createdAt: c.commit.author!.date,
+        commit: c,
+      }));
+
+    return [...commentItems, ...timelineItems, ...reviewItems, ...commitItems].sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
-  }, [issueComments, timeline]);
+  }, [issueComments, timeline, prReviews, prCommits]);
 
   if (!owner || !repo || !number) {
     return (
@@ -963,6 +1009,116 @@ export function GitHubPrDetailsPanel({
                     </div>
                     <div className="markdown-content break-words select-text max-w-none text-xs">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.body}</ReactMarkdown>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (item.type === "review") {
+                const review = item.review;
+                const stateLabel: Record<string, string> = {
+                  APPROVED: "approved",
+                  CHANGES_REQUESTED: "requested changes",
+                  COMMENTED: "reviewed",
+                  DISMISSED: "dismissed their review",
+                  PENDING: "pending review",
+                };
+                const displayState = stateLabel[review.state];
+                if (!displayState) {
+                  console.warn("[PRDetails] Unknown review state:", review.state);
+                }
+                return (
+                  <div
+                    key={item.id}
+                    className="border border-border rounded p-2.5 bg-muted/10 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <UserAvatar
+                          src={review.user.avatar_url}
+                          alt={review.user.login}
+                          size={16}
+                        />
+                        {review.user.html_url ? (
+                          <a
+                            href={review.user.html_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-foreground hover:underline truncate"
+                          >
+                            {review.user.login}
+                          </a>
+                        ) : (
+                          <span className="text-xs font-medium text-foreground truncate">
+                            {review.user.login}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {displayState ?? review.state.toLowerCase()}
+                        </span>
+                      </div>
+                      {review.submitted_at && (
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                          {formatDate(review.submitted_at)}
+                        </span>
+                      )}
+                    </div>
+                    {review.body && (
+                      <div className="markdown-content break-words select-text max-w-none text-xs">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{review.body}</ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              if (item.type === "commit") {
+                const commit = item.commit;
+                const shortSha = commit.sha.slice(0, 7);
+                const firstLine = commit.commit.message.split("\n")[0];
+                const authorName =
+                  commit.author?.login ?? commit.commit.author?.name ?? "Unknown";
+                return (
+                  <div
+                    key={item.id}
+                    className="border border-border rounded p-2.5 bg-muted/5"
+                  >
+                    <div className="flex items-start gap-2 text-xs">
+                      <UserAvatar
+                        src={commit.author?.avatar_url}
+                        alt={authorName}
+                        size={16}
+                      />
+                      <span className="flex-1 min-w-0 text-muted-foreground">
+                        {commit.author?.html_url ? (
+                          <a
+                            href={commit.author.html_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-foreground hover:underline"
+                          >
+                            {authorName}
+                          </a>
+                        ) : (
+                          <span className="font-medium text-foreground">{authorName}</span>
+                        )}{" "}
+                        committed{" "}
+                        <a
+                          href={commit.html_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-primary hover:underline"
+                        >
+                          {shortSha}
+                        </a>
+                        {": "}
+                        <span className="text-foreground">{firstLine}</span>
+                      </span>
+                      {commit.commit.author?.date && (
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                          {formatDate(commit.commit.author.date)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );

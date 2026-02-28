@@ -80,6 +80,25 @@ export interface GitHubReviewComment {
   diff_hunk?: string;
 }
 
+export interface GitHubPRReview {
+  id: number;
+  user: { login: string; avatar_url?: string; html_url?: string };
+  body: string | null;
+  state: "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED" | "PENDING";
+  submitted_at: string | null;
+  html_url: string;
+}
+
+export interface GitHubPRCommit {
+  sha: string;
+  commit: {
+    message: string;
+    author: { name: string; date: string } | null;
+  };
+  html_url: string;
+  author: { login: string; avatar_url?: string; html_url?: string } | null;
+}
+
 export interface GitHubOrganization {
   login: string;
   type: "Organization" | "User";
@@ -462,6 +481,32 @@ export class GitHubAPI {
   ): Promise<GitHubReviewComment[]> {
     return this.request<GitHubReviewComment[]>(
       this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/comments?per_page=100`)
+    );
+  }
+
+  /**
+   * Get review summaries (top-level review submissions) for a pull request.
+   */
+  async getPRReviews(
+    owner: string,
+    repo: string,
+    number: number
+  ): Promise<GitHubPRReview[]> {
+    return this.request<GitHubPRReview[]>(
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/reviews?per_page=100`)
+    );
+  }
+
+  /**
+   * Get the commits in a pull request.
+   */
+  async getPRCommits(
+    owner: string,
+    repo: string,
+    number: number
+  ): Promise<GitHubPRCommit[]> {
+    return this.request<GitHubPRCommit[]>(
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/commits?per_page=100`)
     );
   }
 
