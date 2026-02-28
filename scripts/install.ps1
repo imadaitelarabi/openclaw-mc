@@ -330,6 +330,18 @@ function Install-CLI {
     Write-Ok "Added $BinDir to user PATH (restart your terminal to pick it up)."
   }
 
+  # Ensure current process can resolve `oclawmc` immediately.
+  if ($env:PATH -notlike "*$BinDir*") {
+    $env:PATH = "$BinDir;$env:PATH"
+  }
+
+  if (Get-Command oclawmc -ErrorAction SilentlyContinue) {
+    Write-Ok "oclawmc is available in this session."
+  } else {
+    Write-Warn "oclawmc is not yet resolvable in this session."
+    Write-Warn "Use '$BinDir\\oclawmc.cmd <command>' now, or open a new terminal."
+  }
+
   Write-Ok "oclawmc CLI installed to $BinDir"
 }
 
