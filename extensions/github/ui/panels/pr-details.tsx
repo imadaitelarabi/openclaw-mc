@@ -13,6 +13,7 @@ import {
   ExternalLink,
   AlertCircle,
   Loader2,
+  RefreshCw,
   GitPullRequest,
   GitMerge,
   GitPullRequestClosed,
@@ -272,12 +273,6 @@ export function GitHubPrDetailsPanel({
             label: "Open in GitHub",
             variant: "ghost" as const,
             onClick: () => window.open(pr.html_url, "_blank", "noopener,noreferrer"),
-          },
-          {
-            id: "refresh",
-            label: "Refresh",
-            variant: "ghost" as const,
-            onClick: () => refresh(),
           },
         ]
       : [],
@@ -745,6 +740,19 @@ export function GitHubPrDetailsPanel({
             <span className="text-xs text-muted-foreground font-mono">
               {owner}/{repo}#{pr.number}
             </span>
+            <button
+              onClick={refresh}
+              disabled={loading}
+              title="Refresh"
+              aria-label="Refresh PR"
+              className="ml-auto flex items-center justify-center w-6 h-6 rounded hover:bg-accent disabled:opacity-50 text-muted-foreground transition-colors"
+            >
+              {loading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="w-3.5 h-3.5" />
+              )}
+            </button>
           </div>
           <h2 className="text-base font-semibold text-foreground leading-snug">{pr.title}</h2>
         </div>
