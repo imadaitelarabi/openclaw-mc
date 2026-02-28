@@ -36,14 +36,12 @@ import { getApiInstance } from "../../api-instance";
 import type {
   GitHubPR,
   GitHubComment,
-  GitHubReviewComment,
   GitHubPRReview,
   GitHubPRCommit,
   GitHubTimelineEvent,
   GitHubAssignableUser,
 } from "../../api";
 
-const COMMENTS_PAGE_SIZE = 5;
 const ACTIVITY_PAGE_SIZE = 10;
 
 const MERGE_METHOD_LABELS: Record<"merge" | "squash" | "rebase", string> = {
@@ -157,12 +155,6 @@ export function GitHubPrDetailsPanel({
   const [issueCommentsLoading, setIssueCommentsLoading] = useState(false);
   const [issueCommentsError, setIssueCommentsError] = useState<string | null>(null);
   const [displayedActivityCount, setDisplayedActivityCount] = useState(ACTIVITY_PAGE_SIZE);
-
-  const [reviewComments, setReviewComments] = useState<GitHubReviewComment[]>([]);
-  const [reviewCommentsLoading, setReviewCommentsLoading] = useState(false);
-  const [reviewCommentsError, setReviewCommentsError] = useState<string | null>(null);
-  const [displayedReviewCommentCount, setDisplayedReviewCommentCount] =
-    useState(COMMENTS_PAGE_SIZE);
 
   // PR review summaries state
   const [prReviews, setPrReviews] = useState<GitHubPRReview[]>([]);
@@ -386,11 +378,8 @@ export function GitHubPrDetailsPanel({
       setError(null);
       setIssueCommentsError(null);
       setIssueCommentsLoading(true);
-      setReviewCommentsError(null);
-      setReviewCommentsLoading(true);
       setTimelineLoading(true);
       setDisplayedActivityCount(ACTIVITY_PAGE_SIZE);
-      setDisplayedReviewCommentCount(COMMENTS_PAGE_SIZE);
     }
 
     api
@@ -419,20 +408,6 @@ export function GitHubPrDetailsPanel({
       })
       .finally(() => {
         if (!cancelled && !isSilentRefresh) setIssueCommentsLoading(false);
-      });
-
-    api
-      .getPRReviewComments(owner, repo, number)
-      .then((result) => {
-        if (!cancelled) setReviewComments(result);
-      })
-      .catch((e) => {
-        if (!cancelled && !isSilentRefresh) {
-          setReviewCommentsError(e instanceof Error ? e.message : "Failed to load review comments");
-        }
-      })
-      .finally(() => {
-        if (!cancelled && !isSilentRefresh) setReviewCommentsLoading(false);
       });
 
     api
@@ -771,11 +746,6 @@ export function GitHubPrDetailsPanel({
     Math.max(0, activityItems.length - displayedActivityCount)
   );
   const hasMoreActivity = displayedActivityCount < activityItems.length;
-
-  const visibleReviewComments = reviewComments.slice(
-    Math.max(0, reviewComments.length - displayedReviewCommentCount)
-  );
-  const hasMoreReviewComments = displayedReviewCommentCount < reviewComments.length;
 
   return (
     <div ref={panelRootRef} className="relative flex flex-col h-full">
@@ -1210,73 +1180,6 @@ export function GitHubPrDetailsPanel({
                 Post Comment
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* Review Comments */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-            <MessageSquare className="w-3.5 h-3.5" />
-            Review Comments
-            {reviewComments.length > 0 && (
-              <span className="text-muted-foreground">({reviewComments.length})</span>
-            )}
-          </div>
-
-          {reviewCommentsLoading && (
-            <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              Loading review comments…
-            </div>
-          )}
-
-          {reviewCommentsError && (
-            <div className="flex items-start gap-2 p-2 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded">
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-              <span>{reviewCommentsError}</span>
-            </div>
-          )}
-
-          {!reviewCommentsLoading && !reviewCommentsError && reviewComments.length === 0 && (
-            <p className="text-xs text-muted-foreground">No review comments yet.</p>
-          )}
-
-          {hasMoreReviewComments && (
-            <button
-              onClick={() => setDisplayedReviewCommentCount((c) => c + COMMENTS_PAGE_SIZE)}
-              className="text-xs text-primary hover:underline"
-            >
-              Load more ({reviewComments.length - displayedReviewCommentCount} older)
-            </button>
-          )}
-
-          <div className="space-y-2">
-            {visibleReviewComments.map((comment) => (
-              <div
-                key={comment.id}
-                className="border border-border rounded p-2.5 bg-muted/10 space-y-1.5"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <UserAvatar src={comment.user.avatar_url} alt={comment.user.login} size={16} />
-                    <span className="text-xs font-medium text-foreground truncate">
-                      {comment.user.login}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                    {formatDate(comment.created_at)}
-                  </span>
-                </div>
-                {comment.path && (
-                  <div className="text-[10px] text-muted-foreground font-mono truncate">
-                    {comment.path}
-                  </div>
-                )}
-                <div className="markdown-content break-words select-text max-w-none text-xs">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.body}</ReactMarkdown>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
