@@ -20,7 +20,6 @@ import {
   ChevronRight,
   MessageSquare,
   ArrowLeft,
-  X,
   RefreshCw,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -30,6 +29,8 @@ import type { PanelBackNavigation } from "@/types";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { usePanels } from "@/contexts/PanelContext";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
+import { ExtensionActionBar } from "@/components/panels/ExtensionActionBar";
+import { useExtensionActionBar } from "@/hooks/useExtensionActionBar";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubPR, GitHubComment, GitHubReviewComment } from "../../api";
 
@@ -110,6 +111,56 @@ export function GitHubPrDetailsPanel({
     mergeMethod?: "merge" | "squash" | "rebase";
   } | null>(null);
   const [commentText, setCommentText] = useState("");
+
+  // ── Action bar (built before early returns to satisfy Rules of Hooks) ───
+  // Merge is disabled for draft PRs (UI + server-side guard in handleMerge).
+  const isMergeDisabled = (pr?.draft ?? false) || actionLoading !== null;
+  const mergeDisabledReason = pr?.draft
+    ? "Draft pull requests cannot be merged. Mark as ready for review first."
+    : undefined;
+
+  const actionBar = useExtensionActionBar({
+    actions:
+      pr?.state === "open"
+        ? [
+            {
+              id: "merge",
+              label: "Merge",
+              variant: "success",
+              disabled: isMergeDisabled,
+              disabledReason: mergeDisabledReason,
+              loading: actionLoading === "merge",
+              onClick: () => setShowConfirm({ action: "merge", mergeMethod: "merge" }),
+              dropdownItems: [
+                {
+                  id: "merge-squash",
+                  label: "Squash and merge",
+                  disabled: isMergeDisabled,
+                  disabledReason: mergeDisabledReason,
+                  onClick: () => setShowConfirm({ action: "merge", mergeMethod: "squash" }),
+                },
+                {
+                  id: "merge-rebase",
+                  label: "Rebase and merge",
+                  disabled: isMergeDisabled,
+                  disabledReason: mergeDisabledReason,
+                  onClick: () => setShowConfirm({ action: "merge", mergeMethod: "rebase" }),
+                },
+              ],
+            },
+            {
+              id: "close",
+              label: "Close PR",
+              variant: "danger",
+              disabled: actionLoading !== null,
+              loading: actionLoading === "close",
+              onClick: () => setShowConfirm({ action: "close" }),
+            },
+          ]
+        : [],
+    error: actionError,
+    onDismissError: () => setActionError(null),
+  });
 
   useEffect(() => {
     if (!owner || !repo || !number) return;
@@ -196,6 +247,11 @@ export function GitHubPrDetailsPanel({
 
   const handleMerge = async (method: "merge" | "squash" | "rebase") => {
     if (!owner || !repo || !number) return;
+    // Server-side guard: refuse to merge draft PRs even if somehow invoked
+    if (pr?.draft) {
+      setActionError("Draft pull requests cannot be merged. Mark it as ready for review first.");
+      return;
+    }
     setActionLoading("merge");
     setActionError(null);
     setShowConfirm(null);
@@ -317,8 +373,8 @@ export function GitHubPrDetailsPanel({
   const hasMoreReviewComments = displayedReviewCommentCount < reviewComments.length;
 
   return (
-    <>
-      <div className="flex flex-col h-full overflow-auto p-4 space-y-4">
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* Back button */}
         {back && contextPanelId && (
           <div>
@@ -380,64 +436,7 @@ export function GitHubPrDetailsPanel({
         </div>
 
         {/* Action error */}
-        {actionError && (
-          <div className="flex items-start gap-2 p-2 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded">
-            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-            <span className="flex-1">{actionError}</span>
-            <button onClick={() => setActionError(null)} className="flex-shrink-0 hover:opacity-70">
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        {/* Action buttons (open PRs only) */}
-        {pr.state === "open" && (
-          <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-            {/* Merge dropdown */}
-            <div className="relative inline-flex rounded overflow-hidden">
-              <button
-                onClick={() => setShowConfirm({ action: "merge", mergeMethod: "merge" })}
-                disabled={actionLoading !== null}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 transition-colors"
-              >
-                {actionLoading === "merge" ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <GitMerge className="w-3 h-3" />
-                )}
-                Merge
-              </button>
-              <button
-                onClick={() => setShowConfirm({ action: "merge", mergeMethod: "squash" })}
-                disabled={actionLoading !== null}
-                title="Squash and merge"
-                className="px-2 py-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white border-l border-green-500 disabled:opacity-50 transition-colors"
-              >
-                Squash
-              </button>
-              <button
-                onClick={() => setShowConfirm({ action: "merge", mergeMethod: "rebase" })}
-                disabled={actionLoading !== null}
-                title="Rebase and merge"
-                className="px-2 py-1.5 text-xs font-medium bg-green-600 hover:bg-green-700 text-white border-l border-green-500 disabled:opacity-50 transition-colors"
-              >
-                Rebase
-              </button>
-            </div>
-            <button
-              onClick={() => setShowConfirm({ action: "close" })}
-              disabled={actionLoading !== null}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded disabled:opacity-50 transition-colors"
-            >
-              {actionLoading === "close" ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <GitPullRequestClosed className="w-3 h-3" />
-              )}
-              Close PR
-            </button>
-          </div>
-        )}
+        {/* (Errors are displayed in the ExtensionActionBar below) */}
 
         {/* Meta */}
         <div className="text-xs text-muted-foreground space-y-1">
@@ -642,6 +641,9 @@ export function GitHubPrDetailsPanel({
         </div>
       </div>
 
+      {/* Action bar (Merge / Close PR) with draft-merge guard */}
+      <ExtensionActionBar bar={actionBar} />
+
       {/* Confirmation modals */}
       <ConfirmationModal
         isOpen={showConfirm?.action === "merge"}
@@ -661,6 +663,6 @@ export function GitHubPrDetailsPanel({
         confirmText="Close PR"
         variant="danger"
       />
-    </>
+    </div>
   );
 }

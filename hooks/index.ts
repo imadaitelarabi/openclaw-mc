@@ -13,3 +13,4 @@ export * from "./useCronJobs";
 export * from "./useCronRuns";
 export * from "./useNotes";
 export * from "./useSessionUsage";
+export * from "./useExtensionActionBar";

@@ -30,6 +30,8 @@ import type { PanelBackNavigation } from "@/types";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { usePanels } from "@/contexts/PanelContext";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
+import { ExtensionActionBar } from "@/components/panels/ExtensionActionBar";
+import { useExtensionActionBar } from "@/hooks/useExtensionActionBar";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubIssue, GitHubComment } from "../../api";
 
@@ -104,6 +106,32 @@ export function GitHubIssueDetailsPanel({
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assigneeInput, setAssigneeInput] = useState("");
   const [commentText, setCommentText] = useState("");
+
+  // ── Action bar (built before early returns to satisfy Rules of Hooks) ───
+  const actionBar = useExtensionActionBar({
+    actions:
+      issue?.state === "open"
+        ? [
+            {
+              id: "close",
+              label: "Close Issue",
+              variant: "danger",
+              disabled: actionLoading !== null,
+              loading: actionLoading === "close",
+              onClick: () => setShowCloseConfirm(true),
+            },
+            {
+              id: "assign",
+              label: "Assign",
+              variant: "default",
+              disabled: actionLoading !== null,
+              onClick: () => setShowAssignModal(true),
+            },
+          ]
+        : [],
+    error: actionError,
+    onDismissError: () => setActionError(null),
+  });
 
   useEffect(() => {
     if (!owner || !repo || !number) return;
@@ -313,8 +341,8 @@ export function GitHubIssueDetailsPanel({
   const hasMoreComments = displayedCommentCount < comments.length;
 
   return (
-    <>
-      <div className="flex flex-col h-full overflow-auto p-4 space-y-4">
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-auto p-4 space-y-4">
         {/* Back button */}
         {back && contextPanelId && (
           <div>
@@ -374,41 +402,7 @@ export function GitHubIssueDetailsPanel({
         </div>
 
         {/* Action error */}
-        {actionError && (
-          <div className="flex items-start gap-2 p-2 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded">
-            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-            <span className="flex-1">{actionError}</span>
-            <button onClick={() => setActionError(null)} className="flex-shrink-0 hover:opacity-70">
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        {/* Action buttons (open issues only) */}
-        {isOpen && (
-          <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-            <button
-              onClick={() => setShowCloseConfirm(true)}
-              disabled={actionLoading !== null}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded disabled:opacity-50 transition-colors"
-            >
-              {actionLoading === "close" ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <CircleCheck className="w-3 h-3" />
-              )}
-              Close Issue
-            </button>
-            <button
-              onClick={() => setShowAssignModal(true)}
-              disabled={actionLoading !== null}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-muted hover:bg-muted/80 text-foreground border border-border rounded disabled:opacity-50 transition-colors"
-            >
-              <UserPlus className="w-3 h-3" />
-              Assign
-            </button>
-          </div>
-        )}
+        {/* (Errors are displayed in the ExtensionActionBar below) */}
 
         {/* Assign modal */}
         {showAssignModal && (
@@ -624,6 +618,9 @@ export function GitHubIssueDetailsPanel({
         </div>
       </div>
 
+      {/* Action bar (Close Issue / Assign) */}
+      <ExtensionActionBar bar={actionBar} />
+
       {/* Confirmation modal */}
       <ConfirmationModal
         isOpen={showCloseConfirm}
@@ -634,6 +631,6 @@ export function GitHubIssueDetailsPanel({
         confirmText="Close Issue"
         variant="danger"
       />
-    </>
+    </div>
   );
 }
