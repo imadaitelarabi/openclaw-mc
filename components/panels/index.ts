@@ -9,4 +9,5 @@ export { UpdateCronPanel } from "./UpdateCronPanel";
 export { ExtensionOnboardingPanel } from "./ExtensionOnboardingPanel";
 export { ExtensionPanel } from "./ExtensionPanel";
 export { FilterDropdown } from "./FilterDropdown";
+export { ExtensionActionBar } from "./ExtensionActionBar";
 export { TagsSettingsPanel } from "./TagsSettingsPanel";
