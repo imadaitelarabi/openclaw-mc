@@ -47,22 +47,23 @@ The interactive installer will:
 
 After install, use the `oclawmc` command to manage the server:
 
-| Command | Description |
-|---------|-------------|
-| `oclawmc start` | Start in foreground |
-| `oclawmc daemon` | Start in background |
-| `oclawmc stop` | Stop the server |
-| `oclawmc restart` | Restart the server |
-| `oclawmc status` | Show service + Tailscale status |
-| `oclawmc logs [N]` | Tail last N log lines (default 100) |
-| `oclawmc update` | Pull latest, rebuild, and restart |
-| `oclawmc tailscale <status\|up\|down>` | Manage Tailscale connection |
-| `oclawmc doctor` | Preflight health checks (port, token, Tailscale) |
-| `oclawmc uninstall` | Remove service, CLI, and optionally data |
+| Command                                | Description                                      |
+| -------------------------------------- | ------------------------------------------------ |
+| `oclawmc start`                        | Start in foreground                              |
+| `oclawmc daemon`                       | Start in background                              |
+| `oclawmc stop`                         | Stop the server                                  |
+| `oclawmc restart`                      | Restart the server                               |
+| `oclawmc status`                       | Show service + Tailscale status                  |
+| `oclawmc logs [N]`                     | Tail last N log lines (default 100)              |
+| `oclawmc update`                       | Pull latest, rebuild, and restart                |
+| `oclawmc tailscale <status\|up\|down>` | Manage Tailscale connection                      |
+| `oclawmc doctor`                       | Preflight health checks (port, token, Tailscale) |
+| `oclawmc uninstall`                    | Remove service, CLI, and optionally data         |
 
 Config is stored in `~/.oclawmc/config.json` (Unix) or `%USERPROFILE%\.oclawmc\config.json` (Windows).
 
 > **Legacy installer** (no Tailscale/CLI, runs in foreground):
+>
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc/master/scripts/install-and-run.sh | bash
 > ```
