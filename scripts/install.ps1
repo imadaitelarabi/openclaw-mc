@@ -71,7 +71,7 @@ function Ensure-Node {
     Write-Warn "Node.js $ver detected but >= $minMajor required."
   }
 
-  Write-Log "Attempting to install Node.js via winget…"
+  Write-Log "Attempting to install Node.js via winget..."
   $installed = $false
   if (Get-Command winget -ErrorAction SilentlyContinue) {
     winget install OpenJS.NodeJS.LTS --silent --accept-package-agreements --accept-source-agreements
@@ -97,7 +97,7 @@ function Ensure-Node {
 
 function Ensure-Git {
   if (Get-Command git -ErrorAction SilentlyContinue) { return }
-  Write-Log "Installing git via winget…"
+  Write-Log "Installing git via winget..."
   if (Get-Command winget -ErrorAction SilentlyContinue) {
     winget install Git.Git --silent --accept-package-agreements --accept-source-agreements
     $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' +
@@ -178,7 +178,7 @@ function Setup-OpenClaw {
     $choice = Prompt-Value "Choose option" "3"
     switch ($choice) {
       '1' {
-        Write-Log "Installing openclaw globally…"
+        Write-Log "Installing openclaw globally..."
         & cmd.exe /c "npm install -g openclaw 2>&1"
         if (Get-Command openclaw -ErrorAction SilentlyContinue) {
           Write-Ok "openclaw installed."
@@ -213,7 +213,7 @@ function Fetch-Repo {
     $remote = git -C $InstallDir remote get-url origin 2>$null
     $canonical = $RepoUrl -replace '\.git$', ''
     if ($remote -eq $canonical -or $remote -eq "$canonical.git") {
-      Write-Log "Updating existing installation at $InstallDir…"
+      Write-Log "Updating existing installation at $InstallDir..."
       git -C $InstallDir fetch --all --prune
       git -C $InstallDir checkout $Branch
       git -C $InstallDir pull --ff-only origin $Branch
@@ -229,7 +229,7 @@ function Fetch-Repo {
 
   $parent = Split-Path $InstallDir -Parent
   if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
-  Write-Log "Cloning repository into $InstallDir…"
+  Write-Log "Cloning repository into $InstallDir..."
   git clone --depth 1 --branch $Branch $RepoUrl $InstallDir
 }
 
@@ -237,16 +237,16 @@ function Build-App {
   param([string]$InstallDir)
   Push-Location $InstallDir
   try {
-    Write-Log "Installing Node dependencies…"
+    Write-Log "Installing Node dependencies..."
     & cmd.exe /c "npm ci --legacy-peer-deps 2>&1"
     if ($LASTEXITCODE -ne 0) {
-      Write-Warn "'npm ci' failed, falling back to 'npm install'…"
+      Write-Warn "'npm ci' failed, falling back to 'npm install'..."
       & cmd.exe /c "npm install --legacy-peer-deps 2>&1"
       if ($LASTEXITCODE -ne 0) {
         throw "npm install failed with exit code $LASTEXITCODE"
       }
     }
-    Write-Log "Building production bundle…"
+    Write-Log "Building production bundle..."
     & cmd.exe /c "npm run build 2>&1"
     if ($LASTEXITCODE -ne 0) {
       throw "npm run build failed with exit code $LASTEXITCODE"
@@ -274,7 +274,7 @@ function Setup-WindowsService {
 
   # Check for nssm (preferred) then fall back to New-Service
   if (Get-Command nssm -ErrorAction SilentlyContinue) {
-    Write-Log "Using nssm to create service '$svcName'…"
+    Write-Log "Using nssm to create service '$svcName'..."
     nssm install $svcName $nodePath "$InstallDir\dist\server\index.js"
     nssm set $svcName AppDirectory $InstallDir
     nssm set $svcName AppEnvironmentExtra "NODE_ENV=production"
@@ -283,7 +283,7 @@ function Setup-WindowsService {
     nssm set $svcName Start SERVICE_AUTO_START
     nssm start $svcName
   } else {
-    Write-Log "Registering Windows service '$svcName' via New-Service…"
+    Write-Log "Registering Windows service '$svcName' via New-Service..."
     $existing = Get-Service -Name $svcName -ErrorAction SilentlyContinue
     if ($existing) {
       Stop-Service -Name $svcName -Force -ErrorAction SilentlyContinue
@@ -293,7 +293,7 @@ function Setup-WindowsService {
     New-Service -Name $svcName -BinaryPathName $binPath -DisplayName $desc `
                 -Description $desc -StartupType Automatic | Out-Null
     Start-Service -Name $svcName
-    Write-Log "Adding firewall rule for port $Port (if elevated)…"
+    Write-Log "Adding firewall rule for port $Port (if elevated)..."
     try {
       New-NetFirewallRule -DisplayName 'OclawMC' -Direction Inbound -Protocol TCP `
         -LocalPort $Port -Action Allow -ErrorAction Stop | Out-Null

@@ -89,7 +89,7 @@ function Load-Env {
 function Cmd-Start {
   Load-Config; Load-Env
   $installDir = Get-InstallDir
-  Write-Log "Starting OpenClaw MC in foreground (Ctrl+C to stop)…"
+  Write-Log "Starting OpenClaw MC in foreground (Ctrl+C to stop)..."
   $env:NODE_ENV = 'production'
   Set-Location $installDir
   & node (Join-Path $installDir 'dist\server\index.js')
@@ -105,7 +105,7 @@ function Cmd-Daemon {
   if (-not (Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
   $installDir = Get-InstallDir
   $env:NODE_ENV = 'production'
-  Write-Log "Starting OpenClaw MC in background…"
+  Write-Log "Starting OpenClaw MC in background..."
   $proc = Start-Process node -ArgumentList (Join-Path $installDir 'dist\server\index.js') `
     -WorkingDirectory $installDir `
     -RedirectStandardOutput $LogFile `
@@ -205,12 +205,12 @@ function Cmd-Update {
   Load-Config
   $installDir = Get-InstallDir
   $branch     = Get-Branch
-  Write-Log "Pulling latest changes from $branch…"
+  Write-Log "Pulling latest changes from $branch..."
   git -C $installDir fetch --all --prune
   git -C $installDir checkout $branch
   git -C $installDir pull --ff-only origin $branch
 
-  Write-Log "Reinstalling dependencies…"
+  Write-Log "Reinstalling dependencies..."
   Push-Location $installDir
   try {
     & cmd.exe /c "npm ci --legacy-peer-deps 2>&1"
@@ -220,14 +220,14 @@ function Cmd-Update {
         throw "npm install failed with exit code $LASTEXITCODE"
       }
     }
-    Write-Log "Rebuilding…"
+    Write-Log "Rebuilding..."
     & cmd.exe /c "npm run build 2>&1"
     if ($LASTEXITCODE -ne 0) {
       throw "npm run build failed with exit code $LASTEXITCODE"
     }
   } finally { Pop-Location }
 
-  Write-Ok "Update complete. Restarting…"
+  Write-Ok "Update complete. Restarting..."
   Cmd-Restart
 }
 
