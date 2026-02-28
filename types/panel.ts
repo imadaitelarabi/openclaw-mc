@@ -13,7 +13,8 @@ export type PanelType =
   | "skills"
   | "tags-settings"
   | "github-pr-details"
-  | "github-issue-details";
+  | "github-issue-details"
+  | "github-pr-review-comments";
 
 /** Describes where to navigate back to when a detail panel is closed. */
 export interface PanelBackNavigation {

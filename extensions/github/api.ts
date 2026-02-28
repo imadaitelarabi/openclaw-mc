@@ -24,6 +24,10 @@ export interface GitHubPR {
   assignees?: Array<{ login: string; avatar_url?: string; html_url?: string }>;
   requested_reviewers?: Array<{ login: string; avatar_url?: string; html_url?: string }>;
   body?: string | null;
+  head?: {
+    sha: string;
+    ref: string;
+  };
 }
 
 export interface GitHubIssue {
@@ -78,6 +82,11 @@ export interface GitHubReviewComment {
   html_url: string;
   path?: string;
   diff_hunk?: string;
+  in_reply_to_id?: number;
+  position?: number | null;
+  original_position?: number | null;
+  commit_id?: string;
+  pull_request_review_id?: number | null;
 }
 
 export interface GitHubPRReview {
@@ -97,6 +106,19 @@ export interface GitHubPRCommit {
   };
   html_url: string;
   author: { login: string; avatar_url?: string; html_url?: string } | null;
+}
+
+export interface GitHubPRFile {
+  sha: string;
+  filename: string;
+  status: "added" | "removed" | "modified" | "renamed" | "copied" | "changed" | "unchanged";
+  additions: number;
+  deletions: number;
+  changes: number;
+  blob_url?: string;
+  raw_url?: string;
+  patch?: string;
+  previous_filename?: string;
 }
 
 export interface GitHubOrganization {
@@ -487,11 +509,7 @@ export class GitHubAPI {
   /**
    * Get review summaries (top-level review submissions) for a pull request.
    */
-  async getPRReviews(
-    owner: string,
-    repo: string,
-    number: number
-  ): Promise<GitHubPRReview[]> {
+  async getPRReviews(owner: string, repo: string, number: number): Promise<GitHubPRReview[]> {
     return this.request<GitHubPRReview[]>(
       this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/reviews?per_page=100`)
     );
@@ -500,17 +518,82 @@ export class GitHubAPI {
   /**
    * Get the commits in a pull request.
    */
-  async getPRCommits(
-    owner: string,
-    repo: string,
-    number: number
-  ): Promise<GitHubPRCommit[]> {
+  async getPRCommits(owner: string, repo: string, number: number): Promise<GitHubPRCommit[]> {
     return this.request<GitHubPRCommit[]>(
       this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/commits?per_page=100`)
     );
   }
 
+  /**
+   * Get changed files in a pull request.
+   */
+  async getPRFiles(owner: string, repo: string, number: number): Promise<GitHubPRFile[]> {
+    return this.request<GitHubPRFile[]>(
+      this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/files?per_page=100`)
+    );
+  }
+
   // ── Write actions ────────────────────────────────────────────────────────
+
+  /**
+   * Reply to an existing pull request review comment.
+   */
+  async replyToReviewComment(
+    owner: string,
+    repo: string,
+    commentId: number,
+    body: string
+  ): Promise<GitHubReviewComment> {
+    const comment = await this.request<GitHubReviewComment>(
+      `/repos/${owner}/${repo}/pulls/comments/${commentId}/replies`,
+      { method: "POST", body: { body } }
+    );
+    this.invalidateDetailsCache();
+    return comment;
+  }
+
+  /**
+   * Edit the body of a pull request review comment.
+   */
+  async editReviewComment(
+    owner: string,
+    repo: string,
+    commentId: number,
+    body: string
+  ): Promise<GitHubReviewComment> {
+    const comment = await this.request<GitHubReviewComment>(
+      `/repos/${owner}/${repo}/pulls/comments/${commentId}`,
+      { method: "PATCH", body: { body } }
+    );
+    this.invalidateDetailsCache();
+    return comment;
+  }
+
+  /**
+   * Delete a pull request review comment.
+   */
+  async deleteReviewComment(owner: string, repo: string, commentId: number): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/pulls/comments/${commentId}`, {
+      method: "DELETE",
+    });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Add a reaction to a pull request review comment.
+   */
+  async addReviewCommentReaction(
+    owner: string,
+    repo: string,
+    commentId: number,
+    content: "+1" | "-1" | "laugh" | "confused" | "heart" | "hooray" | "rocket" | "eyes"
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/pulls/comments/${commentId}/reactions`, {
+      method: "POST",
+      body: { content },
+      accept: "application/vnd.github.squirrel-girl-preview+json",
+    });
+  }
 
   /**
    * Merge a pull request.
