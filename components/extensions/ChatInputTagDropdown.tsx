@@ -11,6 +11,7 @@ import type { ChatInputTagOption } from "@/types/extension";
 
 interface ChatInputTagDropdownProps {
   options: ChatInputTagOption[];
+  query?: string;
   onSelect: (option: ChatInputTagOption) => void;
   onClose: () => void;
   isLoading?: boolean;
@@ -20,6 +21,7 @@ interface ChatInputTagDropdownProps {
 
 export function ChatInputTagDropdown({
   options,
+  query,
   onSelect,
   onClose,
   isLoading = false,
@@ -211,11 +213,11 @@ export function ChatInputTagDropdown({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [options, currentPath, activeIndex, onSelect, onClose]);
 
-  // Reset navigation when options change
+  // Reset navigation when query changes (not on every options update to preserve selection during async loads)
   useEffect(() => {
     setCurrentPath([]);
     setActiveIndex(0);
-  }, [options]);
+  }, [query]);
 
   // Clamp active index when current level items change
   useEffect(() => {
