@@ -31,8 +31,19 @@ import { usePanels } from "@/contexts/PanelContext";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { ExtensionActionBar } from "@/components/panels/ExtensionActionBar";
 import { useExtensionActionBar } from "@/hooks/useExtensionActionBar";
+import { useOptionalExtensionModals } from "@/contexts/ExtensionModalContext";
 import { getApiInstance } from "../../api-instance";
-import type { GitHubIssue, GitHubComment, GitHubAssignableUser, GitHubTimelineEvent } from "../../api";
+import type {
+  GitHubIssue,
+  GitHubComment,
+  GitHubAssignableUser,
+  GitHubTimelineEvent,
+  GitHubCopilotAgentAssignmentOptions,
+} from "../../api";
+import type {
+  AssignCopilotModalPayload,
+  AssignCopilotModalResult,
+} from "../modals/assign-copilot";
 
 const ACTIVITY_PAGE_SIZE = 10;
 
@@ -138,6 +149,7 @@ export function GitHubIssueDetailsPanel({
   back,
 }: GitHubIssueDetailsPanelProps) {
   const { replacePanel } = usePanels();
+  const extensionModals = useOptionalExtensionModals();
   const extensionContext = useOptionalExtensions();
   const isExtensionContextLoading = extensionContext?.isLoading ?? false;
   const isGitHubEnabled = extensionContext?.isExtensionEnabled("github") ?? false;
@@ -145,6 +157,9 @@ export function GitHubIssueDetailsPanel({
   const [issue, setIssue] = useState<GitHubIssue | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [githubInitAttempted, setGitHubInitAttempted] = useState(false);
+  const [githubInitLoading, setGitHubInitLoading] = useState(false);
+  const [githubInitError, setGitHubInitError] = useState<string | null>(null);
 
   const [bodyExpanded, setBodyExpanded] = useState(true);
 
@@ -242,6 +257,47 @@ export function GitHubIssueDetailsPanel({
   });
 
   useEffect(() => {
+    if (isExtensionContextLoading) return;
+    if (isGitHubEnabled) return;
+    if (githubInitAttempted || githubInitLoading) return;
+    if (!extensionContext?.enableExtension) return;
+
+    let cancelled = false;
+    setGitHubInitAttempted(true);
+    setGitHubInitLoading(true);
+    setGitHubInitError(null);
+
+    extensionContext
+      .enableExtension("github")
+      .then(() => {
+        if (!cancelled) {
+          triggerRefresh(true);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setGitHubInitError(
+            e instanceof Error ? e.message : "Failed to initialize GitHub extension"
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setGitHubInitLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    extensionContext,
+    githubInitAttempted,
+    githubInitLoading,
+    isExtensionContextLoading,
+    isGitHubEnabled,
+    triggerRefresh,
+  ]);
+
+  useEffect(() => {
     if (!owner || !repo || !number) return;
 
     if (isExtensionContextLoading) {
@@ -252,11 +308,16 @@ export function GitHubIssueDetailsPanel({
 
     const api = getApiInstance();
     if (!api) {
+      if (!isGitHubEnabled && (githubInitLoading || !githubInitAttempted)) {
+        setError("Initializing GitHub extension…");
+        return;
+      }
       setLoading(false);
       setError(
-        isGitHubEnabled
+        githubInitError ??
+          (isGitHubEnabled
           ? "GitHub extension is still initializing. Please retry in a moment."
-          : "GitHub extension is not initialized. Please complete onboarding."
+          : "GitHub extension is not initialized. Please complete onboarding.")
       );
       return;
     }
@@ -429,7 +490,10 @@ export function GitHubIssueDetailsPanel({
     }
   };
 
-  const handleAddAssignees = async (assignees: string[]) => {
+  const handleAddAssignees = async (
+    assignees: string[],
+    copilotOptions?: GitHubCopilotAgentAssignmentOptions
+  ) => {
     if (!owner || !repo || !number || assignees.length === 0) return;
     // Optimistic update
     const previousIssue = issue;
@@ -460,7 +524,7 @@ export function GitHubIssueDetailsPanel({
           assignees[0].toLowerCase() === "copilot-swe-agent");
 
       if (isCopilotAssignment) {
-        await api.assignCopilotToIssue(owner, repo, number);
+        await api.assignCopilotToIssue(owner, repo, number, copilotOptions);
       } else {
         await api.addAssignees(owner, repo, number, assignees);
       }
@@ -472,6 +536,34 @@ export function GitHubIssueDetailsPanel({
       setActionError(e instanceof Error ? e.message : "Failed to add assignees");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleAssignCopilot = async () => {
+    if (!owner || !repo || !number) return;
+
+    setShowAssignModal(false);
+
+    try {
+      if (!extensionModals) {
+        await handleAddAssignees(["copilot"]);
+        return;
+      }
+
+      const result = await extensionModals.openModal<
+        AssignCopilotModalPayload,
+        AssignCopilotModalResult
+      >("assign-copilot", {
+        owner,
+        repo,
+        number,
+      });
+
+      if (!result?.confirmed) return;
+
+      await handleAddAssignees(["copilot"], result.options);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Failed to open Copilot assignment modal");
     }
   };
 
@@ -960,7 +1052,7 @@ export function GitHubIssueDetailsPanel({
             <button
               role="option"
               aria-selected={false}
-              onClick={() => handleAddAssignees(["copilot"])}
+              onClick={handleAssignCopilot}
               disabled={actionLoading !== null}
               className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted/60 transition-colors disabled:opacity-50 text-left"
             >

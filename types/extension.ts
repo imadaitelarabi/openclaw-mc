@@ -80,6 +80,29 @@ export interface ExtensionPanelProps {
 }
 
 /**
+ * Props passed to extension modal components
+ */
+export interface ExtensionModalProps<TPayload = unknown, TResult = unknown> {
+  /** Extension name */
+  extensionName: string;
+
+  /** Modal identifier */
+  modalId: string;
+
+  /** Open state */
+  isOpen: boolean;
+
+  /** Arbitrary payload passed by panel code */
+  payload: TPayload;
+
+  /** Resolve modal with a result value */
+  onResolve: (result: TResult) => void;
+
+  /** Dismiss modal without result */
+  onClose: () => void;
+}
+
+/**
  * Tagger configuration for chat input
  */
 export interface TaggerConfig {
@@ -244,6 +267,9 @@ export interface ExtensionHooks {
 
   /** Panel hook - map of panelId to body component (host renders PanelHeader) */
   panel?: Record<string, React.ComponentType<ExtensionPanelProps>>;
+
+  /** Modal hook - map of modalId to modal component */
+  modal?: Record<string, React.ComponentType<ExtensionModalProps<any, any>>>;
 }
 
 /**

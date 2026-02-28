@@ -2,7 +2,7 @@
  * GitHub Extension Entry Point
  */
 
-import type { Extension, ExtensionHooks } from "@/types/extension";
+import type { Extension, ExtensionHooks, ExtensionManifest } from "@/types/extension";
 import manifest from "./manifest.json";
 import { initialize, cleanup, isSetupComplete, checkConnectionStatus } from "./setup";
 import { getStatusBarData } from "./ui/status-bar";
@@ -10,6 +10,7 @@ import { getChatInputOptions } from "./ui/chat-input";
 import { OnboardingPanel } from "./ui/onboarding";
 import { IssuesPanel } from "./ui/panels/issues";
 import { PullRequestsPanel } from "./ui/panels/pull-requests";
+import { AssignCopilotModal } from "./ui/modals/assign-copilot";
 import { GitHubAPI } from "./api";
 import { setApiInstance } from "./api-instance";
 import { parseGitHubUrl } from "./url";
@@ -96,13 +97,18 @@ const hooks: ExtensionHooks = {
     issues: IssuesPanel,
     "pull-requests": PullRequestsPanel,
   },
+
+  // Modal hook - Extension-owned modals callable from panel code
+  modal: {
+    "assign-copilot": AssignCopilotModal,
+  },
 };
 
 /**
  * GitHub Extension instance
  */
 export const githubExtension: Extension = {
-  manifest,
+  manifest: manifest as ExtensionManifest,
   state: {
     name: manifest.name,
     enabled: false,

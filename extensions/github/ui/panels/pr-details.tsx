@@ -85,6 +85,9 @@ export function GitHubPrDetailsPanel({
   const [pr, setPr] = useState<GitHubPR | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [githubInitAttempted, setGitHubInitAttempted] = useState(false);
+  const [githubInitLoading, setGitHubInitLoading] = useState(false);
+  const [githubInitError, setGitHubInitError] = useState<string | null>(null);
 
   const [bodyExpanded, setBodyExpanded] = useState(false);
 
@@ -163,6 +166,47 @@ export function GitHubPrDetailsPanel({
   });
 
   useEffect(() => {
+    if (isExtensionContextLoading) return;
+    if (isGitHubEnabled) return;
+    if (githubInitAttempted || githubInitLoading) return;
+    if (!extensionContext?.enableExtension) return;
+
+    let cancelled = false;
+    setGitHubInitAttempted(true);
+    setGitHubInitLoading(true);
+    setGitHubInitError(null);
+
+    extensionContext
+      .enableExtension("github")
+      .then(() => {
+        if (!cancelled) {
+          refresh();
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setGitHubInitError(
+            e instanceof Error ? e.message : "Failed to initialize GitHub extension"
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setGitHubInitLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    extensionContext,
+    githubInitAttempted,
+    githubInitLoading,
+    isExtensionContextLoading,
+    isGitHubEnabled,
+    refresh,
+  ]);
+
+  useEffect(() => {
     if (!owner || !repo || !number) return;
 
     if (isExtensionContextLoading) {
@@ -173,11 +217,16 @@ export function GitHubPrDetailsPanel({
 
     const api = getApiInstance();
     if (!api) {
+      if (!isGitHubEnabled && (githubInitLoading || !githubInitAttempted)) {
+        setError("Initializing GitHub extension…");
+        return;
+      }
       setLoading(false);
       setError(
-        isGitHubEnabled
+        githubInitError ??
+          (isGitHubEnabled
           ? "GitHub extension is still initializing. Please retry in a moment."
-          : "GitHub extension is not initialized. Please complete onboarding."
+          : "GitHub extension is not initialized. Please complete onboarding.")
       );
       return;
     }

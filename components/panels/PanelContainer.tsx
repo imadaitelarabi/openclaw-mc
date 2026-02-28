@@ -98,6 +98,8 @@ interface PanelContainerProps {
   onSkillsStatusFilterChange?: (next: string) => void;
   onRefreshSkills?: () => void;
 }
+import { ExtensionModalProvider } from "@/contexts/ExtensionModalContext";
+import { useExtensions } from "@/contexts/ExtensionContext";
 
 export function PanelContainer({
   panels,
@@ -162,6 +164,8 @@ export function PanelContainer({
   if (panels.length === 0) {
     return null;
   }
+  const { getExtension } = useExtensions();
+  const githubModals = getExtension("github")?.hooks.modal;
 
   return (
     <div
@@ -434,33 +438,37 @@ export function PanelContainer({
             )}
 
             {panel.type === "github-pr-details" && (
-              <div className="h-full overflow-auto bg-background text-foreground">
-                <GitHubPrDetailsPanel
-                  extensionName="github"
-                  panelId="pr-details"
-                  contextPanelId={panel.id}
-                  owner={panel.data?.owner}
-                  repo={panel.data?.repo}
-                  number={panel.data?.number}
-                  htmlUrl={panel.data?.htmlUrl}
-                  back={panel.data?.back}
-                />
-              </div>
+              <ExtensionModalProvider extensionName="github" modals={githubModals}>
+                <div className="h-full overflow-auto bg-background text-foreground">
+                  <GitHubPrDetailsPanel
+                    extensionName="github"
+                    panelId="pr-details"
+                    contextPanelId={panel.id}
+                    owner={panel.data?.owner}
+                    repo={panel.data?.repo}
+                    number={panel.data?.number}
+                    htmlUrl={panel.data?.htmlUrl}
+                    back={panel.data?.back}
+                  />
+                </div>
+              </ExtensionModalProvider>
             )}
 
             {panel.type === "github-issue-details" && (
-              <div className="h-full overflow-auto bg-background text-foreground">
-                <GitHubIssueDetailsPanel
-                  extensionName="github"
-                  panelId="issue-details"
-                  contextPanelId={panel.id}
-                  owner={panel.data?.owner}
-                  repo={panel.data?.repo}
-                  number={panel.data?.number}
-                  htmlUrl={panel.data?.htmlUrl}
-                  back={panel.data?.back}
-                />
-              </div>
+              <ExtensionModalProvider extensionName="github" modals={githubModals}>
+                <div className="h-full overflow-auto bg-background text-foreground">
+                  <GitHubIssueDetailsPanel
+                    extensionName="github"
+                    panelId="issue-details"
+                    contextPanelId={panel.id}
+                    owner={panel.data?.owner}
+                    repo={panel.data?.repo}
+                    number={panel.data?.number}
+                    htmlUrl={panel.data?.htmlUrl}
+                    back={panel.data?.back}
+                  />
+                </div>
+              </ExtensionModalProvider>
             )}
           </div>
         </div>
