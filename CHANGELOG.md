@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.1] - 2026-02-28
+### Meta
+- Bump: patch (score: 6)
+- Range: [5e953d1](https://github.com/imadaitelarabi/openclaw-mc.git/commit/5e953d1326b1a6ba232bdeb6f6f1c1a0e91faba1)..[a2ccbdd](https://github.com/imadaitelarabi/openclaw-mc.git/commit/a2ccbdd7d5cbbff64c1d8c8ac41bc77e5fc7306d)
+
+### Chores
+- daily changelog 2026-02-27 ([c528cc6](https://github.com/imadaitelarabi/openclaw-mc.git/commit/c528cc643ed44d03a60b893b33d1859cdfeec21f))
+
+### Other
+- Merge pull request [#151](https://github.com/imadaitelarabi/openclaw-mc.git/pull/151) from imadaitelarabi/changelog/daily-2026-02-27 ([a2ccbdd](https://github.com/imadaitelarabi/openclaw-mc.git/commit/a2ccbdd7d5cbbff64c1d8c8ac41bc77e5fc7306d))
+
+
+
 ## [0.7.0] - 2026-02-27
 ### Meta
 - Bump: minor (score: 26)
