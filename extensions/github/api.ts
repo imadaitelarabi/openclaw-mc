@@ -509,11 +509,7 @@ export class GitHubAPI {
   /**
    * Get review summaries (top-level review submissions) for a pull request.
    */
-  async getPRReviews(
-    owner: string,
-    repo: string,
-    number: number
-  ): Promise<GitHubPRReview[]> {
+  async getPRReviews(owner: string, repo: string, number: number): Promise<GitHubPRReview[]> {
     return this.request<GitHubPRReview[]>(
       this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/reviews?per_page=100`)
     );
@@ -522,11 +518,7 @@ export class GitHubAPI {
   /**
    * Get the commits in a pull request.
    */
-  async getPRCommits(
-    owner: string,
-    repo: string,
-    number: number
-  ): Promise<GitHubPRCommit[]> {
+  async getPRCommits(owner: string, repo: string, number: number): Promise<GitHubPRCommit[]> {
     return this.request<GitHubPRCommit[]>(
       this.withDetailsCacheVersion(`/repos/${owner}/${repo}/pulls/${number}/commits?per_page=100`)
     );
@@ -595,15 +587,7 @@ export class GitHubAPI {
     owner: string,
     repo: string,
     commentId: number,
-    content:
-      | "+1"
-      | "-1"
-      | "laugh"
-      | "confused"
-      | "heart"
-      | "hooray"
-      | "rocket"
-      | "eyes"
+    content: "+1" | "-1" | "laugh" | "confused" | "heart" | "hooray" | "rocket" | "eyes"
   ): Promise<void> {
     await this.request(`/repos/${owner}/${repo}/pulls/comments/${commentId}/reactions`, {
       method: "POST",

@@ -1101,19 +1101,11 @@ export function GitHubPrDetailsPanel({
                 const commit = item.commit;
                 const shortSha = commit.sha.slice(0, 7);
                 const firstLine = commit.commit.message.split("\n")[0];
-                const authorName =
-                  commit.author?.login ?? commit.commit.author?.name ?? "Unknown";
+                const authorName = commit.author?.login ?? commit.commit.author?.name ?? "Unknown";
                 return (
-                  <div
-                    key={item.id}
-                    className="border border-border rounded p-2.5 bg-muted/5"
-                  >
+                  <div key={item.id} className="border border-border rounded p-2.5 bg-muted/5">
                     <div className="flex items-start gap-2 text-xs">
-                      <UserAvatar
-                        src={commit.author?.avatar_url}
-                        alt={authorName}
-                        size={16}
-                      />
+                      <UserAvatar src={commit.author?.avatar_url} alt={authorName} size={16} />
                       <span className="flex-1 min-w-0 text-muted-foreground">
                         {commit.author?.html_url ? (
                           <a

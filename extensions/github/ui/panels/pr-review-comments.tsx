@@ -123,17 +123,16 @@ function groupThreadsByFile(comments: GitHubReviewComment[]): Map<string, Thread
   for (const [rootId, root] of rootsById) {
     const path = root.path ?? "(unknown file)";
     if (!fileMap.has(path)) fileMap.set(path, []);
-    const replies = (replyMap.get(rootId) ?? []).slice().sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
+    const replies = (replyMap.get(rootId) ?? [])
+      .slice()
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     fileMap.get(path)!.push({ root, replies });
   }
 
   // sort threads within each file newest-first by root comment date
   for (const threads of fileMap.values()) {
     threads.sort(
-      (a, b) =>
-        new Date(b.root.created_at).getTime() - new Date(a.root.created_at).getTime()
+      (a, b) => new Date(b.root.created_at).getTime() - new Date(a.root.created_at).getTime()
     );
   }
 
@@ -260,9 +259,7 @@ function CommentCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <UserAvatar src={comment.user.avatar_url} alt={comment.user.login} size={16} />
-          <span className="text-xs font-medium text-foreground truncate">
-            {comment.user.login}
-          </span>
+          <span className="text-xs font-medium text-foreground truncate">{comment.user.login}</span>
           {isOutdated && (
             <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 font-medium flex-shrink-0">
               outdated
@@ -270,7 +267,9 @@ function CommentCard({
           )}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
-          <span className="text-[10px] text-muted-foreground">{formatDate(comment.created_at)}</span>
+          <span className="text-[10px] text-muted-foreground">
+            {formatDate(comment.created_at)}
+          </span>
           {/* Reaction picker toggle */}
           <button
             onClick={() => setShowReactions((v) => !v)}
@@ -347,7 +346,11 @@ function CommentCard({
             disabled={deleteLoading}
             className="flex items-center gap-1 px-2 py-0.5 rounded bg-destructive text-destructive-foreground hover:bg-destructive/80 disabled:opacity-50"
           >
-            {deleteLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+            {deleteLoading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Check className="w-3 h-3" />
+            )}
             Yes
           </button>
           <button
@@ -387,7 +390,11 @@ function CommentCard({
               disabled={editLoading || !editBody.trim()}
               className="flex items-center gap-1 px-2 py-1 rounded bg-primary text-primary-foreground text-xs hover:bg-primary/80 disabled:opacity-50"
             >
-              {editLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+              {editLoading ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Check className="w-3 h-3" />
+              )}
               Save
             </button>
             <button
@@ -497,11 +504,7 @@ function ThreadGroup({ thread, owner, repo, prNumber, onRefresh }: ThreadGroupPr
           onClick={() => setCollapsed((v) => !v)}
           className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground ml-2"
         >
-          {collapsed ? (
-            <ChevronRight className="w-3 h-3" />
-          ) : (
-            <ChevronDown className="w-3 h-3" />
-          )}
+          {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           {thread.replies.length} {thread.replies.length === 1 ? "reply" : "replies"}
         </button>
       )}
@@ -575,7 +578,9 @@ function FileGroup({ file, filePath, threads, owner, repo, prNumber, onRefresh }
               {file.patch}
             </pre>
           ) : (
-            <div className="text-xs text-muted-foreground">No patch preview available for this file.</div>
+            <div className="text-xs text-muted-foreground">
+              No patch preview available for this file.
+            </div>
           )}
 
           {threads.length === 0 && (
@@ -690,7 +695,13 @@ export function GitHubPrReviewCommentsPanel({
 
     return files
       .filter((file) => (fileQuery ? file.filename.toLowerCase().includes(fileQuery) : true))
-      .map((file) => [file.filename, { file, threads: filteredThreadsByFile.get(file.filename) ?? [] }] as const)
+      .map(
+        (file) =>
+          [
+            file.filename,
+            { file, threads: filteredThreadsByFile.get(file.filename) ?? [] },
+          ] as const
+      )
       .filter(([, group]) => (!hasCommentFilters ? true : group.threads.length > 0));
   }, [files, filteredThreadsByFile, filterFile, filterAuthor, filterText, filterStatus]);
 
@@ -706,7 +717,8 @@ export function GitHubPrReviewCommentsPanel({
     () =>
       fileEntries.reduce(
         (sum, [, group]) =>
-          sum + group.threads.reduce((threadSum, thread) => threadSum + 1 + thread.replies.length, 0),
+          sum +
+          group.threads.reduce((threadSum, thread) => threadSum + 1 + thread.replies.length, 0),
         0
       ),
     [fileEntries]
@@ -750,7 +762,9 @@ export function GitHubPrReviewCommentsPanel({
           {files.length > 0 && (
             <span className="text-[10px] text-muted-foreground flex-shrink-0">
               {fileEntries.length} {fileEntries.length === 1 ? "file" : "files"}
-              {totalThreads > 0 ? ` · ${totalThreads} ${totalThreads === 1 ? "thread" : "threads"}` : ""}
+              {totalThreads > 0
+                ? ` · ${totalThreads} ${totalThreads === 1 ? "thread" : "threads"}`
+                : ""}
               {totalComments > 0 ? ` · ${totalComments} comments` : ""}
             </span>
           )}
@@ -828,7 +842,9 @@ export function GitHubPrReviewCommentsPanel({
         )}
 
         {!loading && !error && files.length === 0 && (
-          <p className="text-xs text-muted-foreground py-4">No changed files in this pull request.</p>
+          <p className="text-xs text-muted-foreground py-4">
+            No changed files in this pull request.
+          </p>
         )}
 
         {!loading && !error && files.length > 0 && fileEntries.length === 0 && (
