@@ -541,12 +541,11 @@ export class GitHubAPI {
   async replyToReviewComment(
     owner: string,
     repo: string,
-    number: number,
     commentId: number,
     body: string
   ): Promise<GitHubReviewComment> {
     const comment = await this.request<GitHubReviewComment>(
-      `/repos/${owner}/${repo}/pulls/${number}/comments/${commentId}/replies`,
+      `/repos/${owner}/${repo}/pulls/comments/${commentId}/replies`,
       { method: "POST", body: { body } }
     );
     this.invalidateDetailsCache();
@@ -592,7 +591,7 @@ export class GitHubAPI {
     await this.request(`/repos/${owner}/${repo}/pulls/comments/${commentId}/reactions`, {
       method: "POST",
       body: { content },
-      accept: "application/vnd.github+json",
+      accept: "application/vnd.github.squirrel-girl-preview+json",
     });
   }
 

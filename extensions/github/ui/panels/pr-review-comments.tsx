@@ -81,7 +81,36 @@ function UserAvatar({ src, alt, size = 16 }: { src?: string; alt: string; size?:
   );
 }
 
-/** A thread is a root comment plus all of its replies. */
+/** Render a diff hunk with line-by-line coloring for additions, deletions, and context headers. */
+function DiffHunk({ hunk }: { hunk: string }) {
+  const lines = hunk.split("\n");
+  return (
+    <div className="text-[10px] font-mono border border-border rounded overflow-hidden leading-4 max-h-60 overflow-y-auto">
+      {lines.map((line, i) => {
+        let lineClass = "bg-muted/20 text-foreground";
+        if (line.startsWith("@@")) {
+          lineClass = "bg-blue-500/10 text-blue-600 dark:text-blue-400";
+        } else if (line.startsWith("+")) {
+          lineClass = "bg-green-500/15 text-green-700 dark:text-green-400";
+        } else if (line.startsWith("-")) {
+          lineClass = "bg-red-500/15 text-red-700 dark:text-red-400";
+        }
+        return (
+          // Use index + content as key; hunk lines are static display content
+          <div
+            key={`${i}-${line.slice(0, 20)}`}
+            className={`px-2 py-px whitespace-pre-wrap break-all ${lineClass}`}
+          >
+            {/* Non-breaking space preserves the row height for blank lines */}
+            {line || "\u00a0"}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
 interface Thread {
   root: GitHubReviewComment;
   replies: GitHubReviewComment[];
@@ -219,7 +248,7 @@ function CommentCard({
     setReplyLoading(true);
     setReplyError(null);
     try {
-      await api.replyToReviewComment(owner, repo, prNumber, comment.id, replyBody.trim());
+      await api.replyToReviewComment(owner, repo, comment.id, replyBody.trim());
       setReplyBody("");
       setReplying(false);
       onRefresh();
@@ -228,7 +257,7 @@ function CommentCard({
     } finally {
       setReplyLoading(false);
     }
-  }, [api, owner, repo, prNumber, comment.id, replyBody, onRefresh]);
+  }, [api, owner, repo, comment.id, replyBody, onRefresh]);
 
   const handleReaction = useCallback(
     async (content: string) => {
@@ -486,9 +515,7 @@ function ThreadGroup({ thread, owner, repo, prNumber, onRefresh }: ThreadGroupPr
     <div className="space-y-1">
       {/* Diff hunk */}
       {thread.root.diff_hunk && !collapsed && (
-        <pre className="text-[10px] font-mono bg-muted/30 border border-border rounded p-2 overflow-x-auto whitespace-pre-wrap leading-4">
-          {thread.root.diff_hunk}
-        </pre>
+        <DiffHunk hunk={thread.root.diff_hunk} />
       )}
 
       <CommentCard
