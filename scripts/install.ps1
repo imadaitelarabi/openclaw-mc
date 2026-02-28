@@ -19,8 +19,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # ── constants ──────────────────────────────────────────────────────────────────
-$RepoUrl    = $env:REPO_URL    ?? 'https://github.com/imadaitelarabi/openclaw-mc.git'
-$Branch     = $env:BRANCH      ?? 'master'
+$RepoUrl    = if ([string]::IsNullOrWhiteSpace($env:REPO_URL)) { 'https://github.com/imadaitelarabi/openclaw-mc.git' } else { $env:REPO_URL }
+$Branch     = if ([string]::IsNullOrWhiteSpace($env:BRANCH)) { 'master' } else { $env:BRANCH }
 $ConfigDir  = Join-Path $env:USERPROFILE '.oclawmc'
 $ConfigFile = Join-Path $ConfigDir 'config.json'
 
@@ -300,7 +300,8 @@ function Install-CLI {
   "@echo off`r`npowershell -ExecutionPolicy Bypass -File `"%~dp0oclawmc.ps1`" %*" | Set-Content -Path $shim -Encoding ASCII
 
   # Add BinDir to user PATH if not already there
-  $userPath = [System.Environment]::GetEnvironmentVariable('PATH', 'User') ?? ''
+  $userPath = [System.Environment]::GetEnvironmentVariable('PATH', 'User')
+  if ($null -eq $userPath) { $userPath = '' }
   if ($userPath -notlike "*$BinDir*") {
     [System.Environment]::SetEnvironmentVariable('PATH', "$BinDir;$userPath", 'User')
     Write-Ok "Added $BinDir to user PATH (restart your terminal to pick it up)."
