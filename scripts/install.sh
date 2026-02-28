@@ -74,11 +74,12 @@ prompt_yn() {
   if [[ "$NON_INTERACTIVE" == true ]]; then
     [[ "$default" == "y" ]] && return 0 || return 1
   fi
-  local answer
+  local answer normalized
   local hint; [[ "$default" == "y" ]] && hint="Y/n" || hint="y/N"
   read_user_input answer "$(printf "${BOLD}?${NC} ${question} [${hint}]: ")"
   answer="${answer:-$default}"
-  [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]
+  normalized="$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')"
+  [[ "$normalized" == "y" || "$normalized" == "yes" ]]
 }
 
 # ── package-manager detection ──────────────────────────────────────────────────
