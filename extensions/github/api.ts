@@ -8,6 +8,7 @@ import type { GitHubConfig } from "./config";
 
 export interface GitHubPR {
   number: number;
+  node_id?: string;
   title: string;
   state: "open" | "closed";
   html_url: string;
@@ -472,6 +473,31 @@ export class GitHubAPI {
       method: "PUT",
       body: options ?? {},
     });
+    this.invalidateDetailsCache();
+  }
+
+  /**
+   * Mark a draft pull request as ready for review using the GitHub GraphQL API.
+   * There is no REST endpoint for this; GraphQL is required.
+   * Accepts an optional `pullRequestId` (GraphQL node_id) to avoid a redundant REST call.
+   */
+  async markPrReadyForReview(owner: string, repo: string, number: number, pullRequestId?: string): Promise<void> {
+    // Fetch the PR node_id via REST only if not provided by the caller
+    const nodeId = pullRequestId ?? (
+      await this.request<{ node_id: string }>(`/repos/${owner}/${repo}/pulls/${number}`)
+    ).node_id;
+
+    await this.graphqlRequest<unknown>(
+      `mutation MarkPullRequestReadyForReview($pullRequestId: ID!) {
+        markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) {
+          pullRequest {
+            isDraft
+          }
+        }
+      }`,
+      { pullRequestId: nodeId }
+    );
+
     this.invalidateDetailsCache();
   }
 

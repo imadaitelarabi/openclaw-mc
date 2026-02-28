@@ -126,10 +126,22 @@ export function GitHubPrDetailsPanel({
     actions:
       pr?.state === "open"
         ? [
+            ...(pr.draft
+              ? [
+                  {
+                    id: "ready-for-review",
+                    label: "Mark ready for review",
+                    variant: "success" as const,
+                    disabled: actionLoading !== null,
+                    loading: actionLoading === "ready-for-review",
+                    onClick: () => handleMarkReadyForReview(),
+                  },
+                ]
+              : []),
             {
               id: "merge",
               label: "Merge",
-              variant: "success",
+              variant: "success" as const,
               disabled: isMergeDisabled,
               disabledReason: mergeDisabledReason,
               loading: actionLoading === "merge",
@@ -154,7 +166,7 @@ export function GitHubPrDetailsPanel({
             {
               id: "close",
               label: "Close PR",
-              variant: "danger",
+              variant: "danger" as const,
               disabled: actionLoading !== null,
               loading: actionLoading === "close",
               onClick: () => setShowConfirm({ action: "close" }),
@@ -330,6 +342,25 @@ export function GitHubPrDetailsPanel({
       setPr(updated);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Failed to close PR");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleMarkReadyForReview = async () => {
+    if (!owner || !repo || !number) return;
+    setActionLoading("ready-for-review");
+    setActionError(null);
+    try {
+      const api = getApiInstance();
+      if (!api) throw new Error("GitHub API not initialized");
+      await api.markPrReadyForReview(owner, repo, number, pr?.node_id);
+      const updated = await api.getPRDetails(owner, repo, number);
+      setPr(updated);
+    } catch (e) {
+      setActionError(
+        e instanceof Error ? e.message : "Failed to mark PR as ready for review"
+      );
     } finally {
       setActionLoading(null);
     }
