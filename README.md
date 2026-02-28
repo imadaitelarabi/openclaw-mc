@@ -20,13 +20,52 @@ It gives you a single place to monitor agents, run chats, manage sessions, and o
 - npm
 - A running **OpenClaw Gateway** + token
 
-### Option A: One-liner install + run (production)
+### Option A: One-liner install (interactive, with Tailscale + `oclawmc` CLI)
+
+**Linux / macOS**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc/master/scripts/install-and-run.sh | bash
+curl -fsSL https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc/master/scripts/install.sh | bash
 ```
 
-> The installer now detects common openclaw-mc clones, reuses an existing checkout, and pulls updates instead of forcing a fresh clone. See [docs/FEATURES.md](./docs/FEATURES.md) for details.
+**Windows (PowerShell)**
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc/master/scripts/install.ps1 | iex"
+```
+
+The interactive installer will:
+
+- Prompt for install directory, port, and service options
+- Detect or install **Node.js** and **git**
+- Optionally detect/install and configure **Tailscale**
+- Detect the **OpenClaw** CLI or guide you through remote gateway setup
+- Clone the repo, run `npm ci` + `npm run build`, and write `.env.local`
+- Register a background service (systemd / launchd / Windows Service) and install the `oclawmc` CLI on PATH
+
+#### `oclawmc` CLI
+
+After install, use the `oclawmc` command to manage the server:
+
+| Command | Description |
+|---------|-------------|
+| `oclawmc start` | Start in foreground |
+| `oclawmc daemon` | Start in background |
+| `oclawmc stop` | Stop the server |
+| `oclawmc restart` | Restart the server |
+| `oclawmc status` | Show service + Tailscale status |
+| `oclawmc logs [N]` | Tail last N log lines (default 100) |
+| `oclawmc update` | Pull latest, rebuild, and restart |
+| `oclawmc tailscale <status\|up\|down>` | Manage Tailscale connection |
+| `oclawmc doctor` | Preflight health checks (port, token, Tailscale) |
+| `oclawmc uninstall` | Remove service, CLI, and optionally data |
+
+Config is stored in `~/.oclawmc/config.json` (Unix) or `%USERPROFILE%\.oclawmc\config.json` (Windows).
+
+> **Legacy installer** (no Tailscale/CLI, runs in foreground):
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc/master/scripts/install-and-run.sh | bash
+> ```
 
 ### Option B: Manual install
 
