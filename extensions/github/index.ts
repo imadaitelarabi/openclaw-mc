@@ -15,6 +15,7 @@ import { GitHubAPI } from "./api";
 import { setApiInstance } from "./api-instance";
 import { parseGitHubUrl } from "./url";
 import { chatLinkMatcherRegistry } from "@/lib/chat-link-matcher-registry";
+import { defaultConfig } from "./config";
 
 // API instance (initialized on setup)
 let apiInstance: GitHubAPI | null = null;
@@ -69,12 +70,13 @@ async function cleanupExtension(): Promise<void> {
  * Extension hooks implementation
  */
 const hooks: ExtensionHooks = {
-  // Status bar hook - show PR count
+  // Status bar hook - show PR count, refreshed at the configured cadence (~5 min)
   statusBar: async () => {
     if (!apiInstance) {
       return null;
     }
-    return getStatusBarData(apiInstance);
+    const item = await getStatusBarData(apiInstance);
+    return { item, refreshIntervalMs: defaultConfig.refreshInterval };
   },
 
   // Chat input hook - provide PR/issue tagging

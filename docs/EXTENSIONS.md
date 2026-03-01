@@ -334,10 +334,20 @@ await extensionRegistry.register(myExtension);
 **Interface**:
 
 ```typescript
-statusBar?: () => Promise<StatusBarItem | null>
+statusBar?: () => Promise<StatusBarResult | null>
 ```
 
-**Returns**:
+The hook may return any of:
+
+| Return value | Behaviour |
+|---|---|
+| `null` | No status bar item for this extension |
+| `StatusBarItem` | Plain item; core uses manifest or default refresh interval (5 s) |
+| `{ item, refreshIntervalMs?, cacheTtlMs? }` | Extended form; core uses the provided interval and/or TTL |
+
+This is fully **backward-compatible** – extensions that already return a `StatusBarItem` continue to work unchanged.
+
+**StatusBarItem**:
 
 ```typescript
 {
@@ -347,6 +357,19 @@ statusBar?: () => Promise<StatusBarItem | null>
   items?: StatusBarDropdownItem[]; // Dropdown items
 }
 ```
+
+**Extended result (`StatusBarResult`)**:
+
+```typescript
+{
+  item: StatusBarItem | null;
+  refreshIntervalMs?: number; // Polling cadence in ms (default: 5 000)
+  cacheTtlMs?: number;        // Cache TTL in ms (default: 0, no cache)
+}
+```
+
+**Manifest defaults** (`statusBar.refreshIntervalMs` / `statusBar.cacheTtlMs`):
+These serve as the fallback when the hook returns a plain `StatusBarItem`. Useful when you want to set the cadence declaratively without changing hook code.
 
 **Dropdown Item**:
 
@@ -361,7 +384,7 @@ statusBar?: () => Promise<StatusBarItem | null>
 }
 ```
 
-**Example**:
+**Example – plain item (5 s default)**:
 
 ```typescript
 statusBar: async () => ({
@@ -378,6 +401,15 @@ statusBar: async () => ({
     },
   ],
 });
+```
+
+**Example – extended form with 5-minute cadence**:
+
+```typescript
+statusBar: async () => {
+  const item = await fetchExpensiveData();
+  return { item, refreshIntervalMs: 5 * 60 * 1000 };
+};
 ```
 
 ### Chat Input Hook

@@ -4,15 +4,48 @@
  * Hook for extensions to provide status bar items with dropdown functionality.
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useExtensions } from "@/contexts/ExtensionContext";
 import type {
+  Extension,
   StatusBarItem,
+  StatusBarResult,
   StatusBarDropdownItem,
   ExtensionPanelDefinition,
+  StatusBarConfig,
 } from "@/types/extension";
 
-const STATUS_BAR_REFRESH_INTERVAL_MS = 5000;
+/** Fallback refresh interval when the extension / manifest doesn't specify one */
+const DEFAULT_REFRESH_INTERVAL_MS = 5000;
+
+/**
+ * Normalise a StatusBarResult into a plain shape with resolved refresh/cache settings.
+ * Accepts manifest-level defaults as fallback.
+ */
+function parseStatusBarResult(
+  result: StatusBarResult | null,
+  manifestStatusBar?: StatusBarConfig
+): { item: StatusBarItem | null; refreshIntervalMs: number; cacheTtlMs: number } {
+  const fallbackRefresh =
+    manifestStatusBar?.refreshIntervalMs ?? DEFAULT_REFRESH_INTERVAL_MS;
+  const fallbackCache = manifestStatusBar?.cacheTtlMs ?? 0;
+
+  if (result === null || result === undefined) {
+    return { item: null, refreshIntervalMs: fallbackRefresh, cacheTtlMs: fallbackCache };
+  }
+
+  // Extended form: { item, refreshIntervalMs?, cacheTtlMs? }
+  if ("item" in result) {
+    return {
+      item: result.item,
+      refreshIntervalMs: result.refreshIntervalMs ?? fallbackRefresh,
+      cacheTtlMs: result.cacheTtlMs ?? fallbackCache,
+    };
+  }
+
+  // Plain StatusBarItem (backward-compatible)
+  return { item: result, refreshIntervalMs: fallbackRefresh, cacheTtlMs: fallbackCache };
+}
 
 /**
  * Build "Open Panel" submenu items for an extension that declares panels in its manifest
@@ -82,7 +115,7 @@ export function useExtensionStatusBar() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Try to get extension context - may not be available in SSR
-  let enabledExtensions: any[] = [];
+  let enabledExtensions: Extension[] = [];
   try {
     const context = useExtensions();
     enabledExtensions = context.enabledExtensions;
@@ -91,78 +124,161 @@ export function useExtensionStatusBar() {
     // Return empty state gracefully
   }
 
-  const refreshStatusBar = useCallback(async () => {
-    if (enabledExtensions.length === 0) {
-      setStatusBarItems(new Map());
-      return;
-    }
+  // ─── Stable refs (never trigger re-renders) ───────────────────────────────
+  /** Extensions currently being fetched (in-flight guard, prevents overlapping calls) */
+  const inFlightRef = useRef(new Set<string>());
+  /** Active setTimeout handles keyed by extension name */
+  const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
-    setIsLoading(true);
-    const items = new Map<string, StatusBarItem>();
+  /**
+   * The refresh function is stored in a ref so setTimeout callbacks can always
+   * call the latest version without creating stale closures.
+   */
+  const refreshExtRef = useRef<(ext: Extension) => Promise<void>>();
 
+  // Rebuild refreshExtRef on every render so it always captures the latest
+  // enabledExtensions / setStatusBarItems without needing additional deps.
+  refreshExtRef.current = async (ext: Extension): Promise<void> => {
+    const name: string = ext.manifest.name;
+
+    // In-flight guard – skip if a fetch is already running for this extension.
+    if (inFlightRef.current.has(name)) return;
+
+    // Visibility guard – don't waste API calls while the tab is hidden.
+    // Refreshing is resumed via the visibilitychange listener below.
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+
+    inFlightRef.current.add(name);
     try {
-      // Get status bar items from all enabled extensions
-      const promises = enabledExtensions.map(async (ext) => {
-        const hasPanels = ext.manifest.panels && ext.manifest.panels.length > 0;
-        const hasStatusBarHook = ext.manifest.hooks.includes("status-bar");
+      const hasPanels = !!(ext.manifest.panels?.length);
+      const hasStatusBarHook = ext.manifest.hooks.includes("status-bar");
+      let item: StatusBarItem | null = null;
+      let refreshIntervalMs =
+        ext.manifest.statusBar?.refreshIntervalMs ?? DEFAULT_REFRESH_INTERVAL_MS;
 
-        let item: StatusBarItem | null = null;
-
-        if (hasStatusBarHook && ext.hooks.statusBar) {
-          try {
-            item = await ext.hooks.statusBar();
-          } catch (error) {
-            console.error(`[StatusBarHook] Error getting item from ${ext.manifest.name}:`, error);
-          }
+      if (hasStatusBarHook && ext.hooks.statusBar) {
+        try {
+          const result: StatusBarResult | null = await ext.hooks.statusBar();
+          const parsed = parseStatusBarResult(result, ext.manifest.statusBar);
+          item = parsed.item;
+          refreshIntervalMs = parsed.refreshIntervalMs;
+        } catch (error) {
+          console.error(`[StatusBarHook] Error getting item from ${name}:`, error);
         }
+      }
 
-        // If extension has panels, ensure it has a status bar item to host the submenu
-        if (hasPanels && ext.manifest.panels) {
-          if (!item) {
-            // Create a minimal status bar item so the "Open Panel" menu can appear
-            item = {
-              label: ext.manifest.name,
-              icon: ext.manifest.statusBar?.icon || "Box",
-              items: [],
-            };
-          }
-          // Inject "Open Panel" submenu
-          item = augmentWithPanelSubmenu(item, ext.manifest.panels);
+      // If the extension declares panels, ensure it has a status bar entry to host the submenu.
+      if (hasPanels && ext.manifest.panels) {
+        if (!item) {
+          item = {
+            label: ext.manifest.name,
+            icon: ext.manifest.statusBar?.icon || "Box",
+            items: [],
+          };
         }
+        item = augmentWithPanelSubmenu(item, ext.manifest.panels);
+      }
 
+      setStatusBarItems((prev) => {
+        const next = new Map(prev);
         if (item) {
-          items.set(ext.manifest.name, item);
+          next.set(name, item);
+        } else {
+          next.delete(name);
         }
+        return next;
       });
 
-      await Promise.all(promises);
-      setStatusBarItems(items);
-    } catch (error) {
-      console.error("[StatusBarHook] Error refreshing status bar:", error);
+      // Schedule the next refresh for this extension using the resolved interval.
+      const timer = setTimeout(() => refreshExtRef.current?.(ext), refreshIntervalMs);
+      timersRef.current.set(name, timer);
     } finally {
-      setIsLoading(false);
+      inFlightRef.current.delete(name);
     }
+  };
+
+  // ─── Visibility-aware refresh ─────────────────────────────────────────────
+  // When the tab regains focus, cancel any outstanding timers and refresh
+  // each extension immediately so the UI is never stale on re-activation.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        enabledExtensions.forEach((ext) => {
+          const existing = timersRef.current.get(ext.manifest.name);
+          if (existing !== undefined) {
+            clearTimeout(existing);
+            timersRef.current.delete(ext.manifest.name);
+          }
+          refreshExtRef.current?.(ext);
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [enabledExtensions]);
 
-  // Refresh on mount and when extensions change
+  // ─── Per-extension polling setup ─────────────────────────────────────────
   useEffect(() => {
     if (enabledExtensions.length === 0) {
       setStatusBarItems(new Map());
       return;
     }
 
-    // Initial refresh
-    refreshStatusBar();
+    const enabledNames = new Set(enabledExtensions.map((e) => e.manifest.name));
 
-    // Poll for updates (e.g. GitHub commits/PR changes)
-    const intervalId = window.setInterval(() => {
-      refreshStatusBar();
-    }, STATUS_BAR_REFRESH_INTERVAL_MS);
+    // Cancel timers for extensions that are no longer enabled.
+    timersRef.current.forEach((timer, name) => {
+      if (!enabledNames.has(name)) {
+        clearTimeout(timer);
+        timersRef.current.delete(name);
+      }
+    });
+
+    // Remove stale items from state for extensions that were disabled.
+    setStatusBarItems((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      prev.forEach((_, name) => {
+        if (!enabledNames.has(name)) {
+          next.delete(name);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+
+    // Kick off an initial fetch for newly-enabled extensions.
+    enabledExtensions.forEach((ext) => {
+      const name: string = ext.manifest.name;
+      // Only start a new cycle if one isn't already running/scheduled.
+      if (!timersRef.current.has(name) && !inFlightRef.current.has(name)) {
+        refreshExtRef.current?.(ext);
+      }
+    });
 
     return () => {
-      window.clearInterval(intervalId);
+      // On cleanup cancel all pending timers (component unmount or dep change).
+      timersRef.current.forEach((timer) => clearTimeout(timer));
+      timersRef.current.clear();
     };
-  }, [enabledExtensions.length, refreshStatusBar]);
+  }, [enabledExtensions]);
+
+  /** Manually trigger an immediate refresh for all enabled extensions */
+  const refreshStatusBar = useCallback(() => {
+    setIsLoading(true);
+    const pending = enabledExtensions.map((ext) => {
+      const existing = timersRef.current.get(ext.manifest.name);
+      if (existing !== undefined) {
+        clearTimeout(existing);
+        timersRef.current.delete(ext.manifest.name);
+      }
+      return refreshExtRef.current?.(ext);
+    });
+    Promise.all(pending).finally(() => setIsLoading(false));
+  }, [enabledExtensions]);
 
   return {
     statusBarItems,
@@ -193,7 +309,8 @@ export function useExtensionStatusBarItem(extensionName: string) {
 
     setIsLoading(true);
     try {
-      const statusItem = await extension.hooks.statusBar();
+      const result = await extension.hooks.statusBar();
+      const { item: statusItem } = parseStatusBarResult(result, extension.manifest.statusBar);
       setItem(statusItem);
     } catch (error) {
       console.error(`[StatusBarHook] Error getting item from ${extensionName}:`, error);

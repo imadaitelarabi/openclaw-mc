@@ -125,6 +125,20 @@ export interface StatusBarConfig {
 
   /** Available actions for dropdown items */
   actions: ("copy" | "open")[];
+
+  /**
+   * Default status-bar polling interval in ms.
+   * Used when the statusBar hook returns a plain StatusBarItem (no explicit interval).
+   * Defaults to 5 000 ms when omitted.
+   */
+  refreshIntervalMs?: number;
+
+  /**
+   * Default cache TTL in ms.
+   * Used when the statusBar hook returns a plain StatusBarItem (no explicit TTL).
+   * Defaults to 0 (no cache) when omitted.
+   */
+  cacheTtlMs?: number;
 }
 
 /**
@@ -174,6 +188,20 @@ export interface StatusBarItem {
   /** Nested items for dropdown */
   items?: StatusBarDropdownItem[];
 }
+
+/**
+ * Extended result that a statusBar hook may return.
+ *
+ * - **Backward-compatible**: returning a plain `StatusBarItem` (or `null`) continues to work.
+ * - **Extended form**: return `{ item, refreshIntervalMs?, cacheTtlMs? }` to override the polling
+ *   cadence and/or cache TTL for this extension specifically.
+ *
+ * When the hook returns a plain `StatusBarItem`, the core falls back to
+ * `manifest.statusBar.refreshIntervalMs` (if set) and then to the default 5 000 ms.
+ */
+export type StatusBarResult =
+  | StatusBarItem
+  | { item: StatusBarItem | null; refreshIntervalMs?: number; cacheTtlMs?: number };
 
 /**
  * Status bar dropdown item
@@ -247,8 +275,8 @@ export interface ChatInputTagOption {
  * Extension hook implementations
  */
 export interface ExtensionHooks {
-  /** Status bar hook - provides status bar data */
-  statusBar?: () => Promise<StatusBarItem | null>;
+  /** Status bar hook - provides status bar data, optionally with per-extension refresh/cache hints */
+  statusBar?: () => Promise<StatusBarResult | null>;
 
   /** Chat input hook - provides tag options based on query */
   chatInput?: (query: string) => Promise<ChatInputTagOption[]>;

@@ -598,9 +598,7 @@ function FileGroup({ file, filePath, threads, owner, repo, prNumber, onRefresh }
       {!collapsed && (
         <div className="p-3 space-y-3">
           {file.patch ? (
-            <pre className="text-[10px] font-mono bg-muted/30 border border-border rounded p-2 overflow-x-auto whitespace-pre-wrap leading-4 max-h-64">
-              {file.patch}
-            </pre>
+            <DiffHunk hunk={file.patch} />
           ) : (
             <div className="text-xs text-muted-foreground">
               No patch preview available for this file.
