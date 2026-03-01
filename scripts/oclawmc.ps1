@@ -52,20 +52,20 @@ function Get-Branch      { if ($script:Config.PSObject.Properties['branch']) { $
 # ── process helpers ────────────────────────────────────────────────────────────
 function Is-Running {
   if (-not (Test-Path $PidFile)) { return $false }
-  $pid = Get-Content $PidFile -ErrorAction SilentlyContinue
-  if (-not $pid) { return $false }
-  $proc = Get-Process -Id ([int]$pid) -ErrorAction SilentlyContinue
+  $processIdValue = Get-Content $PidFile -ErrorAction SilentlyContinue
+  if (-not $processIdValue) { return $false }
+  $proc = Get-Process -Id ([int]$processIdValue) -ErrorAction SilentlyContinue
   return $null -ne $proc
 }
 
 function Stop-OclawProcess {
   if (Test-Path $PidFile) {
-    $pid = Get-Content $PidFile -ErrorAction SilentlyContinue
-    if ($pid) {
-      $proc = Get-Process -Id ([int]$pid) -ErrorAction SilentlyContinue
+    $processIdValue = Get-Content $PidFile -ErrorAction SilentlyContinue
+    if ($processIdValue) {
+      $proc = Get-Process -Id ([int]$processIdValue) -ErrorAction SilentlyContinue
       if ($proc) {
-        Stop-Process -Id ([int]$pid) -Force -ErrorAction SilentlyContinue
-        Write-Ok "Process $pid stopped."
+        Stop-Process -Id ([int]$processIdValue) -Force -ErrorAction SilentlyContinue
+        Write-Ok "Process $processIdValue stopped."
       }
     }
     Remove-Item $PidFile -Force -ErrorAction SilentlyContinue
@@ -140,8 +140,27 @@ function Cmd-Restart {
   Load-Config
   $svcType = Get-ServiceType
   if ($svcType -eq 'windows-service') {
-    Start-Service -Name 'OclawMC'
-    Write-Ok "Service started."
+    try {
+      Start-Service -Name 'OclawMC' -ErrorAction Stop
+      Write-Ok "Service started."
+    } catch {
+      Write-Err "Service failed to start: $($_.Exception.Message)"
+      $svc = Get-Service -Name 'OclawMC' -ErrorAction SilentlyContinue
+      if ($svc) {
+        Write-Warn "Service status: $($svc.Status)"
+      }
+      $event = Get-WinEvent -FilterHashtable @{
+        LogName = 'System'
+        ProviderName = 'Service Control Manager'
+        StartTime = (Get-Date).AddMinutes(-10)
+      } -ErrorAction SilentlyContinue | Where-Object { $_.Message -like '*OclawMC*' } | Select-Object -First 1
+      if ($event) {
+        $eventMsg = ($event.Message -replace "`r`n", ' ')
+        Write-Warn "Recent SCM event: $eventMsg"
+      }
+      Write-Warn "Run 'Get-WinEvent -LogName Application -MaxEvents 100 | ? Message -like \"*OclawMC*\"' for app startup errors."
+      exit 1
+    }
   } else {
     Cmd-Daemon
   }
