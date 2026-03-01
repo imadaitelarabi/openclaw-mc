@@ -21,6 +21,7 @@ import {
   ArrowLeft,
   X,
   RefreshCw,
+  Link,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -887,6 +888,46 @@ export function GitHubIssueDetailsPanel({
           </div>
         )}
 
+        {/* Cross-referenced PRs */}
+        {(() => {
+          const crossRefs = timeline.filter(
+            (e) => e.event === "cross-referenced" && e.source?.issue?.pull_request
+          );
+          if (crossRefs.length === 0) return null;
+          return (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                <Link className="w-3.5 h-3.5" />
+                Referenced PRs ({crossRefs.length})
+              </div>
+              <div className="space-y-1">
+                {crossRefs.map((e, idx) => {
+                  const src = e.source!.issue!;
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border rounded px-2 py-1 bg-muted/10"
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${src.state === "open" ? "bg-green-500" : "bg-purple-500"}`}
+                      />
+                      <a
+                        href={src.html_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-foreground hover:underline truncate"
+                      >
+                        {src.title}
+                      </a>
+                      <span className="font-mono flex-shrink-0">#{src.number}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Conversation (comments + timeline) */}
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
@@ -962,6 +1003,32 @@ export function GitHubIssueDetailsPanel({
                     <div className="markdown-content break-words select-text max-w-none text-xs">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.body}</ReactMarkdown>
                     </div>
+                    {comment.reactions && comment.reactions.total_count > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {(
+                          [
+                            ["+1", "👍"],
+                            ["-1", "👎"],
+                            ["laugh", "😄"],
+                            ["hooray", "🎉"],
+                            ["confused", "😕"],
+                            ["heart", "❤️"],
+                            ["rocket", "🚀"],
+                            ["eyes", "👀"],
+                          ] as const
+                        )
+                          .filter(([key]) => (comment.reactions![key as keyof typeof comment.reactions] as number) > 0)
+                          .map(([key, emoji]) => (
+                            <span
+                              key={key}
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-muted border border-border rounded-full"
+                            >
+                              {emoji}{" "}
+                              {comment.reactions![key as keyof typeof comment.reactions] as number}
+                            </span>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 );
               }

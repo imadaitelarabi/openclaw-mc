@@ -22,6 +22,11 @@ import {
   MessageSquare,
   ArrowLeft,
   X,
+  GitBranch,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Link,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -41,6 +46,7 @@ import type {
   GitHubPRCommit,
   GitHubTimelineEvent,
   GitHubAssignableUser,
+  GitHubCheckRun,
 } from "../../api";
 
 const ACTIVITY_PAGE_SIZE = 10;
@@ -173,6 +179,10 @@ export function GitHubPrDetailsPanel({
   // Timeline state
   const [timeline, setTimeline] = useState<GitHubTimelineEvent[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
+
+  // Check runs state
+  const [checkRuns, setCheckRuns] = useState<GitHubCheckRun[]>([]);
+  const [checksExpanded, setChecksExpanded] = useState(true);
 
   // Reviewer dropdown state
   const [reviewableUsers, setReviewableUsers] = useState<GitHubAssignableUser[]>([]);
@@ -557,6 +567,18 @@ export function GitHubPrDetailsPanel({
       cancelled = true;
     };
   }, [owner, repo, number, isExtensionContextLoading, isGitHubEnabled, fetchTick]);
+
+  // Fetch check runs when PR head SHA is available
+  useEffect(() => {
+    const headSha = pr?.head?.sha;
+    if (!owner || !repo || !headSha) return;
+    const api = getApiInstance();
+    if (!api) return;
+    api
+      .getCheckRuns(owner, repo, headSha)
+      .then((runs) => setCheckRuns(runs))
+      .catch(() => setCheckRuns([]));
+  }, [owner, repo, pr?.head?.sha]);
 
   // Fetch reviewable users when dropdown is opened
   useEffect(() => {
@@ -954,6 +976,15 @@ export function GitHubPrDetailsPanel({
             </button>
           </div>
           <h2 className="text-base font-semibold text-foreground leading-snug">{pr.title}</h2>
+          {/* Branch: source → target */}
+          {pr.head?.ref && pr.base?.ref && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono mt-0.5">
+              <GitBranch className="w-3 h-3 flex-shrink-0" />
+              <span className="text-foreground">{pr.head.ref}</span>
+              <span>→</span>
+              <span className="text-foreground">{pr.base.ref}</span>
+            </div>
+          )}
         </div>
 
         {/* Meta */}
@@ -1085,6 +1116,129 @@ export function GitHubPrDetailsPanel({
           </div>
         )}
 
+        {/* Checks (CI/CD status) */}
+        {checkRuns.length > 0 && (
+          <div className="border border-border rounded bg-muted/20">
+            <button
+              onClick={() => setChecksExpanded((v) => !v)}
+              className="flex items-center gap-1.5 w-full px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {checksExpanded ? (
+                <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+              )}
+              Checks ({checkRuns.length})
+              {(() => {
+                const failed = checkRuns.filter(
+                  (r) => r.conclusion === "failure" || r.conclusion === "timed_out" || r.conclusion === "action_required"
+                ).length;
+                const passed = checkRuns.filter((r) => r.conclusion === "success").length;
+                const pending = checkRuns.filter((r) => r.status !== "completed").length;
+                if (failed > 0)
+                  return (
+                    <span className="ml-auto text-[10px] text-red-500 font-medium">
+                      {failed} failed
+                    </span>
+                  );
+                if (pending > 0)
+                  return (
+                    <span className="ml-auto text-[10px] text-yellow-500 font-medium">
+                      {pending} pending
+                    </span>
+                  );
+                if (passed === checkRuns.length)
+                  return (
+                    <span className="ml-auto text-[10px] text-green-500 font-medium">
+                      All passed
+                    </span>
+                  );
+                return null;
+              })()}
+            </button>
+            {checksExpanded && (
+              <div className="border-t border-border divide-y divide-border">
+                {checkRuns.map((run) => {
+                  const isPending = run.status !== "completed";
+                  const isSuccess = run.conclusion === "success";
+                  const isFailed =
+                    run.conclusion === "failure" ||
+                    run.conclusion === "timed_out" ||
+                    run.conclusion === "action_required";
+                  return (
+                    <div key={run.id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                      {isPending ? (
+                        <Clock className="w-3.5 h-3.5 flex-shrink-0 text-yellow-500" />
+                      ) : isSuccess ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-green-500" />
+                      ) : isFailed ? (
+                        <XCircle className="w-3.5 h-3.5 flex-shrink-0 text-red-500" />
+                      ) : (
+                        <Clock className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="flex-1 min-w-0 text-foreground truncate">{run.name}</span>
+                      {run.app?.name && (
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                          {run.app.name}
+                        </span>
+                      )}
+                      <a
+                        href={run.html_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-shrink-0 text-muted-foreground hover:text-foreground"
+                        aria-label={`View ${run.name} logs`}
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Cross-referenced issues */}
+        {(() => {
+          const crossRefs = timeline.filter(
+            (e) => e.event === "cross-referenced" && e.source?.issue && !e.source.issue.pull_request
+          );
+          if (crossRefs.length === 0) return null;
+          return (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                <Link className="w-3.5 h-3.5" />
+                Referenced Issues ({crossRefs.length})
+              </div>
+              <div className="space-y-1">
+                {crossRefs.map((e, idx) => {
+                  const src = e.source!.issue!;
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border rounded px-2 py-1 bg-muted/10"
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${src.state === "open" ? "bg-green-500" : "bg-purple-500"}`}
+                      />
+                      <a
+                        href={src.html_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-foreground hover:underline truncate"
+                      >
+                        {src.title}
+                      </a>
+                      <span className="font-mono flex-shrink-0">#{src.number}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Conversation (issue comments + timeline events) */}
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
@@ -1163,6 +1317,32 @@ export function GitHubPrDetailsPanel({
                     <div className="markdown-content break-words select-text max-w-none text-xs">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.body}</ReactMarkdown>
                     </div>
+                    {comment.reactions && comment.reactions.total_count > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {(
+                          [
+                            ["+1", "👍"],
+                            ["-1", "👎"],
+                            ["laugh", "😄"],
+                            ["hooray", "🎉"],
+                            ["confused", "😕"],
+                            ["heart", "❤️"],
+                            ["rocket", "🚀"],
+                            ["eyes", "👀"],
+                          ] as const
+                        )
+                          .filter(([key]) => (comment.reactions![key as keyof typeof comment.reactions] as number) > 0)
+                          .map(([key, emoji]) => (
+                            <span
+                              key={key}
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-muted border border-border rounded-full"
+                            >
+                              {emoji}{" "}
+                              {comment.reactions![key as keyof typeof comment.reactions] as number}
+                            </span>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 );
               }
