@@ -27,6 +27,10 @@ export interface GitHubPR {
   head?: {
     sha: string;
     ref: string;
+    repo?: {
+      full_name: string;
+      clone_url: string;
+    };
   };
 }
 

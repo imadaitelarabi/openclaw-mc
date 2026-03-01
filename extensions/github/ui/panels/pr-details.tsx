@@ -309,6 +309,45 @@ export function GitHubPrDetailsPanel({
             variant: "ghost" as const,
             onClick: () => window.open(pr.html_url, "_blank", "noopener,noreferrer"),
           },
+          {
+            id: "open-vscode",
+            label: "Open in VSCode",
+            variant: "ghost" as const,
+            disabled: !pr.head?.ref || !pr.head?.repo?.full_name,
+            disabledReason:
+              !pr.head?.ref || !pr.head?.repo?.full_name
+                ? "Branch information is not available for this PR"
+                : undefined,
+            onClick: () => {
+              const cloneUrl = pr.head?.repo?.clone_url;
+              const branch = pr.head?.ref;
+              if (!cloneUrl || !branch) return;
+              window.open(
+                `vscode://vscode.git/clone?url=${encodeURIComponent(cloneUrl)}&ref=${encodeURIComponent(branch)}`,
+                "_blank",
+                "noopener,noreferrer"
+              );
+            },
+            dropdownItems:
+              pr.head?.ref && pr.head?.repo?.full_name
+                ? [
+                    {
+                      id: "open-vscode-web",
+                      label: "Open in VSCode (Web)",
+                      onClick: () => {
+                        const fullName = pr.head?.repo?.full_name;
+                        const branch = pr.head?.ref;
+                        if (!fullName || !branch) return;
+                        window.open(
+                          `https://vscode.dev/github/${fullName}/tree/${encodeURIComponent(branch)}`,
+                          "_blank",
+                          "noopener,noreferrer"
+                        );
+                      },
+                    },
+                  ]
+                : undefined,
+          },
         ]
       : [],
     error: actionError,
