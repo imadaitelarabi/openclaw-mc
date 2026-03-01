@@ -9,6 +9,23 @@ import type { OnboardingProps } from "@/types/extension";
 import { saveConfig } from "../setup";
 import { GitHubAPI } from "../api";
 import type { GitHubConfig } from "../config";
+import { uiStateStore } from "@/lib/ui-state-db";
+
+const DEFAULT_POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_OPTIONS = [
+  { value: 5_000, label: "5 seconds" },
+  { value: 15_000, label: "15 seconds" },
+  { value: 30_000, label: "30 seconds" },
+  { value: 60_000, label: "1 minute" },
+  { value: 120_000, label: "2 minutes" },
+  { value: 300_000, label: "5 minutes" },
+];
+
+function parsePollingIntervalMs(value?: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1_000) return DEFAULT_POLL_INTERVAL_MS;
+  return parsed;
+}
 
 export function OnboardingPanel({
   extensionName: _extensionName,
@@ -20,6 +37,44 @@ export function OnboardingPanel({
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validatedUser, setValidatedUser] = useState<string | null>(null);
+
+  // Global polling setting for GitHub panels
+  const [pollingEnabled, setPollingEnabled] = useState(false);
+  const [pollingIntervalMs, setPollingIntervalMs] = useState(DEFAULT_POLL_INTERVAL_MS);
+
+  useEffect(() => {
+    uiStateStore.getExtensionFilters("github:settings").then((saved) => {
+      if (saved?.pollingEnabled === "true") setPollingEnabled(true);
+      if (saved?.pollingIntervalMs) {
+        setPollingIntervalMs(parsePollingIntervalMs(saved.pollingIntervalMs));
+      }
+    });
+  }, []);
+
+  const savePanelSettings = (enabled: boolean, intervalMs: number) => {
+    setPollingEnabled(enabled);
+    setPollingIntervalMs(intervalMs);
+
+    uiStateStore.saveExtensionFilters("github:settings", {
+      pollingEnabled: enabled ? "true" : "false",
+      pollingIntervalMs: String(intervalMs),
+    });
+
+    window.dispatchEvent(
+      new CustomEvent("github:settings:changed", {
+        detail: { pollingEnabled: enabled, pollingIntervalMs: intervalMs },
+      })
+    );
+  };
+
+  const handlePollingToggle = (enabled: boolean) => {
+    savePanelSettings(enabled, pollingIntervalMs);
+  };
+
+  const handlePollingIntervalChange = (value: string) => {
+    const intervalMs = parsePollingIntervalMs(value);
+    savePanelSettings(pollingEnabled, intervalMs);
+  };
 
   // If already connected, show the connected state
   const isConnected = connectionStatus?.isConnected ?? false;
@@ -144,6 +199,55 @@ export function OnboardingPanel({
             <p className="text-sm text-muted-foreground">
               Connected as <span className="font-mono font-medium">{connectedUsername}</span>
             </p>
+          </div>
+
+          {/* Panel Settings */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium">Panel Settings</h3>
+            <div className="flex items-center justify-between p-3 border border-border rounded">
+              <div>
+                <p className="text-sm font-medium">Auto-refresh</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Automatically refresh Issues and Pull Requests panels in the background
+                </p>
+              </div>
+              <button
+                onClick={() => handlePollingToggle(!pollingEnabled)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 ${
+                  pollingEnabled ? "bg-primary" : "bg-muted"
+                }`}
+                role="switch"
+                aria-checked={pollingEnabled}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                    pollingEnabled ? "translate-x-4" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between p-3 border border-border rounded">
+              <div>
+                <p className="text-sm font-medium">Polling frequency</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Choose how often Issues and Pull Requests auto-refresh
+                </p>
+              </div>
+              <select
+                value={String(pollingIntervalMs)}
+                onChange={(e) => handlePollingIntervalChange(e.target.value)}
+                disabled={!pollingEnabled}
+                className="px-2 py-1 text-xs border border-border rounded bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Polling frequency"
+              >
+                {POLL_INTERVAL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Actions */}

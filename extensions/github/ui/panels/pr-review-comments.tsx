@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ExternalLink,
   AlertCircle,
@@ -30,10 +30,18 @@ import type { ExtensionPanelProps } from "@/types/extension";
 import type { PanelBackNavigation } from "@/types";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { usePanels } from "@/contexts/PanelContext";
+import { uiStateStore } from "@/lib/ui-state-db";
 import { getApiInstance } from "../../api-instance";
 import type { GitHubPRFile, GitHubReviewComment } from "../../api";
 
 const PAGE_SIZE = 20;
+const DEFAULT_POLL_INTERVAL_MS = 30_000;
+
+function parsePollingIntervalMs(value?: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1_000) return DEFAULT_POLL_INTERVAL_MS;
+  return parsed;
+}
 
 const REACTION_EMOJIS: Record<string, string> = {
   "+1": "👍",
@@ -650,6 +658,10 @@ export function GitHubPrReviewCommentsPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchTick, setFetchTick] = useState(0);
+  const isFetchingRef = useRef(false);
+
+  const [pollingEnabled, setPollingEnabled] = useState(false);
+  const [pollingIntervalMs, setPollingIntervalMs] = useState(DEFAULT_POLL_INTERVAL_MS);
 
   // Filters
   const [filterFile, setFilterFile] = useState("");
@@ -662,6 +674,38 @@ export function GitHubPrReviewCommentsPanel({
 
   const triggerRefresh = useCallback(() => setFetchTick((n) => n + 1), []);
 
+  useEffect(() => {
+    uiStateStore.getExtensionFilters("github:settings").then((saved) => {
+      if (saved?.pollingEnabled === "true") setPollingEnabled(true);
+      if (saved?.pollingIntervalMs) {
+        setPollingIntervalMs(parsePollingIntervalMs(saved.pollingIntervalMs));
+      }
+    });
+
+    const onSettingsChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ pollingEnabled?: boolean; pollingIntervalMs?: number }>)
+        .detail;
+      if (typeof detail?.pollingEnabled === "boolean") {
+        setPollingEnabled(detail.pollingEnabled);
+      }
+      if (typeof detail?.pollingIntervalMs === "number") {
+        setPollingIntervalMs(parsePollingIntervalMs(String(detail.pollingIntervalMs)));
+      }
+    };
+    window.addEventListener("github:settings:changed", onSettingsChanged);
+    return () => window.removeEventListener("github:settings:changed", onSettingsChanged);
+  }, []);
+
+  useEffect(() => {
+    if (!pollingEnabled) return;
+    const id = setInterval(() => {
+      if (!document.hidden && !isFetchingRef.current) {
+        triggerRefresh();
+      }
+    }, pollingIntervalMs);
+    return () => clearInterval(id);
+  }, [pollingEnabled, pollingIntervalMs, triggerRefresh]);
+
   // Fetch changed files and review comments
   useEffect(() => {
     if (isExtensionContextLoading || !isGitHubEnabled) return;
@@ -669,6 +713,7 @@ export function GitHubPrReviewCommentsPanel({
 
     let cancelled = false;
     setLoading(true);
+    isFetchingRef.current = true;
     setError(null);
 
     const api = getApiInstance();
@@ -681,6 +726,7 @@ export function GitHubPrReviewCommentsPanel({
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load PR changes");
       })
       .finally(() => {
+        isFetchingRef.current = false;
         if (!cancelled) setLoading(false);
       });
 

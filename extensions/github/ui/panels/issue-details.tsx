@@ -32,6 +32,7 @@ import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { ExtensionActionBar } from "@/components/panels/ExtensionActionBar";
 import { useExtensionActionBar } from "@/hooks/useExtensionActionBar";
 import { useOptionalExtensionModals } from "@/contexts/ExtensionModalContext";
+import { uiStateStore } from "@/lib/ui-state-db";
 import { getApiInstance } from "../../api-instance";
 import type {
   GitHubIssue,
@@ -43,6 +44,13 @@ import type {
 import type { AssignCopilotModalPayload, AssignCopilotModalResult } from "../modals/assign-copilot";
 
 const ACTIVITY_PAGE_SIZE = 10;
+const DEFAULT_POLL_INTERVAL_MS = 30_000;
+
+function parsePollingIntervalMs(value?: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1_000) return DEFAULT_POLL_INTERVAL_MS;
+  return parsed;
+}
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -173,6 +181,7 @@ export function GitHubIssueDetailsPanel({
   const assignDropdownRef = useRef<HTMLDivElement | null>(null);
   const postActionRefreshTimersRef = useRef<number[]>([]);
   const pendingSilentRefreshRef = useRef(false);
+  const isFetchingRef = useRef(false);
 
   // Trigger counter — incrementing causes a re-fetch
   const [fetchTick, setFetchTick] = useState(0);
@@ -200,6 +209,9 @@ export function GitHubIssueDetailsPanel({
   const [showReopenConfirm, setShowReopenConfirm] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [commentText, setCommentText] = useState("");
+
+  const [pollingEnabled, setPollingEnabled] = useState(false);
+  const [pollingIntervalMs, setPollingIntervalMs] = useState(DEFAULT_POLL_INTERVAL_MS);
 
   // ── Action bar (built before early returns to satisfy Rules of Hooks) ───
   const actionBar = useExtensionActionBar({
@@ -251,6 +263,38 @@ export function GitHubIssueDetailsPanel({
     error: actionError,
     onDismissError: () => setActionError(null),
   });
+
+  useEffect(() => {
+    uiStateStore.getExtensionFilters("github:settings").then((saved) => {
+      if (saved?.pollingEnabled === "true") setPollingEnabled(true);
+      if (saved?.pollingIntervalMs) {
+        setPollingIntervalMs(parsePollingIntervalMs(saved.pollingIntervalMs));
+      }
+    });
+
+    const onSettingsChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ pollingEnabled?: boolean; pollingIntervalMs?: number }>)
+        .detail;
+      if (typeof detail?.pollingEnabled === "boolean") {
+        setPollingEnabled(detail.pollingEnabled);
+      }
+      if (typeof detail?.pollingIntervalMs === "number") {
+        setPollingIntervalMs(parsePollingIntervalMs(String(detail.pollingIntervalMs)));
+      }
+    };
+    window.addEventListener("github:settings:changed", onSettingsChanged);
+    return () => window.removeEventListener("github:settings:changed", onSettingsChanged);
+  }, []);
+
+  useEffect(() => {
+    if (!pollingEnabled) return;
+    const id = setInterval(() => {
+      if (!document.hidden && !isFetchingRef.current) {
+        triggerRefresh(true);
+      }
+    }, pollingIntervalMs);
+    return () => clearInterval(id);
+  }, [pollingEnabled, pollingIntervalMs, triggerRefresh]);
 
   useEffect(() => {
     if (isExtensionContextLoading) return;
@@ -321,6 +365,7 @@ export function GitHubIssueDetailsPanel({
     let cancelled = false;
     const isSilentRefresh = pendingSilentRefreshRef.current;
     pendingSilentRefreshRef.current = false;
+    isFetchingRef.current = true;
 
     if (!isSilentRefresh) {
       setLoading(true);
@@ -331,7 +376,7 @@ export function GitHubIssueDetailsPanel({
       setDisplayedActivityCount(ACTIVITY_PAGE_SIZE);
     }
 
-    api
+    const detailsPromise = api
       .getIssueDetails(owner, repo, number)
       .then((result) => {
         if (!cancelled) setIssue(result);
@@ -345,7 +390,7 @@ export function GitHubIssueDetailsPanel({
         if (!cancelled && !isSilentRefresh) setLoading(false);
       });
 
-    api
+    const commentsPromise = api
       .getIssueComments(owner, repo, number)
       .then((result) => {
         if (!cancelled) setComments(result);
@@ -359,7 +404,7 @@ export function GitHubIssueDetailsPanel({
         if (!cancelled && !isSilentRefresh) setCommentsLoading(false);
       });
 
-    api
+    const timelinePromise = api
       .getIssueTimeline(owner, repo, number)
       .then((result) => {
         if (!cancelled) setTimeline(result);
@@ -371,6 +416,10 @@ export function GitHubIssueDetailsPanel({
       .finally(() => {
         if (!cancelled && !isSilentRefresh) setTimelineLoading(false);
       });
+
+    Promise.allSettled([detailsPromise, commentsPromise, timelinePromise]).finally(() => {
+      isFetchingRef.current = false;
+    });
 
     return () => {
       cancelled = true;
