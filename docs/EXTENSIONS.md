@@ -339,11 +339,11 @@ statusBar?: () => Promise<StatusBarResult | null>
 
 The hook may return any of:
 
-| Return value | Behaviour |
-|---|---|
-| `null` | No status bar item for this extension |
-| `StatusBarItem` | Plain item; core uses manifest or default refresh interval (5 s) |
-| `{ item, refreshIntervalMs?, cacheTtlMs? }` | Extended form; core uses the provided interval and/or TTL |
+| Return value                                | Behaviour                                                        |
+| ------------------------------------------- | ---------------------------------------------------------------- |
+| `null`                                      | No status bar item for this extension                            |
+| `StatusBarItem`                             | Plain item; core uses manifest or default refresh interval (5 s) |
+| `{ item, refreshIntervalMs?, cacheTtlMs? }` | Extended form; core uses the provided interval and/or TTL        |
 
 This is fully **backward-compatible** – extensions that already return a `StatusBarItem` continue to work unchanged.
 

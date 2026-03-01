@@ -1,22 +1,26 @@
 # Feature Highlights (March 1, 2026)
 
 ## Enhanced GitHub Issue & PR Details UX
+
 - **Searchable Assignees & Reviewers:** Both Issue and PR detail panels now feature searchable dropdowns for managing assignees and reviewers.
 - **Unified Timeline & Activity:** A new unified timeline view integrates comments, commits, and PR review summaries into a single cohesive feed.
 - **Avatars & UI Polish:** Improved visual feedback with user avatars, status badges, and an updated "Extension Action Bar" for common tasks like refreshing, opening in GitHub, or marking PRs as ready for review.
 - **Draft PR Support:** Added merge guards and "Ready for review" actions specifically for draft pull requests.
 
 ## Dedicated PR Review Comments Panel
+
 - **Threaded Conversations:** A specialized panel for viewing and replying to PR review comments with GitHub-like threading.
 - **Inline Actions:** Support for reactions and direct replies within the review threads.
 - **Diff Highlighting:** Built-in diff coloring for code snippets within review comments.
 
 ## New `oclawmc` CLI & Interactive Installer
+
 - **One-Liner Installation:** Added a new interactive one-liner installer for both Bash and PowerShell.
 - **OCLawMC CLI:** A dedicated `oclawmc` command-line tool (available for Linux/macOS and Windows) to manage the OpenClaw Mission Control environment, handling installation, service setup, and common operations.
 - **Administrator/Policy Checks:** Improved installer robustness with automatic administrator checks for Windows service setup and execution-policy handling.
 
 ## UX Improvements & Bug Fixes
+
 - **Notes Tag Filters:** Added ability to filter notes by tags in the UI.
 - **Async Selection Fixes:** Resolved issues where mention dropdowns would reset during asynchronous reloads.
 - **Timeline Auto-Refresh:** Fixed a bug where PR timelines wouldn't refresh correctly after merge or close actions.

@@ -75,9 +75,7 @@ function ActionButton({ action, anyLoading }: ActionButtonProps) {
           data-action-id={action.id}
           className={textActionCls(action.variant)}
         >
-          {action.loading ? (
-            <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
-          ) : null}
+          {action.loading ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : null}
           <span>{action.label}</span>
         </button>
         <DropdownMenu.Root>

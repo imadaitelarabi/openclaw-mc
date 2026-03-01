@@ -31,17 +31,17 @@ import * as os from "os";
  * Runs a subprocess with the supplied argument array (no shell interpolation).
  * Resolves with stdout; rejects with an Error carrying stderr on failure.
  */
-function spawnAsync(
-  cmd: string,
-  args: string[],
-  options: { cwd?: string } = {}
-): Promise<string> {
+function spawnAsync(cmd: string, args: string[], options: { cwd?: string } = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { cwd: options.cwd, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
-    child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
     child.on("close", (code) => {
       if (code === 0) {
         resolve(stdout);
@@ -135,10 +135,7 @@ async function findLocalClone(cloneUrl: string, fullName: string): Promise<strin
   for (const root of SEARCH_ROOTS) {
     if (!fs.existsSync(root)) continue;
 
-    const candidates = [
-      path.join(root, repoName),
-      path.join(root, fullName),
-    ];
+    const candidates = [path.join(root, repoName), path.join(root, fullName)];
 
     for (const candidate of candidates) {
       if (!fs.existsSync(candidate)) continue;

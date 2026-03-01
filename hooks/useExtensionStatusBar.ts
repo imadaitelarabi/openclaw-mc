@@ -26,8 +26,7 @@ function parseStatusBarResult(
   result: StatusBarResult | null,
   manifestStatusBar?: StatusBarConfig
 ): { item: StatusBarItem | null; refreshIntervalMs: number; cacheTtlMs: number } {
-  const fallbackRefresh =
-    manifestStatusBar?.refreshIntervalMs ?? DEFAULT_REFRESH_INTERVAL_MS;
+  const fallbackRefresh = manifestStatusBar?.refreshIntervalMs ?? DEFAULT_REFRESH_INTERVAL_MS;
   const fallbackCache = manifestStatusBar?.cacheTtlMs ?? 0;
 
   if (result === null || result === undefined) {
@@ -150,7 +149,7 @@ export function useExtensionStatusBar() {
 
     inFlightRef.current.add(name);
     try {
-      const hasPanels = !!(ext.manifest.panels?.length);
+      const hasPanels = !!ext.manifest.panels?.length;
       const hasStatusBarHook = ext.manifest.hooks.includes("status-bar");
       let item: StatusBarItem | null = null;
       let refreshIntervalMs =
