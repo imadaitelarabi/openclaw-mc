@@ -64,22 +64,30 @@ function ActionButton({ action, anyLoading }: ActionButtonProps) {
       : undefined;
 
   if (action.dropdownItems && action.dropdownItems.length > 0) {
-    // Text action with dropdown menu
+    // Split-button: primary label fires onClick; chevron opens the dropdown
     return (
       <div className="relative inline-flex items-center">
+        <button
+          onClick={action.onClick}
+          disabled={isDisabled}
+          title={titleAttr}
+          aria-label={action.label}
+          data-action-id={action.id}
+          className={textActionCls(action.variant)}
+        >
+          {action.loading ? (
+            <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+          ) : null}
+          <span>{action.label}</span>
+        </button>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button
               disabled={isDisabled}
               title="More options"
               aria-label={`${action.label} options`}
-              className={textActionCls(action.variant)}
-              onClick={action.onClick}
+              className={`${textActionCls(action.variant)} ml-0.5 px-0.5`}
             >
-              {action.loading ? (
-                <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
-              ) : null}
-              <span>{action.label}</span>
               <ChevronDown className="w-3 h-3" aria-hidden="true" />
             </button>
           </DropdownMenu.Trigger>
