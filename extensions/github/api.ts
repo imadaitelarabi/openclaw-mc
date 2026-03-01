@@ -654,7 +654,6 @@ export class GitHubAPI {
     await this.request(`/repos/${owner}/${repo}/pulls/comments/${commentId}/reactions`, {
       method: "POST",
       body: { content },
-      accept: "application/vnd.github.squirrel-girl-preview+json",
     });
   }
 
@@ -670,7 +669,6 @@ export class GitHubAPI {
     await this.request(`/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`, {
       method: "POST",
       body: { content },
-      accept: "application/vnd.github.squirrel-girl-preview+json",
     });
   }
 

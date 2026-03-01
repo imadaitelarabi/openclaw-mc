@@ -47,10 +47,23 @@ import type {
   GitHubTimelineEvent,
   GitHubAssignableUser,
   GitHubCheckRun,
+  GitHubReactions,
 } from "../../api";
 
 const ACTIVITY_PAGE_SIZE = 10;
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
+
+type ReactionKey = keyof Omit<GitHubReactions, "total_count">;
+const REACTION_ENTRIES: Array<[ReactionKey, string]> = [
+  ["+1", "👍"],
+  ["-1", "👎"],
+  ["laugh", "😄"],
+  ["hooray", "🎉"],
+  ["confused", "😕"],
+  ["heart", "❤️"],
+  ["rocket", "🚀"],
+  ["eyes", "👀"],
+];
 
 function parsePollingIntervalMs(value?: string): number {
   const parsed = Number(value);
@@ -1319,28 +1332,16 @@ export function GitHubPrDetailsPanel({
                     </div>
                     {comment.reactions && comment.reactions.total_count > 0 && (
                       <div className="flex flex-wrap gap-1 pt-0.5">
-                        {(
-                          [
-                            ["+1", "👍"],
-                            ["-1", "👎"],
-                            ["laugh", "😄"],
-                            ["hooray", "🎉"],
-                            ["confused", "😕"],
-                            ["heart", "❤️"],
-                            ["rocket", "🚀"],
-                            ["eyes", "👀"],
-                          ] as const
-                        )
-                          .filter(([key]) => (comment.reactions![key as keyof typeof comment.reactions] as number) > 0)
-                          .map(([key, emoji]) => (
+                        {REACTION_ENTRIES.filter(([key]) => comment.reactions![key] > 0).map(
+                          ([key, emoji]) => (
                             <span
                               key={key}
                               className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-muted border border-border rounded-full"
                             >
-                              {emoji}{" "}
-                              {comment.reactions![key as keyof typeof comment.reactions] as number}
+                              {emoji} {comment.reactions![key]}
                             </span>
-                          ))}
+                          )
+                        )}
                       </div>
                     )}
                   </div>
