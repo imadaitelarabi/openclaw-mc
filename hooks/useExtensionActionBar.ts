@@ -62,6 +62,8 @@ export interface ActionBarAction {
   id: string;
   /** Button label */
   label: string;
+  /** Optional icon key rendered in icon-first action bars */
+  icon?: string;
   /**
    * Visual style variant.
    * - "default"  → muted/outlined secondary button

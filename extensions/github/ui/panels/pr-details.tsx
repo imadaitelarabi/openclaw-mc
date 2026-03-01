@@ -224,6 +224,7 @@ export function GitHubPrDetailsPanel({
                 {
                   id: "request-review",
                   label: "Request Review",
+                  icon: "request-review",
                   variant: "default" as const,
                   disabled: actionLoading !== null,
                   onClick: () => {
@@ -236,6 +237,7 @@ export function GitHubPrDetailsPanel({
                       {
                         id: "ready-for-review",
                         label: "Mark ready for review",
+                        icon: "ready-for-review",
                         variant: "success" as const,
                         disabled: actionLoading !== null,
                         loading: actionLoading === "ready-for-review",
@@ -246,6 +248,7 @@ export function GitHubPrDetailsPanel({
                 {
                   id: "merge",
                   label: "Merge",
+                  icon: "merge",
                   variant: "success" as const,
                   disabled: isMergeDisabled,
                   disabledReason: mergeDisabledReason,
@@ -271,6 +274,7 @@ export function GitHubPrDetailsPanel({
                 {
                   id: "close",
                   label: "Close PR",
+                  icon: "close",
                   variant: "danger" as const,
                   disabled: actionLoading !== null,
                   loading: actionLoading === "close",
@@ -281,6 +285,7 @@ export function GitHubPrDetailsPanel({
           {
             id: "review-comments",
             label: "Changes",
+            icon: "review-comments",
             variant: "ghost" as const,
             onClick: () =>
               contextPanelId
@@ -306,12 +311,14 @@ export function GitHubPrDetailsPanel({
           {
             id: "open-github",
             label: "Open in GitHub",
+            icon: "open-github",
             variant: "ghost" as const,
             onClick: () => window.open(pr.html_url, "_blank", "noopener,noreferrer"),
           },
           {
             id: "open-vscode",
             label: "Open in VSCode",
+            icon: "open-vscode",
             variant: "ghost" as const,
             disabled: !pr.head?.ref || !pr.head?.repo?.full_name || actionLoading !== null,
             disabledReason:
