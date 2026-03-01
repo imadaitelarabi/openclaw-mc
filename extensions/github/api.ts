@@ -174,6 +174,24 @@ export interface GitHubCheckRun {
   app?: { name: string };
 }
 
+export interface GitHubWorkflowRun {
+  id: number;
+  name: string | null;
+  status:
+    | "queued"
+    | "in_progress"
+    | "completed"
+    | "waiting"
+    | "requested"
+    | "pending"
+    | null;
+  conclusion: string | null;
+  html_url: string;
+  created_at: string;
+  actor: { login: string; avatar_url?: string; html_url?: string } | null;
+  head_sha: string;
+}
+
 export interface GitHubOrganization {
   login: string;
   type: "Organization" | "User";
@@ -594,6 +612,34 @@ export class GitHubAPI {
       `/repos/${owner}/${repo}/commits/${ref}/check-runs?per_page=100`
     );
     return result.check_runs ?? [];
+  }
+
+  /**
+   * List Actions workflow runs for a repository, optionally filtered by head SHA.
+   */
+  async listWorkflowRuns(
+    owner: string,
+    repo: string,
+    params: { headSha?: string; perPage?: number }
+  ): Promise<GitHubWorkflowRun[]> {
+    const qs = new URLSearchParams();
+    if (params.headSha) qs.set("head_sha", params.headSha);
+    if (params.perPage) qs.set("per_page", String(params.perPage));
+    const qsStr = qs.toString();
+    const result = await this.request<{ workflow_runs: GitHubWorkflowRun[] }>(
+      `/repos/${owner}/${repo}/actions/runs${qsStr ? `?${qsStr}` : ""}`
+    );
+    return result.workflow_runs ?? [];
+  }
+
+  /**
+   * Approve a workflow run that is waiting for approval (e.g. fork PRs from first-time contributors).
+   * Requires Actions write permission; throws on 403/401.
+   */
+  async approveWorkflowRun(owner: string, repo: string, runId: number): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/actions/runs/${runId}/approve`, {
+      method: "POST",
+    });
   }
 
   // ── Write actions ────────────────────────────────────────────────────────

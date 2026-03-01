@@ -47,6 +47,7 @@ import type {
   GitHubTimelineEvent,
   GitHubAssignableUser,
   GitHubCheckRun,
+  GitHubWorkflowRun,
   GitHubReactions,
 } from "../../api";
 
@@ -196,6 +197,11 @@ export function GitHubPrDetailsPanel({
   // Check runs state
   const [checkRuns, setCheckRuns] = useState<GitHubCheckRun[]>([]);
   const [checksExpanded, setChecksExpanded] = useState(true);
+  // Workflow runs (for "Awaiting approval" grouping)
+  const [workflowRuns, setWorkflowRuns] = useState<GitHubWorkflowRun[]>([]);
+  const [showApproveConfirm, setShowApproveConfirm] = useState<number | null>(null);
+  const [approveLoading, setApproveLoading] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
 
   // Reviewer dropdown state
   const [reviewableUsers, setReviewableUsers] = useState<GitHubAssignableUser[]>([]);
@@ -506,8 +512,9 @@ export function GitHubPrDetailsPanel({
       setDisplayedActivityCount(ACTIVITY_PAGE_SIZE);
     }
 
-    const detailsPromise = api
-      .getPRDetails(owner, repo, number)
+    const detailsFetch = api.getPRDetails(owner, repo, number);
+
+    const detailsPromise = detailsFetch
       .then((result) => {
         if (!cancelled) setPr(result);
       })
@@ -519,6 +526,25 @@ export function GitHubPrDetailsPanel({
       .finally(() => {
         if (!cancelled && !isSilentRefresh) setLoading(false);
       });
+
+    // Checks + workflow runs share the head SHA from the freshly-fetched PR details
+    // so they are always in sync with the same polling tick.
+    const checksAndRunsPromise = detailsFetch
+      .then((result) => {
+        const headSha = result.head?.sha;
+        if (!headSha || cancelled) return;
+        return Promise.allSettled([
+          api
+            .getCheckRuns(owner, repo, headSha)
+            .then((runs) => { if (!cancelled) setCheckRuns(runs); })
+            .catch(() => { if (!cancelled) setCheckRuns([]); }),
+          api
+            .listWorkflowRuns(owner, repo, { headSha, perPage: 30 })
+            .then((runs) => { if (!cancelled) setWorkflowRuns(runs); })
+            .catch(() => { if (!cancelled) setWorkflowRuns([]); }),
+        ]);
+      })
+      .catch(() => {});
 
     const commentsPromise = api
       .getIssueComments(owner, repo, number)
@@ -568,6 +594,7 @@ export function GitHubPrDetailsPanel({
 
     Promise.allSettled([
       detailsPromise,
+      checksAndRunsPromise,
       commentsPromise,
       timelinePromise,
       reviewsPromise,
@@ -580,18 +607,6 @@ export function GitHubPrDetailsPanel({
       cancelled = true;
     };
   }, [owner, repo, number, isExtensionContextLoading, isGitHubEnabled, fetchTick]);
-
-  // Fetch check runs when PR head SHA is available
-  useEffect(() => {
-    const headSha = pr?.head?.sha;
-    if (!owner || !repo || !headSha) return;
-    const api = getApiInstance();
-    if (!api) return;
-    api
-      .getCheckRuns(owner, repo, headSha)
-      .then((runs) => setCheckRuns(runs))
-      .catch(() => setCheckRuns([]));
-  }, [owner, repo, pr?.head?.sha]);
 
   // Fetch reviewable users when dropdown is opened
   useEffect(() => {
@@ -830,6 +845,30 @@ export function GitHubPrDetailsPanel({
       (u) => u.login.toLowerCase().includes(q) || (u.name && u.name.toLowerCase().includes(q))
     );
   }, [reviewableUsers, reviewSearch]);
+
+  const handleApproveRun = async (runId: number) => {
+    if (!owner || !repo) return;
+    setApproveLoading(true);
+    setApproveError(null);
+    try {
+      const api = getApiInstance();
+      if (!api) throw new Error("GitHub API not initialized");
+      await api.approveWorkflowRun(owner, repo, runId);
+      setShowApproveConfirm(null);
+      refreshSilently();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to approve workflow run";
+      const isPermissionError = msg.includes("403") || msg.includes("401") || msg.includes("Must have admin rights") || msg.includes("Resource not accessible");
+      setApproveError(
+        isPermissionError
+          ? "Cannot approve: your token is missing Actions write permission or you don't have admin access to this repository."
+          : msg
+      );
+      setShowApproveConfirm(null);
+    } finally {
+      setApproveLoading(false);
+    }
+  };
 
   // Merged activity: issue comments + timeline events + review summaries + commits
   const activityItems = useMemo(() => {
@@ -1130,87 +1169,142 @@ export function GitHubPrDetailsPanel({
         )}
 
         {/* Checks (CI/CD status) */}
-        {checkRuns.length > 0 && (
-          <div className="border border-border rounded bg-muted/20">
-            <button
-              onClick={() => setChecksExpanded((v) => !v)}
-              className="flex items-center gap-1.5 w-full px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {checksExpanded ? (
-                <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
-              )}
-              Checks ({checkRuns.length})
-              {(() => {
-                const failed = checkRuns.filter(
-                  (r) => r.conclusion === "failure" || r.conclusion === "timed_out" || r.conclusion === "action_required"
-                ).length;
-                const passed = checkRuns.filter((r) => r.conclusion === "success").length;
-                const pending = checkRuns.filter((r) => r.status !== "completed").length;
-                if (failed > 0)
-                  return (
-                    <span className="ml-auto text-[10px] text-red-500 font-medium">
-                      {failed} failed
-                    </span>
-                  );
-                if (pending > 0)
-                  return (
-                    <span className="ml-auto text-[10px] text-yellow-500 font-medium">
-                      {pending} pending
-                    </span>
-                  );
-                if (passed === checkRuns.length)
-                  return (
-                    <span className="ml-auto text-[10px] text-green-500 font-medium">
-                      All passed
-                    </span>
-                  );
-                return null;
-              })()}
-            </button>
-            {checksExpanded && (
-              <div className="border-t border-border divide-y divide-border">
-                {checkRuns.map((run) => {
-                  const isPending = run.status !== "completed";
-                  const isSuccess = run.conclusion === "success";
-                  const isFailed =
-                    run.conclusion === "failure" ||
-                    run.conclusion === "timed_out" ||
-                    run.conclusion === "action_required";
-                  return (
-                    <div key={run.id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
-                      {isPending ? (
-                        <Clock className="w-3.5 h-3.5 flex-shrink-0 text-yellow-500" />
-                      ) : isSuccess ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-green-500" />
-                      ) : isFailed ? (
-                        <XCircle className="w-3.5 h-3.5 flex-shrink-0 text-red-500" />
-                      ) : (
-                        <Clock className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+        {(() => {
+          const approvalRuns = workflowRuns.filter((r) =>
+            r.status === "waiting" || r.status === "requested" || r.status === "pending"
+          );
+          const hasChecks = checkRuns.length > 0 || approvalRuns.length > 0;
+          if (!hasChecks) return null;
+          const failed = checkRuns.filter(
+            (r) => r.conclusion === "failure" || r.conclusion === "timed_out"
+          ).length;
+          const passed = checkRuns.filter((r) => r.conclusion === "success").length;
+          const pending = checkRuns.filter((r) => r.status !== "completed").length;
+          return (
+            <div className="border border-border rounded bg-muted/20">
+              <button
+                onClick={() => setChecksExpanded((v) => !v)}
+                className="flex items-center gap-1.5 w-full px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {checksExpanded ? (
+                  <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
+                )}
+                Checks ({checkRuns.length + approvalRuns.length})
+                {approvalRuns.length > 0 && (
+                  <span className="ml-auto text-[10px] text-amber-500 font-medium">
+                    {approvalRuns.length} needs approval
+                  </span>
+                )}
+                {approvalRuns.length === 0 && failed > 0 && (
+                  <span className="ml-auto text-[10px] text-red-500 font-medium">
+                    {failed} failed
+                  </span>
+                )}
+                {approvalRuns.length === 0 && failed === 0 && pending > 0 && (
+                  <span className="ml-auto text-[10px] text-yellow-500 font-medium">
+                    {pending} pending
+                  </span>
+                )}
+                {approvalRuns.length === 0 && failed === 0 && pending === 0 && checkRuns.length > 0 && passed === checkRuns.length && (
+                  <span className="ml-auto text-[10px] text-green-500 font-medium">
+                    All passed
+                  </span>
+                )}
+              </button>
+              {checksExpanded && (
+                <div className="border-t border-border divide-y divide-border">
+                  {checkRuns.map((run) => {
+                    const isPending = run.status !== "completed";
+                    const isSuccess = run.conclusion === "success";
+                    const isFailed =
+                      run.conclusion === "failure" ||
+                      run.conclusion === "timed_out" ||
+                      run.conclusion === "action_required";
+                    return (
+                      <div key={run.id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                        {isPending ? (
+                          <Clock className="w-3.5 h-3.5 flex-shrink-0 text-yellow-500" />
+                        ) : isSuccess ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 text-green-500" />
+                        ) : isFailed ? (
+                          <XCircle className="w-3.5 h-3.5 flex-shrink-0 text-red-500" />
+                        ) : (
+                          <Clock className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+                        )}
+                        <span className="flex-1 min-w-0 text-foreground truncate">{run.name}</span>
+                        {run.app?.name && (
+                          <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                            {run.app.name}
+                          </span>
+                        )}
+                        <a
+                          href={run.html_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0 text-muted-foreground hover:text-foreground"
+                          aria-label={`View ${run.name} logs`}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    );
+                  })}
+                  {approvalRuns.length > 0 && (
+                    <>
+                      {checkRuns.length > 0 && (
+                        <div className="px-3 py-1 text-[10px] font-medium text-amber-500 uppercase tracking-wide bg-amber-500/5">
+                          Awaiting Approval
+                        </div>
                       )}
-                      <span className="flex-1 min-w-0 text-foreground truncate">{run.name}</span>
-                      {run.app?.name && (
-                        <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                          {run.app.name}
-                        </span>
-                      )}
-                      <a
-                        href={run.html_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-shrink-0 text-muted-foreground hover:text-foreground"
-                        aria-label={`View ${run.name} logs`}
+                      {approvalRuns.map((run) => (
+                        <div key={run.id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                          <Clock className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
+                          <span className="flex-1 min-w-0 text-foreground truncate">
+                            {run.name ?? "Workflow run"}
+                          </span>
+                          {run.actor && (
+                            <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                              {run.actor.login}
+                            </span>
+                          )}
+                          <a
+                            href={run.html_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-shrink-0 text-muted-foreground hover:text-foreground"
+                            aria-label={`View workflow run`}
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                          <button
+                            onClick={() => setShowApproveConfirm(run.id)}
+                            disabled={approveLoading}
+                            className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Approve & run
+                          </button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  {approveError && (
+                    <div className="px-3 py-2 text-[10px] text-red-500 bg-red-500/5 border-t border-border">
+                      {approveError}
+                      <button
+                        onClick={() => setApproveError(null)}
+                        className="ml-2 underline text-muted-foreground hover:text-foreground"
                       >
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                        Dismiss
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Cross-referenced issues */}
         {(() => {
@@ -1630,6 +1724,16 @@ export function GitHubPrDetailsPanel({
         message="Are you sure you want to close this pull request?"
         confirmText="Close PR"
         variant="danger"
+      />
+      <ConfirmationModal
+        isOpen={showApproveConfirm !== null}
+        onClose={() => setShowApproveConfirm(null)}
+        onConfirm={() => showApproveConfirm !== null && handleApproveRun(showApproveConfirm)}
+        title="Approve Workflow Run"
+        message="This will approve the workflow run from a fork and allow it to execute. Only approve runs from trusted contributors."
+        confirmText="Approve & run"
+        variant="warning"
+        loading={approveLoading}
       />
     </div>
   );
