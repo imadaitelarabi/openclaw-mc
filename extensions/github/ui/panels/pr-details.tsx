@@ -1227,6 +1227,9 @@ export function GitHubPrDetailsPanel({
               <div className="space-y-1">
                 {crossRefs.map((e, idx) => {
                   const src = e.source!.issue!;
+                  const fullName = src.repository?.full_name ?? "";
+                  const [refOwner, refRepo] = fullName.split("/");
+                  const canOpenInPanel = Boolean(refOwner && refRepo);
                   return (
                     <div
                       key={idx}
@@ -1235,14 +1238,37 @@ export function GitHubPrDetailsPanel({
                       <span
                         className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${src.state === "open" ? "bg-green-500" : "bg-purple-500"}`}
                       />
-                      <a
-                        href={src.html_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-foreground hover:underline truncate"
-                      >
-                        {src.title}
-                      </a>
+                      {canOpenInPanel ? (
+                        <button
+                          onClick={() => {
+                            const panelData = {
+                              owner: refOwner,
+                              repo: refRepo,
+                              number: src.number,
+                              htmlUrl: src.html_url,
+                              back: {
+                                type: "github-pr-details" as const,
+                                data: { owner, repo, number, htmlUrl, back },
+                              },
+                            };
+                            contextPanelId
+                              ? replacePanel(contextPanelId, "github-issue-details", panelData)
+                              : openPanel("github-issue-details", panelData);
+                          }}
+                          className="text-foreground hover:underline truncate text-left"
+                        >
+                          {src.title}
+                        </button>
+                      ) : (
+                        <a
+                          href={src.html_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-foreground hover:underline truncate"
+                        >
+                          {src.title}
+                        </a>
+                      )}
                       <span className="font-mono flex-shrink-0">#{src.number}</span>
                     </div>
                   );
