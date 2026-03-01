@@ -94,6 +94,7 @@ export interface GitHubTimelineEvent {
   assignee?: { login: string; avatar_url?: string; html_url?: string };
   label?: { name: string; color: string };
   state?: string;
+  rename?: { from?: string; to?: string };
   source?: {
     type?: string;
     issue?: {

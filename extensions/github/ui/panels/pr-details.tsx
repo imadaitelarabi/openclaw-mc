@@ -143,6 +143,22 @@ function prTimelineEventLabel(event: GitHubTimelineEvent): string | null {
       return "removed review request";
     case "review_dismissed":
       return "dismissed a review";
+    case "ready_for_review":
+      return "marked this pull request as ready for review";
+    case "mentioned":
+      return "mentioned this pull request";
+    case "subscribed":
+      return "subscribed to this pull request";
+    case "renamed": {
+      const from = event.rename?.from;
+      const to = event.rename?.to;
+      if (from && to) return `renamed this pull request from "${from}" to "${to}"`;
+      return "renamed this pull request";
+    }
+    case "copilot_work_started":
+      return "started Copilot work";
+    case "copilot_work_finished":
+      return "finished Copilot work";
     default:
       return null;
   }
