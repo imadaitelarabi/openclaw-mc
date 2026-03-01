@@ -108,6 +108,38 @@ function Ensure-Git {
   }
 }
 
+function Ensure-Nssm {
+  if (Get-Command nssm -ErrorAction SilentlyContinue) { return $true }
+
+  Write-Warn "nssm is required to run OpenClaw MC as a Windows service."
+  Write-Log "Attempting to install nssm..."
+
+  if (Get-Command winget -ErrorAction SilentlyContinue) {
+    try {
+      winget install --id NSSM.NSSM --exact --silent --accept-package-agreements --accept-source-agreements | Out-Null
+    } catch {
+      Write-Warn "winget could not install nssm."
+    }
+  } elseif (Get-Command choco -ErrorAction SilentlyContinue) {
+    try {
+      choco install nssm -y | Out-Null
+    } catch {
+      Write-Warn "choco could not install nssm."
+    }
+  }
+
+  $env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' +
+              [System.Environment]::GetEnvironmentVariable('PATH', 'User')
+
+  if (Get-Command nssm -ErrorAction SilentlyContinue) {
+    Write-Ok "nssm is available."
+    return $true
+  }
+
+  Write-Warn "nssm is still unavailable. Service setup will be skipped."
+  return $false
+}
+
 # ── Tailscale ─────────────────────────────────────────────────────────────────
 function Setup-Tailscale {
   Write-Host "`n── Tailscale setup ──" -ForegroundColor White
@@ -270,37 +302,45 @@ function Setup-WindowsService {
   $nodePath = (Get-Command node).Source
   $svcName  = 'OclawMC'
   $desc     = 'OpenClaw Mission Control Server'
-  $binPath  = "`"$nodePath`" `"$InstallDir\dist\server\index.js`""
+  if (-not (Ensure-Nssm)) {
+    return $false
+  }
 
-  # Check for nssm (preferred) then fall back to New-Service
-  if (Get-Command nssm -ErrorAction SilentlyContinue) {
-    Write-Log "Using nssm to create service '$svcName'..."
-    nssm install $svcName $nodePath "$InstallDir\dist\server\index.js"
-    nssm set $svcName AppDirectory $InstallDir
-    nssm set $svcName AppEnvironmentExtra "NODE_ENV=production"
-    nssm set $svcName AppStdout $LogPath
-    nssm set $svcName AppStderr $LogPath
-    nssm set $svcName Start SERVICE_AUTO_START
-    nssm start $svcName
-  } else {
-    Write-Log "Registering Windows service '$svcName' via New-Service..."
+  $errLogPath = [System.IO.Path]::ChangeExtension($LogPath, '.err.log')
+
+  try {
+    Write-Log "Registering Windows service '$svcName' via nssm..."
     $existing = Get-Service -Name $svcName -ErrorAction SilentlyContinue
     if ($existing) {
       Stop-Service -Name $svcName -Force -ErrorAction SilentlyContinue
       sc.exe delete $svcName | Out-Null
       Start-Sleep -Seconds 2
     }
-    New-Service -Name $svcName -BinaryPathName $binPath -DisplayName $desc `
-                -Description $desc -StartupType Automatic | Out-Null
-    Start-Service -Name $svcName
+
+    nssm install $svcName $nodePath "$InstallDir\dist\server\index.js" | Out-Null
+    nssm set $svcName DisplayName $desc | Out-Null
+    nssm set $svcName Description $desc | Out-Null
+    nssm set $svcName AppDirectory $InstallDir | Out-Null
+    nssm set $svcName AppEnvironmentExtra "NODE_ENV=production" | Out-Null
+    nssm set $svcName AppStdout $LogPath | Out-Null
+    nssm set $svcName AppStderr $errLogPath | Out-Null
+    nssm set $svcName Start SERVICE_AUTO_START | Out-Null
+
+    Start-Service -Name $svcName -ErrorAction Stop
+
     Write-Log "Adding firewall rule for port $Port (if elevated)..."
     try {
       New-NetFirewallRule -DisplayName 'OclawMC' -Direction Inbound -Protocol TCP `
         -LocalPort $Port -Action Allow -ErrorAction Stop | Out-Null
     } catch { Write-Warn "Firewall rule not created (may require elevation)." }
+
+    Write-Ok "Windows service '$svcName' registered and started."
+    return $true
+  } catch {
+    Write-Err "Service setup failed: $($_.Exception.Message)"
+    Write-Warn "Check logs at $LogPath and $errLogPath"
+    return $false
   }
-  Write-Ok "Windows service '$svcName' registered and started."
-  return $true
 }
 
 # ── CLI installation ───────────────────────────────────────────────────────────
