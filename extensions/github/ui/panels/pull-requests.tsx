@@ -15,7 +15,6 @@ import {
   Loader2,
   Search,
   GitPullRequest,
-  Timer,
 } from "lucide-react";
 import type { ExtensionPanelProps } from "@/types/extension";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
@@ -84,23 +83,24 @@ export function PullRequestsPanel({ contextPanelId }: ExtensionPanelProps) {
 
   const refresh = useCallback(() => setFetchTick((n) => n + 1), []);
 
-  // Polling — 30-second auto-refresh, pauses when tab is hidden
+  // Polling — 30-second auto-refresh, pauses when tab is hidden.
+  // Controlled globally via the GitHub extension settings panel.
   const POLL_INTERVAL_MS = 30_000;
   const [pollingEnabled, setPollingEnabled] = useState(false);
 
-  // Load persisted polling setting
+  // Load global polling setting
   useEffect(() => {
-    uiStateStore.getExtensionFilters("github:pull-requests:settings").then((saved) => {
+    uiStateStore.getExtensionFilters("github:settings").then((saved) => {
       if (saved?.pollingEnabled === "true") setPollingEnabled(true);
     });
-  }, []);
 
-  // Persist polling setting whenever it changes
-  useEffect(() => {
-    uiStateStore.saveExtensionFilters("github:pull-requests:settings", {
-      pollingEnabled: pollingEnabled ? "true" : "false",
-    });
-  }, [pollingEnabled]);
+    const onSettingsChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ pollingEnabled: boolean }>).detail;
+      setPollingEnabled(detail.pollingEnabled);
+    };
+    window.addEventListener("github:settings:changed", onSettingsChanged);
+    return () => window.removeEventListener("github:settings:changed", onSettingsChanged);
+  }, []);
 
   // Set up polling interval
   useEffect(() => {
@@ -388,13 +388,6 @@ export function PullRequestsPanel({ contextPanelId }: ExtensionPanelProps) {
             ) : (
               <RefreshCw className="w-3.5 h-3.5" />
             )}
-          </button>
-          <button
-            onClick={() => setPollingEnabled((v) => !v)}
-            title={pollingEnabled ? "Disable auto-refresh (30s)" : "Enable auto-refresh (30s)"}
-            className={`flex items-center justify-center w-7 h-7 border border-border rounded hover:bg-accent text-muted-foreground ${pollingEnabled ? "bg-accent text-foreground" : ""}`}
-          >
-            <Timer className="w-3.5 h-3.5" />
           </button>
         </div>
 
