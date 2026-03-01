@@ -32,6 +32,7 @@ import { usePanels } from "@/contexts/PanelContext";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { ExtensionActionBar } from "@/components/panels/ExtensionActionBar";
 import { useExtensionActionBar } from "@/hooks/useExtensionActionBar";
+import { uiStateStore } from "@/lib/ui-state-db";
 import { getApiInstance } from "../../api-instance";
 import type {
   GitHubPR,
@@ -43,6 +44,13 @@ import type {
 } from "../../api";
 
 const ACTIVITY_PAGE_SIZE = 10;
+const DEFAULT_POLL_INTERVAL_MS = 30_000;
+
+function parsePollingIntervalMs(value?: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1_000) return DEFAULT_POLL_INTERVAL_MS;
+  return parsed;
+}
 
 const MERGE_METHOD_LABELS: Record<"merge" | "squash" | "rebase", string> = {
   merge: "Merge",
@@ -180,6 +188,7 @@ export function GitHubPrDetailsPanel({
   const postActionRefreshTimersRef = useRef<number[]>([]);
 
   const pendingSilentRefreshRef = useRef(false);
+  const isFetchingRef = useRef(false);
 
   // Trigger counter — incrementing causes a re-fetch
   const [fetchTick, setFetchTick] = useState(0);
@@ -208,6 +217,9 @@ export function GitHubPrDetailsPanel({
     mergeMethod?: "merge" | "squash" | "rebase";
   } | null>(null);
   const [commentText, setCommentText] = useState("");
+
+  const [pollingEnabled, setPollingEnabled] = useState(false);
+  const [pollingIntervalMs, setPollingIntervalMs] = useState(DEFAULT_POLL_INTERVAL_MS);
 
   // ── Action bar (built before early returns to satisfy Rules of Hooks) ───
   // Merge is disabled for draft PRs (UI + server-side guard in handleMerge).
@@ -360,6 +372,38 @@ export function GitHubPrDetailsPanel({
   });
 
   useEffect(() => {
+    uiStateStore.getExtensionFilters("github:settings").then((saved) => {
+      if (saved?.pollingEnabled === "true") setPollingEnabled(true);
+      if (saved?.pollingIntervalMs) {
+        setPollingIntervalMs(parsePollingIntervalMs(saved.pollingIntervalMs));
+      }
+    });
+
+    const onSettingsChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ pollingEnabled?: boolean; pollingIntervalMs?: number }>)
+        .detail;
+      if (typeof detail?.pollingEnabled === "boolean") {
+        setPollingEnabled(detail.pollingEnabled);
+      }
+      if (typeof detail?.pollingIntervalMs === "number") {
+        setPollingIntervalMs(parsePollingIntervalMs(String(detail.pollingIntervalMs)));
+      }
+    };
+    window.addEventListener("github:settings:changed", onSettingsChanged);
+    return () => window.removeEventListener("github:settings:changed", onSettingsChanged);
+  }, []);
+
+  useEffect(() => {
+    if (!pollingEnabled) return;
+    const id = setInterval(() => {
+      if (!document.hidden && !isFetchingRef.current) {
+        triggerRefresh(true);
+      }
+    }, pollingIntervalMs);
+    return () => clearInterval(id);
+  }, [pollingEnabled, pollingIntervalMs, triggerRefresh]);
+
+  useEffect(() => {
     if (isExtensionContextLoading) return;
     if (isGitHubEnabled) return;
     if (githubInitAttempted || githubInitLoading) return;
@@ -428,6 +472,7 @@ export function GitHubPrDetailsPanel({
     let cancelled = false;
     const isSilentRefresh = pendingSilentRefreshRef.current;
     pendingSilentRefreshRef.current = false;
+    isFetchingRef.current = true;
 
     if (!isSilentRefresh) {
       setLoading(true);
@@ -438,7 +483,7 @@ export function GitHubPrDetailsPanel({
       setDisplayedActivityCount(ACTIVITY_PAGE_SIZE);
     }
 
-    api
+    const detailsPromise = api
       .getPRDetails(owner, repo, number)
       .then((result) => {
         if (!cancelled) setPr(result);
@@ -452,7 +497,7 @@ export function GitHubPrDetailsPanel({
         if (!cancelled && !isSilentRefresh) setLoading(false);
       });
 
-    api
+    const commentsPromise = api
       .getIssueComments(owner, repo, number)
       .then((result) => {
         if (!cancelled) setIssueComments(result);
@@ -466,7 +511,7 @@ export function GitHubPrDetailsPanel({
         if (!cancelled && !isSilentRefresh) setIssueCommentsLoading(false);
       });
 
-    api
+    const timelinePromise = api
       .getIssueTimeline(owner, repo, number)
       .then((result) => {
         if (!cancelled) setTimeline(result);
@@ -478,7 +523,7 @@ export function GitHubPrDetailsPanel({
         if (!cancelled) setTimelineLoading(false);
       });
 
-    api
+    const reviewsPromise = api
       .getPRReviews(owner, repo, number)
       .then((result) => {
         if (!cancelled) setPrReviews(result);
@@ -488,7 +533,7 @@ export function GitHubPrDetailsPanel({
         if (!cancelled) setPrReviews([]);
       });
 
-    api
+    const commitsPromise = api
       .getPRCommits(owner, repo, number)
       .then((result) => {
         if (!cancelled) setPrCommits(result);
@@ -497,6 +542,16 @@ export function GitHubPrDetailsPanel({
         console.error("[PRDetails] Failed to fetch PR commits:", e);
         if (!cancelled) setPrCommits([]);
       });
+
+    Promise.allSettled([
+      detailsPromise,
+      commentsPromise,
+      timelinePromise,
+      reviewsPromise,
+      commitsPromise,
+    ]).finally(() => {
+      isFetchingRef.current = false;
+    });
 
     return () => {
       cancelled = true;

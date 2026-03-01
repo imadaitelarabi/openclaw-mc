@@ -13,6 +13,7 @@ import { uiStateStore } from "@/lib/ui-state-db";
 
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const POLL_INTERVAL_OPTIONS = [
+  { value: 5_000, label: "5 seconds" },
   { value: 15_000, label: "15 seconds" },
   { value: 30_000, label: "30 seconds" },
   { value: 60_000, label: "1 minute" },
