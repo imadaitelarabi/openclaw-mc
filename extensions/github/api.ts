@@ -178,14 +178,7 @@ export interface GitHubCheckRun {
 export interface GitHubWorkflowRun {
   id: number;
   name: string | null;
-  status:
-    | "queued"
-    | "in_progress"
-    | "completed"
-    | "waiting"
-    | "requested"
-    | "pending"
-    | null;
+  status: "queued" | "in_progress" | "completed" | "waiting" | "requested" | "pending" | null;
   conclusion: string | null;
   html_url: string;
   created_at: string;

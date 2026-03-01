@@ -316,8 +316,9 @@ export function OnboardingPanel({
               Create a token
             </a>{" "}
             with <code className="px-1 py-0.5 bg-muted rounded">repo</code> and{" "}
-            <code className="px-1 py-0.5 bg-muted rounded">read:org</code> scopes.
-            For approving workflow runs, include <code className="px-1 py-0.5 bg-muted rounded">actions:write</code>.
+            <code className="px-1 py-0.5 bg-muted rounded">read:org</code> scopes. For approving
+            workflow runs, include{" "}
+            <code className="px-1 py-0.5 bg-muted rounded">actions:write</code>.
           </p>
         </div>
 

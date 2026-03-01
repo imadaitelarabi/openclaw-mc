@@ -552,12 +552,20 @@ export function GitHubPrDetailsPanel({
         return Promise.allSettled([
           api
             .getCheckRuns(owner, repo, headSha)
-            .then((runs) => { if (!cancelled) setCheckRuns(runs); })
-            .catch(() => { if (!cancelled) setCheckRuns([]); }),
+            .then((runs) => {
+              if (!cancelled) setCheckRuns(runs);
+            })
+            .catch(() => {
+              if (!cancelled) setCheckRuns([]);
+            }),
           api
             .listWorkflowRuns(owner, repo, { headSha, perPage: 30 })
-            .then((runs) => { if (!cancelled) setWorkflowRuns(runs); })
-            .catch(() => { if (!cancelled) setWorkflowRuns([]); }),
+            .then((runs) => {
+              if (!cancelled) setWorkflowRuns(runs);
+            })
+            .catch(() => {
+              if (!cancelled) setWorkflowRuns([]);
+            }),
         ]);
       })
       .catch(() => {});
@@ -874,7 +882,11 @@ export function GitHubPrDetailsPanel({
       refreshSilently();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to approve workflow run";
-      const isPermissionError = msg.includes("403") || msg.includes("401") || msg.includes("Must have admin rights") || msg.includes("Resource not accessible");
+      const isPermissionError =
+        msg.includes("403") ||
+        msg.includes("401") ||
+        msg.includes("Must have admin rights") ||
+        msg.includes("Resource not accessible");
       setApproveError(
         isPermissionError
           ? "Cannot approve: your token is missing Actions write permission or you don't have admin access to this repository."
@@ -1186,8 +1198,8 @@ export function GitHubPrDetailsPanel({
 
         {/* Checks (CI/CD status) */}
         {(() => {
-          const awaitingApprovalRuns = workflowRuns.filter((r) =>
-            r.status === "waiting" || r.status === "requested" || r.status === "pending"
+          const awaitingApprovalRuns = workflowRuns.filter(
+            (r) => r.status === "waiting" || r.status === "requested" || r.status === "pending"
           );
           const actionRequiredRuns = workflowRuns.filter(
             (r) => r.status === "completed" && r.conclusion === "action_required"
@@ -1227,11 +1239,15 @@ export function GitHubPrDetailsPanel({
                     {pending} pending
                   </span>
                 )}
-                {approvalRuns.length === 0 && failed === 0 && pending === 0 && checkRuns.length > 0 && passed === checkRuns.length && (
-                  <span className="ml-auto text-[10px] text-green-500 font-medium">
-                    All passed
-                  </span>
-                )}
+                {approvalRuns.length === 0 &&
+                  failed === 0 &&
+                  pending === 0 &&
+                  checkRuns.length > 0 &&
+                  passed === checkRuns.length && (
+                    <span className="ml-auto text-[10px] text-green-500 font-medium">
+                      All passed
+                    </span>
+                  )}
               </button>
               {checksExpanded && (
                 <div className="border-t border-border divide-y divide-border">
