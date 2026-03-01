@@ -224,6 +224,7 @@ export function GitHubPrDetailsPanel({
                 {
                   id: "request-review",
                   label: "Request Review",
+                  icon: "request-review",
                   variant: "default" as const,
                   disabled: actionLoading !== null,
                   onClick: () => {
@@ -236,6 +237,7 @@ export function GitHubPrDetailsPanel({
                       {
                         id: "ready-for-review",
                         label: "Mark ready for review",
+                        icon: "ready-for-review",
                         variant: "success" as const,
                         disabled: actionLoading !== null,
                         loading: actionLoading === "ready-for-review",
@@ -246,6 +248,7 @@ export function GitHubPrDetailsPanel({
                 {
                   id: "merge",
                   label: "Merge",
+                  icon: "merge",
                   variant: "success" as const,
                   disabled: isMergeDisabled,
                   disabledReason: mergeDisabledReason,
@@ -271,6 +274,7 @@ export function GitHubPrDetailsPanel({
                 {
                   id: "close",
                   label: "Close PR",
+                  icon: "close",
                   variant: "danger" as const,
                   disabled: actionLoading !== null,
                   loading: actionLoading === "close",
@@ -281,6 +285,7 @@ export function GitHubPrDetailsPanel({
           {
             id: "review-comments",
             label: "Changes",
+            icon: "review-comments",
             variant: "ghost" as const,
             onClick: () =>
               contextPanelId
@@ -306,8 +311,47 @@ export function GitHubPrDetailsPanel({
           {
             id: "open-github",
             label: "Open in GitHub",
+            icon: "open-github",
             variant: "ghost" as const,
             onClick: () => window.open(pr.html_url, "_blank", "noopener,noreferrer"),
+          },
+          {
+            id: "open-vscode",
+            label: "Open in VSCode",
+            icon: "open-vscode",
+            variant: "ghost" as const,
+            disabled: !pr.head?.ref || !pr.head?.repo?.full_name || actionLoading !== null,
+            disabledReason:
+              !pr.head?.ref || !pr.head?.repo?.full_name
+                ? "Branch information is not available for this PR"
+                : undefined,
+            loading: actionLoading === "open-vscode",
+            onClick: () => {
+              const cloneUrl = pr.head?.repo?.clone_url;
+              const fullName = pr.head?.repo?.full_name;
+              const branch = pr.head?.ref;
+              if (!cloneUrl || !fullName || !branch) return;
+              handleOpenInVSCode(cloneUrl, fullName, branch);
+            },
+            dropdownItems:
+              pr.head?.ref && pr.head?.repo?.full_name
+                ? [
+                    {
+                      id: "open-vscode-web",
+                      label: "Open in VSCode (Web)",
+                      onClick: () => {
+                        const fullName = pr.head?.repo?.full_name;
+                        const branch = pr.head?.ref;
+                        if (!fullName || !branch) return;
+                        window.open(
+                          `https://vscode.dev/github/${fullName}/tree/${encodeURIComponent(branch)}`,
+                          "_blank",
+                          "noopener,noreferrer"
+                        );
+                      },
+                    },
+                  ]
+                : undefined,
           },
         ]
       : [],
@@ -580,6 +624,44 @@ export function GitHubPrDetailsPanel({
       setPr(updated);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Failed to mark PR as ready for review");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleOpenInVSCode = async (cloneUrl: string, fullName: string, branch: string) => {
+    setActionLoading("open-vscode");
+    setActionError(null);
+    try {
+      const apiBase = window.location.pathname.startsWith("/mission-controle")
+        ? "/mission-controle/api/vscode/open"
+        : "/api/vscode/open";
+      const response = await fetch(apiBase, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cloneUrl, fullName, branch }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || `Server error ${response.status}`);
+      }
+      if (result.mode === "web") {
+        window.open(result.webUrl, "_blank", "noopener,noreferrer");
+        if (result.message) {
+          setActionError(result.message);
+        }
+      }
+      // For desktop mode, VS Code opens locally – no further client action needed.
+    } catch (err) {
+      // Server unreachable or returned an error – open vscode.dev directly.
+      window.open(
+        `https://vscode.dev/github/${fullName}/tree/${encodeURIComponent(branch)}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+      setActionError(
+        `Could not open VS Code locally (${err instanceof Error ? err.message : "unknown error"}) – opened vscode.dev instead.`
+      );
     } finally {
       setActionLoading(null);
     }

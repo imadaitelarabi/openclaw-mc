@@ -210,6 +210,7 @@ export function GitHubIssueDetailsPanel({
                 {
                   id: "close",
                   label: "Close Issue",
+                  icon: "close",
                   variant: "danger" as const,
                   disabled: actionLoading !== null,
                   loading: actionLoading === "close",
@@ -218,6 +219,7 @@ export function GitHubIssueDetailsPanel({
                 {
                   id: "assign",
                   label: "Assign",
+                  icon: "assign",
                   variant: "default" as const,
                   disabled: actionLoading !== null,
                   onClick: () => {
@@ -230,6 +232,7 @@ export function GitHubIssueDetailsPanel({
                 {
                   id: "reopen",
                   label: "Reopen Issue",
+                  icon: "reopen",
                   variant: "default" as const,
                   disabled: actionLoading !== null,
                   loading: actionLoading === "reopen",
@@ -239,6 +242,7 @@ export function GitHubIssueDetailsPanel({
           {
             id: "open-github",
             label: "Open in GitHub",
+            icon: "open-github",
             variant: "ghost" as const,
             onClick: () => window.open(issue.html_url, "_blank", "noopener,noreferrer"),
           },

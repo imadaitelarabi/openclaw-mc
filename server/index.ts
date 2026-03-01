@@ -14,6 +14,7 @@ import { GatewayClient } from "./core/GatewayClient";
 import { WebSocketServer } from "./core/WebSocketServer";
 import { NotesManager } from "./core/NotesManager";
 import { configManager } from "./handlers";
+import * as VsCodeService from "./core/VsCodeService";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
@@ -86,6 +87,48 @@ app.prepare().then(() => {
       });
 
       fs.createReadStream(imagePath).pipe(res);
+      return;
+    }
+
+    // VSCode open endpoint – used by extension panels to open a PR branch
+    // locally (desktop) or fall back to vscode.dev (remote/CI environments).
+    if (
+      req.method === "POST" &&
+      (parsedUrl.pathname === "/api/vscode/open" ||
+        parsedUrl.pathname === "/mission-controle/api/vscode/open")
+    ) {
+      const MAX_BODY = 64 * 1024; // 64 KB – more than enough for the three string fields
+      let body = "";
+      let bodySize = 0;
+      let aborted = false;
+      req.on("data", (chunk: Buffer) => {
+        bodySize += chunk.length;
+        if (bodySize > MAX_BODY) {
+          aborted = true;
+          res.writeHead(413, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Request body too large" }));
+          req.destroy();
+          return;
+        }
+        body += chunk.toString();
+      });
+      req.on("end", async () => {
+        if (aborted) return;
+        try {
+          const { cloneUrl, fullName, branch } = JSON.parse(body);
+          if (!cloneUrl || !fullName || !branch) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "cloneUrl, fullName, and branch are required" }));
+            return;
+          }
+          const result = await VsCodeService.open(cloneUrl, fullName, branch);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: (err as Error).message || "Internal server error" }));
+        }
+      });
       return;
     }
 
