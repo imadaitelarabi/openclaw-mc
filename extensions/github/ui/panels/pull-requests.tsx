@@ -24,6 +24,14 @@ import type { GitHubPR, GitHubRepoRef, PRFilters } from "../../api";
 import { FilterDropdown } from "@/components/panels/FilterDropdown";
 import { uiStateStore } from "@/lib/ui-state-db";
 
+const DEFAULT_POLL_INTERVAL_MS = 30_000;
+
+function parsePollingIntervalMs(value?: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1_000) return DEFAULT_POLL_INTERVAL_MS;
+  return parsed;
+}
+
 function formatRelativeTime(dateStr: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diffMs / 60_000);
@@ -80,23 +88,33 @@ export function PullRequestsPanel({ contextPanelId }: ExtensionPanelProps) {
 
   // Trigger counter — incrementing causes a re-fetch
   const [fetchTick, setFetchTick] = useState(0);
+  const isFetchingRef = useRef(false);
 
   const refresh = useCallback(() => setFetchTick((n) => n + 1), []);
 
   // Polling — 30-second auto-refresh, pauses when tab is hidden.
   // Controlled globally via the GitHub extension settings panel.
-  const POLL_INTERVAL_MS = 30_000;
   const [pollingEnabled, setPollingEnabled] = useState(false);
+  const [pollingIntervalMs, setPollingIntervalMs] = useState(DEFAULT_POLL_INTERVAL_MS);
 
   // Load global polling setting
   useEffect(() => {
     uiStateStore.getExtensionFilters("github:settings").then((saved) => {
       if (saved?.pollingEnabled === "true") setPollingEnabled(true);
+      if (saved?.pollingIntervalMs) {
+        setPollingIntervalMs(parsePollingIntervalMs(saved.pollingIntervalMs));
+      }
     });
 
     const onSettingsChanged = (e: Event) => {
-      const detail = (e as CustomEvent<{ pollingEnabled: boolean }>).detail;
-      setPollingEnabled(detail.pollingEnabled);
+      const detail = (e as CustomEvent<{ pollingEnabled?: boolean; pollingIntervalMs?: number }>)
+        .detail;
+      if (typeof detail?.pollingEnabled === "boolean") {
+        setPollingEnabled(detail.pollingEnabled);
+      }
+      if (typeof detail?.pollingIntervalMs === "number") {
+        setPollingIntervalMs(parsePollingIntervalMs(String(detail.pollingIntervalMs)));
+      }
     };
     window.addEventListener("github:settings:changed", onSettingsChanged);
     return () => window.removeEventListener("github:settings:changed", onSettingsChanged);
@@ -106,10 +124,10 @@ export function PullRequestsPanel({ contextPanelId }: ExtensionPanelProps) {
   useEffect(() => {
     if (!pollingEnabled) return;
     const id = setInterval(() => {
-      if (!document.hidden) setFetchTick((n) => n + 1);
-    }, POLL_INTERVAL_MS);
+      if (!document.hidden && !isFetchingRef.current) setFetchTick((n) => n + 1);
+    }, pollingIntervalMs);
     return () => clearInterval(id);
-  }, [pollingEnabled]);
+  }, [pollingEnabled, pollingIntervalMs]);
 
   // Holds the repo that was just restored from IndexedDB so the repo-change
   // reset effect can skip clearing the other restored filters.
@@ -174,6 +192,7 @@ export function PullRequestsPanel({ contextPanelId }: ExtensionPanelProps) {
 
     let cancelled = false;
     setLoading(true);
+    isFetchingRef.current = true;
     setError(null);
 
     const filters: PRFilters = {
@@ -193,6 +212,7 @@ export function PullRequestsPanel({ contextPanelId }: ExtensionPanelProps) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load pull requests");
       })
       .finally(() => {
+        isFetchingRef.current = false;
         if (!cancelled) setLoading(false);
       });
 
