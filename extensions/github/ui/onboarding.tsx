@@ -34,6 +34,7 @@ export function OnboardingPanel({
   connectionStatus,
 }: OnboardingProps) {
   const [token, setToken] = useState("");
+  const [isEditingToken, setIsEditingToken] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validatedUser, setValidatedUser] = useState<string | null>(null);
@@ -172,7 +173,7 @@ export function OnboardingPanel({
   };
 
   // If already connected, show connected state
-  if (isConnected && connectedUsername) {
+  if (isConnected && connectedUsername && !isEditingToken) {
     return (
       <div className="p-6 max-w-md mx-auto">
         <h2 className="text-xl font-semibold mb-2">GitHub Integration</h2>
@@ -253,6 +254,17 @@ export function OnboardingPanel({
           {/* Actions */}
           <div className="flex gap-2 justify-end pt-2">
             <button
+              onClick={() => {
+                setIsEditingToken(true);
+                setToken("");
+                setValidatedUser(null);
+                setError(null);
+              }}
+              className="px-4 py-2 text-sm border border-border rounded hover:bg-accent"
+            >
+              Update token
+            </button>
+            <button
               onClick={onCancel}
               className="px-4 py-2 text-sm border border-border rounded hover:bg-accent"
             >
@@ -266,10 +278,13 @@ export function OnboardingPanel({
 
   return (
     <div className="p-6 max-w-md mx-auto">
-      <h2 className="text-xl font-semibold mb-2">Setup GitHub Integration</h2>
+      <h2 className="text-xl font-semibold mb-2">
+        {isConnected ? "Update GitHub Token" : "Setup GitHub Integration"}
+      </h2>
       <p className="text-sm text-muted-foreground mb-6">
-        Connect to GitHub to browse organizations, repositories, pull requests, and issues directly
-        from OpenClaw MC.
+        {isConnected
+          ? "Replace your current token to refresh permissions (for example, workflow approvals requiring Actions write access)."
+          : "Connect to GitHub to browse organizations, repositories, pull requests, and issues directly from OpenClaw MC."}
       </p>
 
       <div className="space-y-4">
@@ -301,7 +316,8 @@ export function OnboardingPanel({
               Create a token
             </a>{" "}
             with <code className="px-1 py-0.5 bg-muted rounded">repo</code> and{" "}
-            <code className="px-1 py-0.5 bg-muted rounded">read:org</code> scopes
+            <code className="px-1 py-0.5 bg-muted rounded">read:org</code> scopes.
+            For approving workflow runs, include <code className="px-1 py-0.5 bg-muted rounded">actions:write</code>.
           </p>
         </div>
 
@@ -351,11 +367,20 @@ export function OnboardingPanel({
         {/* Actions */}
         <div className="flex gap-2 justify-end pt-2">
           <button
-            onClick={onCancel}
+            onClick={() => {
+              if (isConnected) {
+                setIsEditingToken(false);
+                setToken("");
+                setValidatedUser(null);
+                setError(null);
+                return;
+              }
+              onCancel();
+            }}
             disabled={isValidating}
             className="px-4 py-2 text-sm border border-border rounded hover:bg-accent disabled:opacity-50"
           >
-            Cancel
+            {isConnected ? "Back" : "Cancel"}
           </button>
           <button
             onClick={handleTestConnection}

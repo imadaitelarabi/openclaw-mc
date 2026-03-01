@@ -1170,9 +1170,13 @@ export function GitHubPrDetailsPanel({
 
         {/* Checks (CI/CD status) */}
         {(() => {
-          const approvalRuns = workflowRuns.filter((r) =>
+          const awaitingApprovalRuns = workflowRuns.filter((r) =>
             r.status === "waiting" || r.status === "requested" || r.status === "pending"
           );
+          const actionRequiredRuns = workflowRuns.filter(
+            (r) => r.status === "completed" && r.conclusion === "action_required"
+          );
+          const approvalRuns = [...awaitingApprovalRuns, ...actionRequiredRuns];
           const hasChecks = checkRuns.length > 0 || approvalRuns.length > 0;
           if (!hasChecks) return null;
           const failed = checkRuns.filter(
@@ -1255,7 +1259,7 @@ export function GitHubPrDetailsPanel({
                     <>
                       {checkRuns.length > 0 && (
                         <div className="px-3 py-1 text-[10px] font-medium text-amber-500 uppercase tracking-wide bg-amber-500/5">
-                          Awaiting Approval
+                          Needs Approval
                         </div>
                       )}
                       {approvalRuns.map((run) => (
