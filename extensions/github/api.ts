@@ -32,6 +32,12 @@ export interface GitHubPR {
       clone_url: string;
     };
   };
+  base?: {
+    ref: string;
+    repo?: {
+      full_name: string;
+    };
+  };
 }
 
 export interface GitHubIssue {
@@ -51,6 +57,18 @@ export interface GitHubIssue {
   body?: string | null;
 }
 
+export interface GitHubReactions {
+  total_count: number;
+  "+1": number;
+  "-1": number;
+  laugh: number;
+  hooray: number;
+  confused: number;
+  heart: number;
+  rocket: number;
+  eyes: number;
+}
+
 export interface GitHubComment {
   id: number;
   user: { login: string; avatar_url?: string; html_url?: string };
@@ -58,6 +76,7 @@ export interface GitHubComment {
   created_at: string;
   updated_at: string;
   html_url: string;
+  reactions?: GitHubReactions;
 }
 
 export interface GitHubAssignableUser {
@@ -75,6 +94,18 @@ export interface GitHubTimelineEvent {
   assignee?: { login: string; avatar_url?: string; html_url?: string };
   label?: { name: string; color: string };
   state?: string;
+  rename?: { from?: string; to?: string };
+  source?: {
+    type?: string;
+    issue?: {
+      number: number;
+      title: string;
+      html_url: string;
+      state: string;
+      pull_request?: { html_url: string; merged_at: string | null };
+      repository?: { full_name: string };
+    };
+  };
 }
 
 export interface GitHubReviewComment {
@@ -123,6 +154,36 @@ export interface GitHubPRFile {
   raw_url?: string;
   patch?: string;
   previous_filename?: string;
+}
+
+export interface GitHubCheckRun {
+  id: number;
+  name: string;
+  status: "queued" | "in_progress" | "completed";
+  conclusion:
+    | "success"
+    | "failure"
+    | "neutral"
+    | "cancelled"
+    | "skipped"
+    | "timed_out"
+    | "action_required"
+    | null;
+  html_url: string;
+  started_at: string | null;
+  completed_at: string | null;
+  app?: { name: string };
+}
+
+export interface GitHubWorkflowRun {
+  id: number;
+  name: string | null;
+  status: "queued" | "in_progress" | "completed" | "waiting" | "requested" | "pending" | null;
+  conclusion: string | null;
+  html_url: string;
+  created_at: string;
+  actor: { login: string; avatar_url?: string; html_url?: string } | null;
+  head_sha: string;
 }
 
 export interface GitHubOrganization {
@@ -537,6 +598,44 @@ export class GitHubAPI {
     );
   }
 
+  /**
+   * Get check runs for a specific commit ref (e.g., PR head SHA).
+   */
+  async getCheckRuns(owner: string, repo: string, ref: string): Promise<GitHubCheckRun[]> {
+    const result = await this.request<{ check_runs: GitHubCheckRun[] }>(
+      `/repos/${owner}/${repo}/commits/${ref}/check-runs?per_page=100`
+    );
+    return result.check_runs ?? [];
+  }
+
+  /**
+   * List Actions workflow runs for a repository, optionally filtered by head SHA.
+   */
+  async listWorkflowRuns(
+    owner: string,
+    repo: string,
+    params: { headSha?: string; perPage?: number }
+  ): Promise<GitHubWorkflowRun[]> {
+    const qs = new URLSearchParams();
+    if (params.headSha) qs.set("head_sha", params.headSha);
+    if (params.perPage) qs.set("per_page", String(params.perPage));
+    const qsStr = qs.toString();
+    const result = await this.request<{ workflow_runs: GitHubWorkflowRun[] }>(
+      `/repos/${owner}/${repo}/actions/runs${qsStr ? `?${qsStr}` : ""}`
+    );
+    return result.workflow_runs ?? [];
+  }
+
+  /**
+   * Approve a workflow run that is waiting for approval (e.g. fork PRs from first-time contributors).
+   * Requires Actions write permission; throws on 403/401.
+   */
+  async approveWorkflowRun(owner: string, repo: string, runId: number): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/actions/runs/${runId}/approve`, {
+      method: "POST",
+    });
+  }
+
   // ── Write actions ────────────────────────────────────────────────────────
 
   /**
@@ -595,7 +694,21 @@ export class GitHubAPI {
     await this.request(`/repos/${owner}/${repo}/pulls/comments/${commentId}/reactions`, {
       method: "POST",
       body: { content },
-      accept: "application/vnd.github.squirrel-girl-preview+json",
+    });
+  }
+
+  /**
+   * Add a reaction to an issue comment (also used for PR conversation comments).
+   */
+  async addIssueCommentReaction(
+    owner: string,
+    repo: string,
+    commentId: number,
+    content: "+1" | "-1" | "laugh" | "confused" | "heart" | "hooray" | "rocket" | "eyes"
+  ): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`, {
+      method: "POST",
+      body: { content },
     });
   }
 

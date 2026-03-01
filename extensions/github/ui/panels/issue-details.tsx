@@ -21,6 +21,7 @@ import {
   ArrowLeft,
   X,
   RefreshCw,
+  Link,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -40,11 +41,24 @@ import type {
   GitHubAssignableUser,
   GitHubTimelineEvent,
   GitHubCopilotAgentAssignmentOptions,
+  GitHubReactions,
 } from "../../api";
 import type { AssignCopilotModalPayload, AssignCopilotModalResult } from "../modals/assign-copilot";
 
 const ACTIVITY_PAGE_SIZE = 10;
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
+
+type ReactionKey = keyof Omit<GitHubReactions, "total_count">;
+const REACTION_ENTRIES: Array<[ReactionKey, string]> = [
+  ["+1", "👍"],
+  ["-1", "👎"],
+  ["laugh", "😄"],
+  ["hooray", "🎉"],
+  ["confused", "😕"],
+  ["heart", "❤️"],
+  ["rocket", "🚀"],
+  ["eyes", "👀"],
+];
 
 function parsePollingIntervalMs(value?: string): number {
   const parsed = Number(value);
@@ -145,7 +159,7 @@ export function GitHubIssueDetailsPanel({
   contextPanelId,
   back,
 }: GitHubIssueDetailsPanelProps) {
-  const { replacePanel } = usePanels();
+  const { replacePanel, openPanel } = usePanels();
   const extensionModals = useOptionalExtensionModals();
   const extensionContext = useOptionalExtensions();
   const isExtensionContextLoading = extensionContext?.isLoading ?? false;
@@ -887,6 +901,72 @@ export function GitHubIssueDetailsPanel({
           </div>
         )}
 
+        {/* Cross-referenced PRs */}
+        {(() => {
+          const crossRefs = timeline.filter(
+            (e) => e.event === "cross-referenced" && e.source?.issue?.pull_request
+          );
+          if (crossRefs.length === 0) return null;
+          return (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                <Link className="w-3.5 h-3.5" />
+                Referenced PRs ({crossRefs.length})
+              </div>
+              <div className="space-y-1">
+                {crossRefs.map((e, idx) => {
+                  const src = e.source!.issue!;
+                  const fullName = src.repository?.full_name ?? "";
+                  const [refOwner, refRepo] = fullName.split("/");
+                  const canOpenInPanel = Boolean(refOwner && refRepo);
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border rounded px-2 py-1 bg-muted/10"
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${src.state === "open" ? "bg-green-500" : "bg-purple-500"}`}
+                      />
+                      {canOpenInPanel ? (
+                        <button
+                          onClick={() => {
+                            const panelData = {
+                              owner: refOwner,
+                              repo: refRepo,
+                              number: src.number,
+                              htmlUrl: src.html_url,
+                              back: {
+                                type: "github-issue-details" as const,
+                                data: { owner, repo, number, htmlUrl, back },
+                              },
+                            };
+                            contextPanelId
+                              ? replacePanel(contextPanelId, "github-pr-details", panelData)
+                              : openPanel("github-pr-details", panelData);
+                          }}
+                          className="text-foreground hover:underline truncate text-left"
+                        >
+                          {src.title}
+                        </button>
+                      ) : (
+                        <a
+                          href={src.html_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-foreground hover:underline truncate"
+                        >
+                          {src.title}
+                        </a>
+                      )}
+                      <span className="font-mono flex-shrink-0">#{src.number}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Conversation (comments + timeline) */}
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
@@ -962,6 +1042,20 @@ export function GitHubIssueDetailsPanel({
                     <div className="markdown-content break-words select-text max-w-none text-xs">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.body}</ReactMarkdown>
                     </div>
+                    {comment.reactions && comment.reactions.total_count > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {REACTION_ENTRIES.filter(([key]) => comment.reactions![key] > 0).map(
+                          ([key, emoji]) => (
+                            <span
+                              key={key}
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-muted border border-border rounded-full"
+                            >
+                              {emoji} {comment.reactions![key]}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               }
