@@ -1,5 +1,142 @@
 # Changelog
 
+## [0.7.2] - 2026-03-02
+
+### Meta
+
+- Bump: patch (score: 6)
+
+- Range: [a2ccbdd7d5cbbff64c1d8c8ac41bc77e5fc7306d](https://github.com/imadaitelarabi/openclaw-mc/commit/a2ccbdd7d5cbbff64c1d8c8ac41bc77e5fc7306d)..[bf783a700eb3b9b662a51f1b7c8a5e9de1f8eaf1](https://github.com/imadaitelarabi/openclaw-mc/commit/bf783a700eb3b9b662a51f1b7c8a5e9de1f8eaf1)
+
+### Added
+
+- feat: implement customizable polling settings for GitHub panels ([cbd9a28232a655ec9a46463aec59f37df9d9bd49](https://github.com/imadaitelarabi/openclaw-mc/commit/cbd9a28232a655ec9a46463aec59f37df9d9bd49))
+
+- feat: enhance polling settings for GitHub panels with customizable intervals ([3858b83a951a824691cb948d1b499dce89901ec5](https://github.com/imadaitelarabi/openclaw-mc/commit/3858b83a951a824691cb948d1b499dce89901ec5))
+
+- feat: add icon support for action buttons in ExtensionActionBar and update related components ([7440ff5fc874a615f772c969ebeb00f69e1fab22](https://github.com/imadaitelarabi/openclaw-mc/commit/7440ff5fc874a615f772c969ebeb00f69e1fab22))
+
+- feat: server-side VSCode open service with remote detection, local clone management and HTTP endpoint ([f347848adbfbe09b048e272f9f1f52763ff98bae](https://github.com/imadaitelarabi/openclaw-mc/commit/f347848adbfbe09b048e272f9f1f52763ff98bae))
+
+- feat: add Open in VSCode action to GitHub PR details panel ([26d84b5876ad192394a04fd3cac7461fbb9c9403](https://github.com/imadaitelarabi/openclaw-mc/commit/26d84b5876ad192394a04fd3cac7461fbb9c9403))
+
+- feat: per-extension status-bar refresh contract + visibility-aware polling (#172) ([1780f02a793ba5ebf82830491aabab1c8e3142e3](https://github.com/imadaitelarabi/openclaw-mc/commit/1780f02a793ba5ebf82830491aabab1c8e3142e3))
+
+- feat: add read_user_input function for improved user prompts in install script ([31f3cdf304d7af00092404bacf2b802f0bf0f5f2](https://github.com/imadaitelarabi/openclaw-mc/commit/31f3cdf304d7af00092404bacf2b802f0bf0f5f2))
+
+- feat: add interactive one-liner installer, oclawmc CLI (bash + PowerShell), and update README ([7e49d1bc3857ed7a8265613570eaf6c98b960325](https://github.com/imadaitelarabi/openclaw-mc/commit/7e49d1bc3857ed7a8265613570eaf6c98b960325))
+
+- feat: implement Copilot assignment, notes tag filters, and panel refresh buttons ([69175ec73d4830be50a2f41ad856d750555de1e0](https://github.com/imadaitelarabi/openclaw-mc/commit/69175ec73d4830be50a2f41ad856d750555de1e0))
+
+### Fixed
+
+- fix: standardize log messages by replacing ellipses with correct punctuation ([022834df7809380aff7317335919dddeda0b0071](https://github.com/imadaitelarabi/openclaw-mc/commit/022834df7809380aff7317335919dddeda0b0071))
+
+- fix: improve error handling and logging for process output in Cmd-Daemon and Cmd-Logs functions ([6e1e47c08d2a04715a72f7a0373ce0067af52916](https://github.com/imadaitelarabi/openclaw-mc/commit/6e1e47c08d2a04715a72f7a0373ce0067af52916))
+
+- fix: update CLI installation script to avoid execution-policy errors by renaming script and removing legacy target ([41431932a00f5a1da23b41a9d725b5678f628853](https://github.com/imadaitelarabi/openclaw-mc/commit/41431932a00f5a1da23b41a9d725b5678f628853))
+
+- fix: ensure immediate resolution of oclawmc CLI in current session after installation ([2c510cb46abe098fc2111699c554a03dab534df7](https://github.com/imadaitelarabi/openclaw-mc/commit/2c510cb46abe098fc2111699c554a03dab534df7))
+
+- fix: add administrator check for Windows service setup in Setup-WindowsService function ([073e3003571681c8a640c39692398facf4e9bda4](https://github.com/imadaitelarabi/openclaw-mc/commit/073e3003571681c8a640c39692398facf4e9bda4))
+
+- fix: enhance error logging for npm commands in Setup-OpenClaw and Build-App functions ([2b28d234cd5f478ad0cd85ee34ab5f14866e2303](https://github.com/imadaitelarabi/openclaw-mc/commit/2b28d234cd5f478ad0cd85ee34ab5f14866e2303))
+
+- fix: improve error handling in Build-App function for npm commands ([7938beae67a3964e2dd88f3e89ecd9b73e4c51ea](https://github.com/imadaitelarabi/openclaw-mc/commit/7938beae67a3964e2dd88f3e89ecd9b73e4c51ea))
+
+- fix: improve environment variable handling for repository URL and branch in install script ([b1619591130d38c4086a6c3b449d3b73bec111e3](https://github.com/imadaitelarabi/openclaw-mc/commit/b1619591130d38c4086a6c3b449d3b73bec111e3))
+
+- fix: normalize user input in prompt_yn function for consistent yes/no handling ([9604c10e46c684263a8e4502e0aa35de0bfa1605](https://github.com/imadaitelarabi/openclaw-mc/commit/9604c10e46c684263a8e4502e0aa35de0bfa1605))
+
+- fix: improve formatting and alignment of command table in README ([4ea9dd6254ee51ea2062f5c499b8c75da3b9e135](https://github.com/imadaitelarabi/openclaw-mc/commit/4ea9dd6254ee51ea2062f5c499b8c75da3b9e135))
+
+- fix: update text formatting in TagsSettingsPanel description for clarity ([846519028e743d2e48b3d88f11aa4645df0b556d](https://github.com/imadaitelarabi/openclaw-mc/commit/846519028e743d2e48b3d88f11aa4645df0b556d))
+
+- fix: enhance GraphQL query for fetching copilot actor ID and handle pagination ([4a9a5bcbf7ce7075327629f7cfaf267ca2a39c63](https://github.com/imadaitelarabi/openclaw-mc/commit/4a9a5bcbf7ce7075327629f7cfaf267ca2a39c63))
+
+### Refactored
+
+- refactor: streamline conditional rendering and formatting in ActionButton component ([504bc4777baed164cef76e75ba30c2106a5132bd](https://github.com/imadaitelarabi/openclaw-mc/commit/504bc4777baed164cef76e75ba30c2106a5132bd))
+
+### Chore
+
+- chore(release): daily changelog 2026-02-28 ([38612fd7b92d985a4323742cbd6bafd5f01cc8ef](https://github.com/imadaitelarabi/openclaw-mc/commit/38612fd7b92d985a4323742cbd6bafd5f01cc8ef))
+
+### Documentation
+
+- docs: update FEATURES.md with latest GitHub extension features ([0b71388c2728aefa06f46b59708cd31d5477cc81](https://github.com/imadaitelarabi/openclaw-mc/commit/0b71388c2728aefa06f46b59708cd31d5477cc81))
+
+- docs: update FEATURES.md with March 1st updates (#173) ([0552f66dc7decbb82d40f49a8ceab490768c1d48](https://github.com/imadaitelarabi/openclaw-mc/commit/0552f66dc7decbb82d40f49a8ceab490768c1d48))
+
+### Other
+
+- Add nssm installation check and update Windows service setup process ([bf783a700eb3b9b662a51f1b7c8a5e9de1f8eaf1](https://github.com/imadaitelarabi/openclaw-mc/commit/bf783a700eb3b9b662a51f1b7c8a5e9de1f8eaf1))
+
+- Improve process management and error handling in service start command ([7f72331885dc0ad8abbc7852636aa15077da8bf1](https://github.com/imadaitelarabi/openclaw-mc/commit/7f72331885dc0ad8abbc7852636aa15077da8bf1))
+
+- Merge pull request [#179](https://github.com/imadaitelarabi/openclaw-mc/pull/179) from imadaitelarabi/copilot/enhance-details-panels-metadata ([d9003ab8a27e25dc95cccd999e5c6173cf0a4935](https://github.com/imadaitelarabi/openclaw-mc/commit/d9003ab8a27e25dc95cccd999e5c6173cf0a4935))
+
+- Refactor GitHub API interfaces and improve code formatting in PR details and onboarding panels ([231394f7851240c747052f385f56b738e6391292](https://github.com/imadaitelarabi/openclaw-mc/commit/231394f7851240c747052f385f56b738e6391292))
+
+- Enhance PR timeline event labels: add support for renaming, ready for review, mentioned, and subscribed events ([f2d4585544715c66e4b8a7013ad2f92d20744c71](https://github.com/imadaitelarabi/openclaw-mc/commit/f2d4585544715c66e4b8a7013ad2f92d20744c71))
+
+- Enhance onboarding panel: add token update functionality and improve connection status messaging ([6b148c6370140e98546de87224033bc085041bdf](https://github.com/imadaitelarabi/openclaw-mc/commit/6b148c6370140e98546de87224033bc085041bdf))
+
+- Refactor checks into main polling cycle; add workflow run approval support ([f2af8da20f7f521f7afcbce3f89c32e13fd9b8af](https://github.com/imadaitelarabi/openclaw-mc/commit/f2af8da20f7f521f7afcbce3f89c32e13fd9b8af))
+
+- Open cross-reference links in internal MC panels instead of browser tabs ([41652426ca50ace597c6d1fb5d476280c780fff6](https://github.com/imadaitelarabi/openclaw-mc/commit/41652426ca50ace597c6d1fb5d476280c780fff6))
+
+- Fix review feedback: use typed REACTION_ENTRIES constant and standard GitHub API headers ([d2a3ecd52e1671a27545a69fc9a829e96f1ecd8e](https://github.com/imadaitelarabi/openclaw-mc/commit/d2a3ecd52e1671a27545a69fc9a829e96f1ecd8e))
+
+- Enhance GitHub details panels with branch display, checks, cross-refs, and reactions ([72d34ee6c5634007bd21496f6c9bfcaeccf290f4](https://github.com/imadaitelarabi/openclaw-mc/commit/72d34ee6c5634007bd21496f6c9bfcaeccf290f4))
+
+- Initial plan ([6dd4c7e0ec7f16971a52e623054c0d56c2d1461f](https://github.com/imadaitelarabi/openclaw-mc/commit/6dd4c7e0ec7f16971a52e623054c0d56c2d1461f))
+
+- Merge pull request [#177](https://github.com/imadaitelarabi/openclaw-mc/pull/177) from imadaitelarabi/copilot/enhance-github-panels-realtime-search ([15b7a041e9e90dcc796c426bd2b2b1fbc682083a](https://github.com/imadaitelarabi/openclaw-mc/commit/15b7a041e9e90dcc796c426bd2b2b1fbc682083a))
+
+- Move polling toggle to GitHub extension settings panel ([2be033f94c8a6e4c1331a286318c15a7b8b9c136](https://github.com/imadaitelarabi/openclaw-mc/commit/2be033f94c8a6e4c1331a286318c15a7b8b9c136))
+
+- Add smart polling and searchable repo dropdown to GitHub panels ([64ffac3ea8e330815bc13e42ef5046bb045f0585](https://github.com/imadaitelarabi/openclaw-mc/commit/64ffac3ea8e330815bc13e42ef5046bb045f0585))
+
+- Initial plan ([46684997eb06407df0375a2ebd512f3a6ec61812](https://github.com/imadaitelarabi/openclaw-mc/commit/46684997eb06407df0375a2ebd512f3a6ec61812))
+
+- Merge pull request [#175](https://github.com/imadaitelarabi/openclaw-mc/pull/175) from imadaitelarabi/copilot/add-open-in-vscode-action ([4c14eb4e70f11cbf71318f07ee13bba39d793631](https://github.com/imadaitelarabi/openclaw-mc/commit/4c14eb4e70f11cbf71318f07ee13bba39d793631))
+
+- fix: split-button pattern in ExtensionActionBar so primary onClick fires independently of dropdown ([896c14450f2afbe98f2d5b5fb839947e30517e8e](https://github.com/imadaitelarabi/openclaw-mc/commit/896c14450f2afbe98f2d5b5fb839947e30517e8e))
+
+- Initial plan ([44687f9ba92b90df8b48ffde00d0747137b866a6](https://github.com/imadaitelarabi/openclaw-mc/commit/44687f9ba92b90df8b48ffde00d0747137b866a6))
+
+- Fix PR timeline not refreshing after merge/close (#170) ([f5a9baf44a16ae492e6d6f34e83f4bfed0366a15](https://github.com/imadaitelarabi/openclaw-mc/commit/f5a9baf44a16ae492e6d6f34e83f4bfed0366a15))
+
+- Fix mention dropdown selection resetting to first item during async option reloads (#168) ([b299d1ecff845be76580875c09b3dedbc3471345](https://github.com/imadaitelarabi/openclaw-mc/commit/b299d1ecff845be76580875c09b3dedbc3471345))
+
+- Add dedicated PR review comments panel with GitHub-like threading and inline actions (#166) ([9449bb9c5e609aad1745218a521e76abcd26801e](https://github.com/imadaitelarabi/openclaw-mc/commit/9449bb9c5e609aad1745218a521e76abcd26801e))
+
+- Improve Issue Details & PR Details UX: searchable assignee/reviewer dropdowns, avatars, timeline, review summaries, commits, action bar polish, draft PR support (#164) ([39c7275458c67ccb4a097dd4acd87fa511131b5a](https://github.com/imadaitelarabi/openclaw-mc/commit/39c7275458c67ccb4a097dd4acd87fa511131b5a))
+
+- style: format code for better readability in ExtensionActionBar and issue-details components ([67761ed640ba475ed1a9c6ac2fb14036eaa0ad18](https://github.com/imadaitelarabi/openclaw-mc/commit/67761ed640ba475ed1a9c6ac2fb14036eaa0ad18))
+
+- Merge branch 'master' into copilot/redesign-extension-action-bar ([1aa1f54a1076d36a9219518a715779272baa4304](https://github.com/imadaitelarabi/openclaw-mc/commit/1aa1f54a1076d36a9219518a715779272baa4304))
+
+- Fix code review: use React.Fragment instead of span in dropdown item iteration ([b984ab85cd7c09d6dad52e87539382adb000a067](https://github.com/imadaitelarabi/openclaw-mc/commit/b984ab85cd7c09d6dad52e87539382adb000a067))
+
+- Add Extension Action Bar hook/component; migrate PR/Issue detail panel actions; add draft PR merge guard ([594f74309d2fd1113124be61a81f6f5131eb9a1e](https://github.com/imadaitelarabi/openclaw-mc/commit/594f74309d2fd1113124be61a81f6f5131eb9a1e))
+
+- Initial plan ([dcaa92312d6c33e8d204b71926cd2c2f43005a2b](https://github.com/imadaitelarabi/openclaw-mc/commit/dcaa92312d6c33e8d204b71926cd2c2f43005a2b))
+
+- Merge branch 'master' of https://github.com/imadaitelarabi/openclaw-mc into copilot/add-one-liner-installer ([156e33cdc2749a214222e708d87784aaf955cf5b](https://github.com/imadaitelarabi/openclaw-mc/commit/156e33cdc2749a214222e708d87784aaf955cf5b))
+
+- Merge pull request [#156](https://github.com/imadaitelarabi/openclaw-mc/pull/156) from imadaitelarabi/copilot/fix-github-extension-assignment-bug ([11ac6d829545f7eacc806a4dcbf402cf066d80c9](https://github.com/imadaitelarabi/openclaw-mc/commit/11ac6d829545f7eacc806a4dcbf402cf066d80c9))
+
+- Initial plan ([edc0a59c36d4a2a8499722f79c693fc2c7030410](https://github.com/imadaitelarabi/openclaw-mc/commit/edc0a59c36d4a2a8499722f79c693fc2c7030410))
+
+- Initial plan ([7f51542959abd7c419d67f0af692c0be0c4ba382](https://github.com/imadaitelarabi/openclaw-mc/commit/7f51542959abd7c419d67f0af692c0be0c4ba382))
+
+- Merge pull request [#154](https://github.com/imadaitelarabi/openclaw-mc/pull/154) from imadaitelarabi/changelog/daily-2026-02-28-020809 ([fd1558a89128b93ca5d59afca1d2b0c0ad567fde](https://github.com/imadaitelarabi/openclaw-mc/commit/fd1558a89128b93ca5d59afca1d2b0c0ad567fde))
+
+- Merge pull request [#152](https://github.com/imadaitelarabi/openclaw-mc/pull/152) from imadaitelarabi/docs/daily-update-2026-02-28 ([3677f46b47c1e00dce3ccde7878a7d80bc984e13](https://github.com/imadaitelarabi/openclaw-mc/commit/3677f46b47c1e00dce3ccde7878a7d80bc984e13))
+
+
 ## [0.7.1] - 2026-02-28
 
 ### Meta
