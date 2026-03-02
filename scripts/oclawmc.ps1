@@ -378,6 +378,323 @@ function Cmd-Uninstall {
   Write-Ok "Uninstall complete."
 }
 
+# ── openclaw subcommand ────────────────────────────────────────────────────────
+
+function Get-OclawConfig {
+  if ($env:OPENCLAW_CONFIG_PATH -and (Test-Path $env:OPENCLAW_CONFIG_PATH)) {
+    return $env:OPENCLAW_CONFIG_PATH
+  }
+  if (Get-Command openclaw -ErrorAction SilentlyContinue) {
+    $cfg = openclaw config path 2>$null
+    if ($cfg -and (Test-Path $cfg)) { return $cfg }
+  }
+  $candidates = @(
+    (Join-Path $env:USERPROFILE '.openclaw\config.yaml'),
+    (Join-Path ($env:XDG_CONFIG_HOME ?? (Join-Path $env:USERPROFILE '.config')) 'openclaw\config.yaml'),
+    'C:\ProgramData\openclaw\config.yaml'
+  )
+  foreach ($c in $candidates) { if (Test-Path $c) { return $c } }
+  return $null
+}
+
+function Invoke-OcYamlPatch {
+  param([string]$ConfigFile, [string]$Op, [string[]]$OpArgs = @())
+  if (-not (Get-Command python3 -ErrorAction SilentlyContinue) -and
+      -not (Get-Command python  -ErrorAction SilentlyContinue)) {
+    Write-Err "python3 is required to modify the OpenClaw config."
+    exit 1
+  }
+  $py = if (Get-Command python3 -ErrorAction SilentlyContinue) { 'python3' } else { 'python' }
+  $pyScript = @'
+import sys, os
+config_file = sys.argv[1]; op = sys.argv[2]; args = sys.argv[3:]
+try:
+    import yaml
+except ImportError:
+    print("Error: PyYAML not installed. Run: pip3 install pyyaml", file=sys.stderr); sys.exit(2)
+try:
+    with open(config_file, 'r') as f: data = yaml.safe_load(f) or {}
+except FileNotFoundError: data = {}
+def deep_get(d, keys, default=None):
+    for k in keys:
+        if not isinstance(d, dict) or k not in d: return default
+        d = d[k]
+    return d
+def deep_set(d, keys, value):
+    for k in keys[:-1]:
+        if k not in d or not isinstance(d[k], dict): d[k] = {}
+        d = d[k]
+    d[keys[-1]] = value
+if op == 'add_origin':
+    origin = args[0]; origins = deep_get(data, ['gateway','controlUi','allowedOrigins'], [])
+    if not isinstance(origins, list): origins = []
+    if origin not in origins:
+        origins.append(origin); deep_set(data, ['gateway','controlUi','allowedOrigins'], origins)
+        print(f"Added origin: {origin}")
+    else: print(f"Origin already present (no change): {origin}"); sys.exit(0)
+elif op == 'clear_origins':
+    deep_set(data, ['gateway','controlUi','allowedOrigins'], []); print("Cleared allowedOrigins.")
+elif op == 'set_basepath':
+    path = args[0]; deep_set(data, ['gateway','controlUi','basePath'], path); print(f"Set basePath: {path}")
+elif op == 'get_info':
+    origins = deep_get(data, ['gateway','controlUi','allowedOrigins'], [])
+    base_path = deep_get(data, ['gateway','controlUi','basePath'], None)
+    print(f"  allowedOrigins : {origins if origins else '(none)'}")
+    print(f"  basePath       : {base_path if base_path else '(not set)'}"); sys.exit(0)
+else: print(f"Unknown op: {op}", file=sys.stderr); sys.exit(1)
+os.makedirs(os.path.dirname(os.path.abspath(config_file)), exist_ok=True)
+with open(config_file, 'w') as f: yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+'@
+  $allArgs = @($ConfigFile, $Op) + $OpArgs
+  & $py -c $pyScript @allArgs
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
+function Assert-OcValidOrigin {
+  param([string]$Origin)
+  $o = $Origin.TrimEnd('/')
+  if ($o -notmatch '^https?://') {
+    Write-Err "Invalid origin '$o': must start with http:// or https://"
+    exit 1
+  }
+  return $o
+}
+
+function Assert-OcValidPath {
+  param([string]$Path)
+  if ($Path -notmatch '^/') {
+    Write-Err "Invalid path '$Path': must start with /"
+    exit 1
+  }
+  if ($Path -ne '/') { $Path = $Path.TrimEnd('/') }
+  return $Path
+}
+
+function Invoke-OcTailscale {
+  param([string]$Mode, [string]$SetPath = '/', [string]$Target = '')
+  if (-not (Get-Command tailscale -ErrorAction SilentlyContinue)) {
+    Write-Err "Tailscale is not installed. See https://tailscale.com/download"
+    exit 1
+  }
+  switch ($Mode) {
+    'off' {
+      Write-Log "Removing Tailscale serve configuration..."
+      tailscale serve reset 2>$null
+      Write-Ok "Tailscale serve disabled."
+    }
+    { $_ -in 'serve','funnel' } {
+      Load-Config
+      $port   = if (Get-Port) { Get-Port } else { 3000 }
+      $mcUrl  = if ($Target) { $Target } else { "http://localhost:$port" }
+      Write-Log "Configuring Tailscale ${Mode}: path=${SetPath} -> ${mcUrl}"
+      if ($Mode -eq 'funnel') {
+        tailscale funnel --set-path $SetPath $mcUrl
+      } else {
+        tailscale serve --set-path $SetPath $mcUrl
+      }
+      if ($LASTEXITCODE -ne 0) { Write-Err "tailscale $Mode failed."; exit 1 }
+      Write-Ok "Tailscale ${Mode} active: ${SetPath} -> ${mcUrl}"
+    }
+  }
+}
+
+function Show-OclawUsage {
+  Write-Host "Usage: oclawmc openclaw <subcommand> [flags]" -ForegroundColor White
+  Write-Host ""
+  Write-Host "Subcommands:" -ForegroundColor White
+  Write-Host "  setup    Configure gateway.controlUi settings"
+  Write-Host "  status   Show current OpenClaw Gateway configuration"
+  Write-Host "  doctor   Run health checks (--fix to auto-remediate)"
+  Write-Host ""
+  Write-Host "Setup flags:" -ForegroundColor White
+  Write-Host "  --origin <url>             Add to allowedOrigins (repeatable, deduped)"
+  Write-Host "  --clear-origins            Clear all allowedOrigins"
+  Write-Host "  --base-path <path>         Set gateway.controlUi.basePath"
+  Write-Host "  --tailscale <mode>         Configure Tailscale: off|serve|funnel"
+  Write-Host "  --tailscale-set-path <p>   Path prefix for Tailscale mapping"
+  Write-Host "  --tailscale-target <url>   Override local target URL"
+  Write-Host "  --restart-gateway          Restart gateway after changes"
+  Write-Host "  --non-interactive          Disable all interactive prompts"
+  Write-Host "  --yes                      Auto-confirm prompts"
+  Write-Host "  --json                     Output result as JSON"
+  Write-Host ""
+  Write-Host "Examples:" -ForegroundColor White
+  Write-Host "  oclawmc openclaw setup --origin https://mc.example.com"
+  Write-Host "  oclawmc openclaw setup --base-path /mc --tailscale serve --tailscale-set-path /mc"
+  Write-Host "  oclawmc openclaw setup --origin https://mc.example.com --non-interactive --yes --json"
+  Write-Host "  oclawmc openclaw doctor --fix"
+  Write-Host "  oclawmc openclaw status"
+  Write-Host ""
+}
+
+function Cmd-Openclaw {
+  $sub = if ($Args.Count -gt 0) { $Args[0] } else { 'help' }
+  $rest = if ($Args.Count -gt 1) { $Args[1..($Args.Length - 1)] } else { @() }
+
+  switch ($sub) {
+    'setup' {
+      $origins = @(); $clearOrigins = $false; $basePath = ''
+      $tsMode = ''; $tsSetPath = '/'; $tsTarget = ''
+      $restartGw = $false; $nonInteractive = $false; $yesFlag = $false; $jsonOut = $false
+
+      $i = 0
+      while ($i -lt $rest.Count) {
+        switch ($rest[$i]) {
+          '--origin'             { $origins += $rest[$i+1]; $i += 2 }
+          '--clear-origins'      { $clearOrigins = $true; $i++ }
+          '--base-path'          { $basePath = $rest[$i+1]; $i += 2 }
+          '--tailscale'          { $tsMode = $rest[$i+1]; $i += 2 }
+          '--tailscale-set-path' { $tsSetPath = $rest[$i+1]; $i += 2 }
+          '--tailscale-target'   { $tsTarget = $rest[$i+1]; $i += 2 }
+          '--restart-gateway'    { $restartGw = $true; $i++ }
+          '--non-interactive'    { $nonInteractive = $true; $i++ }
+          { $_ -in '--yes','-y' }{ $yesFlag = $true; $i++ }
+          '--json'               { $jsonOut = $true; $i++ }
+          default { Write-Err "Unknown flag: $($rest[$i])"; exit 1 }
+        }
+      }
+
+      # Validate origins
+      $normOrigins = @()
+      foreach ($o in $origins) { $normOrigins += Assert-OcValidOrigin $o }
+
+      # Validate base path
+      if ($basePath) { $basePath = Assert-OcValidPath $basePath }
+
+      # Validate tailscale mode
+      if ($tsMode -and $tsMode -notin @('off','serve','funnel')) {
+        Write-Err "--tailscale must be one of: off, serve, funnel"; exit 1
+      }
+
+      # Find config
+      $configFile = Get-OclawConfig
+      if (-not $configFile) {
+        if ($jsonOut) {
+          Write-Host '{"status":"error","error":"OpenClaw Gateway config not found."}'
+        } else {
+          Write-Err "OpenClaw Gateway config not found."
+          Write-Warn "Searched: %USERPROFILE%\.openclaw\config.yaml and common paths."
+          Write-Warn "Override with: `$env:OPENCLAW_CONFIG_PATH = 'C:\path\to\config.yaml'"
+        }
+        exit 1
+      }
+
+      $changed = $false
+
+      if ($clearOrigins) {
+        $confirmed = $yesFlag -or $nonInteractive
+        if (-not $confirmed) {
+          $ans = Read-Host "? Clear all allowedOrigins in $configFile? [y/N]"
+          $confirmed = $ans -match '^[Yy]'
+        }
+        if ($confirmed) { Invoke-OcYamlPatch $configFile 'clear_origins'; $changed = $true }
+      }
+
+      foreach ($origin in $normOrigins) {
+        Invoke-OcYamlPatch $configFile 'add_origin' @($origin); $changed = $true
+      }
+
+      if ($basePath) { Invoke-OcYamlPatch $configFile 'set_basepath' @($basePath); $changed = $true }
+
+      if ($tsMode) { Invoke-OcTailscale $tsMode $tsSetPath $tsTarget; $changed = $true }
+
+      if ($restartGw -and $changed) {
+        if (Get-Command openclaw -ErrorAction SilentlyContinue) {
+          Write-Log "Restarting OpenClaw Gateway..."
+          openclaw restart 2>$null
+          if ($LASTEXITCODE -ne 0) { Write-Warn "Could not restart gateway; restart it manually." }
+        } else {
+          Write-Warn "openclaw CLI not found; restart the gateway manually to apply changes."
+        }
+      }
+
+      if ($jsonOut) {
+        $out = [ordered]@{status='ok'; config=$configFile; changed=$changed}
+        Write-Host ($out | ConvertTo-Json -Compress)
+      } else {
+        Write-Ok "Setup complete. Config: $configFile"
+        if (-not $changed) { Write-Warn "No changes made (no flags provided)." }
+      }
+    }
+
+    'status' {
+      $jsonOut = $rest -contains '--json'
+      $configFile = Get-OclawConfig
+      if (-not $configFile) {
+        if ($jsonOut) { Write-Host '{"status":"error","error":"OpenClaw Gateway config not found."}' }
+        else { Write-Warn "OpenClaw Gateway config not found." }
+        return
+      }
+      if ($jsonOut) {
+        Invoke-OcYamlPatch $configFile 'get_info'
+      } else {
+        Write-Host "`nOpenClaw Gateway config: $configFile`n" -ForegroundColor White
+        Invoke-OcYamlPatch $configFile 'get_info'
+        Write-Host ""
+      }
+    }
+
+    'doctor' {
+      $fix     = $rest -contains '--fix'
+      $jsonOut = $rest -contains '--json'
+      $okCount = 0; $failCount = 0
+      $checks  = @()
+
+      function Add-Check { param($Label, $Status, $Detail)
+        $checks += [PSCustomObject]@{label=$Label;status=$Status;detail=$Detail}
+        if ($Status -eq 'ok')   { $script:okCount++;   if (-not $jsonOut) { Write-Ok   "$Label`: $Detail" } }
+        elseif ($Status -eq 'fail') { $script:failCount++; if (-not $jsonOut) { Write-Err  "$Label`: $Detail" } }
+        else { if (-not $jsonOut) { Write-Warn "$Label`: $Detail" } }
+      }
+
+      if (-not $jsonOut) { Write-Host "`nOpenClaw doctor`n" -ForegroundColor White }
+
+      if (Get-Command openclaw -ErrorAction SilentlyContinue) {
+        $ver = openclaw --version 2>$null
+        Add-Check 'openclaw CLI' 'ok' "found ($ver)"
+      } else { Add-Check 'openclaw CLI' 'warn' 'not found (optional)' }
+
+      $configFile = Get-OclawConfig
+      if ($configFile) { Add-Check 'Config file' 'ok' $configFile }
+      else { Add-Check 'Config file' 'fail' 'not found' }
+
+      if (Get-Command tailscale -ErrorAction SilentlyContinue) {
+        tailscale status 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) { Add-Check 'Tailscale' 'ok' 'connected' }
+        else { Add-Check 'Tailscale' 'warn' 'installed but not connected' }
+      } else { Add-Check 'Tailscale' 'warn' 'not installed (optional)' }
+
+      $pyCmd = if (Get-Command python3 -ErrorAction SilentlyContinue) { 'python3' }
+               elseif (Get-Command python -ErrorAction SilentlyContinue) { 'python' }
+               else { $null }
+      if ($pyCmd) {
+        & $pyCmd -c "import yaml" 2>$null
+        if ($LASTEXITCODE -eq 0) { Add-Check 'python3+PyYAML' 'ok' 'available' }
+        else {
+          Add-Check 'python3+PyYAML' 'warn' 'python found but PyYAML missing (run: pip3 install pyyaml)'
+          if ($fix) { Write-Log "Installing PyYAML..."; & $pyCmd -m pip install --user pyyaml 2>$null }
+        }
+      } else { Add-Check 'python3+PyYAML' 'warn' 'python not found (needed for config editing)' }
+
+      if ($jsonOut) {
+        $json = [ordered]@{checks=@($checks|ForEach-Object{[ordered]@{label=$_.label;status=$_.status;detail=$_.detail}});ok_count=$okCount;fail_count=$failCount}
+        Write-Host ($json | ConvertTo-Json -Compress)
+      } else {
+        Write-Host "`nResult: $okCount OK  $failCount FAIL`n"
+      }
+      if ($failCount -gt 0) { exit 1 }
+    }
+
+    { $_ -in 'help','-h','--help' } { Show-OclawUsage }
+
+    default {
+      Write-Err "Unknown openclaw subcommand: $sub"
+      Show-OclawUsage
+      exit 1
+    }
+  }
+}
+
 function Show-Usage {
   Write-Host "Usage: oclawmc <command> [args]" -ForegroundColor White
   Write-Host ""
@@ -391,6 +708,8 @@ function Show-Usage {
   Write-Host "  update                  Pull latest, rebuild, and restart"
   Write-Host "  tailscale <status|up|down>"
   Write-Host "                          Manage Tailscale connection"
+  Write-Host "  openclaw <setup|status|doctor>"
+  Write-Host "                          Configure OpenClaw Gateway integration"
   Write-Host "  doctor                  Run preflight health checks"
   Write-Host "  uninstall               Remove service, CLI, and optionally data"
   Write-Host "  help                    Show this message"
@@ -407,6 +726,7 @@ switch ($Command) {
   'logs'      { Cmd-Logs }
   'update'    { Cmd-Update }
   'tailscale' { Cmd-Tailscale }
+  'openclaw'  { Cmd-Openclaw }
   'doctor'    { Cmd-Doctor }
   'uninstall' { Cmd-Uninstall }
   { $_ -in 'help', '-h', '--help' } { Show-Usage }
