@@ -14,6 +14,7 @@ CONFIG_FILE="${CONFIG_DIR}/config.json"
 SCRIPT_NAME="oclawmc"
 
 NON_INTERACTIVE=false
+TAILSCALE_BASE_PATH="${TAILSCALE_BASE_PATH:-}"   # may be set by env for CI/headless installs
 for arg in "$@"; do
   [[ "$arg" == "--non-interactive" ]] && NON_INTERACTIVE=true
 done
@@ -212,6 +213,23 @@ setup_tailscale() {
   else
     ok "Tailscale is already connected: $(tailscale status --json 2>/dev/null | grep -o '"Self":{[^}]*}' | head -1 || echo 'unknown')"
   fi
+
+  # ── Apply Tailscale Serve with optional path mapping ─────────────────────────
+  if prompt_yn "Configure Tailscale Serve to expose Mission Control on this tailnet?" "y"; then
+    local ts_port="${APP_PORT:-3000}"
+    local ts_target="http://localhost:${ts_port}"
+    if [[ -n "$TAILSCALE_BASE_PATH" ]]; then
+      log "Running: tailscale serve --set-path ${TAILSCALE_BASE_PATH} ${ts_target}"
+      run_with_sudo tailscale serve --set-path "$TAILSCALE_BASE_PATH" "$ts_target" \
+        || warn "tailscale serve failed. You can run it manually later."
+    else
+      log "Running: tailscale serve ${ts_target}"
+      run_with_sudo tailscale serve "$ts_target" \
+        || warn "tailscale serve failed. You can run it manually later."
+    fi
+    ok "Tailscale Serve configured.${TAILSCALE_BASE_PATH:+ Path: ${TAILSCALE_BASE_PATH}}"
+    log "Tip: run 'tailscale serve status' to verify the mapping."
+  fi
 }
 
 # ── OpenClaw detection ────────────────────────────────────────────────────────
@@ -271,6 +289,44 @@ setup_openclaw() {
       echo "PORT=${APP_PORT}"
     } > "$env_file"
     ok "Gateway config written to ${env_file}"
+  fi
+
+  # Apply gateway.controlUi.basePath when a Tailscale base path was configured.
+  if [[ -n "$TAILSCALE_BASE_PATH" ]]; then
+    if command -v openclaw >/dev/null 2>&1; then
+      log "Setting gateway.controlUi.basePath to '${TAILSCALE_BASE_PATH}' via openclaw CLI…"
+      openclaw config set gateway.controlUi.basePath "$TAILSCALE_BASE_PATH" 2>/dev/null \
+        && ok "gateway.controlUi.basePath set to '${TAILSCALE_BASE_PATH}'" \
+        || warn "Could not set basePath via openclaw CLI. Set it manually: openclaw config set gateway.controlUi.basePath ${TAILSCALE_BASE_PATH}"
+    else
+      # Fallback: direct JSON edit using Python 3 stdlib (no extra dependencies).
+      local oc_cfg=""
+      for candidate in \
+          "${OPENCLAW_CONFIG_PATH:-}" \
+          "${HOME}/.openclaw/openclaw.json" \
+          "${XDG_CONFIG_HOME:-${HOME}/.config}/openclaw/openclaw.json" \
+          "/etc/openclaw/openclaw.json"; do
+        [[ -n "$candidate" && -f "$candidate" ]] && { oc_cfg="$candidate"; break; }
+      done
+      if [[ -n "$oc_cfg" ]] && command -v python3 >/dev/null 2>&1; then
+        log "Setting gateway.controlUi.basePath in ${oc_cfg}…"
+        python3 - "$oc_cfg" "$TAILSCALE_BASE_PATH" <<'PYEOF'
+import sys, json
+cfg_path, base_path = sys.argv[1], sys.argv[2]
+with open(cfg_path) as f:
+    cfg = json.load(f)
+gw = cfg.setdefault('gateway', {})
+cui = gw.setdefault('controlUi', {})
+cui['basePath'] = base_path
+with open(cfg_path, 'w') as f:
+    json.dump(cfg, f, indent=2)
+PYEOF
+        ok "gateway.controlUi.basePath set to '${TAILSCALE_BASE_PATH}' in ${oc_cfg}"
+      else
+        warn "openclaw CLI not found and no openclaw.json detected."
+        warn "Set basePath manually: openclaw config set gateway.controlUi.basePath ${TAILSCALE_BASE_PATH}"
+      fi
+    fi
   fi
 }
 
@@ -477,6 +533,17 @@ collect_user_input() {
 
   if prompt_yn "Set up Tailscale?" "y"; then
     SETUP_TAILSCALE=true
+    # Only prompt for base path when not already set via environment variable.
+    if [[ -z "$TAILSCALE_BASE_PATH" ]]; then
+      prompt TAILSCALE_BASE_PATH \
+        "Tailscale base path for Mission Control (e.g. /mc - leave blank for root /)" \
+        ""
+    fi
+    # Normalise: must start with / or be empty; strip trailing slash.
+    if [[ -n "$TAILSCALE_BASE_PATH" ]]; then
+      [[ "$TAILSCALE_BASE_PATH" != /* ]] && TAILSCALE_BASE_PATH="/${TAILSCALE_BASE_PATH}"
+      TAILSCALE_BASE_PATH="${TAILSCALE_BASE_PATH%/}"
+    fi
   else
     SETUP_TAILSCALE=false
   fi
