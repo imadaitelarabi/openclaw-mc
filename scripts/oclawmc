@@ -218,6 +218,60 @@ cmd_update() {
   cmd_restart
 }
 
+cmd_self_update() {
+  local repo_url="https://github.com/imadaitelarabi/openclaw-mc"
+  local raw_base="https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc"
+  local branch="master"
+
+  # Resolve the real path of the running script (follow symlinks).
+  local script_real
+  script_real="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null \
+    || python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "${BASH_SOURCE[0]}" 2>/dev/null \
+    || echo "${BASH_SOURCE[0]}")"
+
+  # Prefer update via the install-dir git repo (avoids extra download).
+  if [[ -f "$CONFIG_FILE" ]]; then
+    local install_dir; install_dir="$(config_get install_dir)"
+    local stored_branch; stored_branch="$(config_get branch)"
+    branch="${stored_branch:-master}"
+    if [[ -n "$install_dir" && -d "${install_dir}/.git" ]]; then
+      log "Fetching latest CLI scripts from '${branch}'…"
+      local fetch_out
+      if ! fetch_out="$(git -C "$install_dir" fetch --all --prune 2>&1)"; then
+        warn "git fetch failed: ${fetch_out}"
+        warn "Falling back to direct download…"
+      else
+        local checkout_out
+        checkout_out="$(git -C "$install_dir" checkout "origin/${branch}" -- scripts/oclawmc scripts/oclawmc.ps1 2>&1)" || true
+        [[ -n "$checkout_out" ]] && log "$checkout_out"
+        chmod +x "${install_dir}/scripts/oclawmc"
+        ok "CLI self-updated from local repository (${branch})."
+        return 0
+      fi
+    fi
+  fi
+
+  # Fallback: download the script directly from GitHub.
+  log "Downloading oclawmc CLI from GitHub (${raw_base}/${branch}/scripts/oclawmc)…"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "${raw_base}/${branch}/scripts/oclawmc" > "${script_real}.tmp" \
+      && mv "${script_real}.tmp" "$script_real" \
+      && chmod +x "$script_real" \
+      || { err "Download failed. Check your internet connection."; exit 1; }
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "${script_real}.tmp" "${raw_base}/${branch}/scripts/oclawmc" \
+      && mv "${script_real}.tmp" "$script_real" \
+      && chmod +x "$script_real" \
+      || { err "Download failed. Check your internet connection."; exit 1; }
+  else
+    err "Neither curl nor wget is available. Cannot download the update."
+    err "Install curl or wget, or re-run the full installer: ${repo_url}"
+    exit 1
+  fi
+
+  ok "CLI self-updated to latest (${branch})."
+}
+
 cmd_tailscale() {
   local subcmd="${1:-status}"
   case "$subcmd" in
@@ -301,6 +355,501 @@ cmd_doctor() {
   [[ $fail_count -eq 0 ]]
 }
 
+# ── openclaw subcommand ───────────────────────────────────────────────────────
+# Config is manipulated via `openclaw config get/set/unset` when the openclaw
+# CLI is available; otherwise falls back to direct JSON edits of openclaw.json.
+
+_oc_has_cli() { command -v openclaw >/dev/null 2>&1; }
+
+# Find openclaw.json config file (used only when CLI is absent).
+# Checks OPENCLAW_CONFIG_PATH first, then well-known paths.
+_oc_find_config() {
+  if [[ -n "${OPENCLAW_CONFIG_PATH:-}" && -f "${OPENCLAW_CONFIG_PATH}" ]]; then
+    echo "${OPENCLAW_CONFIG_PATH}"; return 0
+  fi
+  local candidates=(
+    "${HOME}/.openclaw/openclaw.json"
+    "${XDG_CONFIG_HOME:-${HOME}/.config}/openclaw/openclaw.json"
+    "/etc/openclaw/openclaw.json"
+  )
+  for f in "${candidates[@]}"; do
+    [[ -f "$f" ]] && { echo "$f"; return 0; }
+  done
+  return 1
+}
+
+# Validate and normalise an origin URL (strips trailing slash, checks scheme).
+_oc_validate_origin() {
+  local origin="${1%/}"
+  if [[ ! "$origin" =~ ^https?:// ]]; then
+    err "Invalid origin '${origin}': must start with http:// or https://"
+    return 1
+  fi
+  echo "$origin"
+}
+
+# Validate a URL path (must start with /, no trailing slash except bare /).
+_oc_validate_path() {
+  local path="$1"
+  if [[ ! "$path" =~ ^/ ]]; then
+    err "Invalid path '${path}': must start with /"
+    return 1
+  fi
+  [[ "$path" != "/" ]] && path="${path%/}"
+  echo "$path"
+}
+
+# Require either openclaw CLI or a config file; print error and return 1 if neither.
+_oc_require_access() {
+  local json_out="${1:-false}"
+  if ! _oc_has_cli && ! _oc_find_config >/dev/null 2>&1; then
+    if [[ "$json_out" == true ]]; then
+      printf '{"status":"error","error":"openclaw CLI not found and no openclaw.json config file detected. Install openclaw or set OPENCLAW_CONFIG_PATH."}\n'
+    else
+      err "openclaw CLI not found and no config file detected."
+      err "Install openclaw or set OPENCLAW_CONFIG_PATH to your openclaw.json path."
+    fi
+    return 1
+  fi
+}
+
+# Add an origin to allowedOrigins.
+# Returns 0 if the origin was newly added, 1 if it was already present.
+_oc_add_origin() {
+  local origin="$1"
+  if _oc_has_cli; then
+    local current_raw outcome status new_json
+    current_raw="$(openclaw config get gateway.controlUi.allowedOrigins 2>/dev/null || echo '[]')"
+    outcome="$(python3 -c "
+import json, sys
+try:
+    origins = json.loads(sys.argv[1])
+    if not isinstance(origins, list): origins = []
+except Exception:
+    origins = []
+origin = sys.argv[2]
+if origin in origins:
+    print('no-change'); print(json.dumps(origins))
+else:
+    origins.append(origin); print('changed'); print(json.dumps(origins))
+" "$current_raw" "$origin")" || return 1
+    status="$(printf '%s\n' "$outcome" | head -1)"
+    new_json="$(printf '%s\n' "$outcome" | tail -1)"
+    if [[ "$status" == "no-change" ]]; then
+      warn "Origin already present (no change): ${origin}"; return 1
+    fi
+    openclaw config set gateway.controlUi.allowedOrigins "$new_json" || return 1
+    ok "Added origin: ${origin}"; return 0
+  else
+    local cfg; cfg="$(_oc_find_config)" || return 1
+    local status
+    status="$(python3 - "$cfg" "$origin" <<'PYEOF'
+import sys, json
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+gw = data.setdefault('gateway', {})
+cu = gw.setdefault('controlUi', {})
+origins = cu.get('allowedOrigins', [])
+if not isinstance(origins, list): origins = []
+if sys.argv[2] in origins:
+    print('no-change')
+else:
+    origins.append(sys.argv[2])
+    cu['allowedOrigins'] = origins
+    with open(sys.argv[1], 'w') as f:
+        json.dump(data, f, indent=2)
+    print('changed')
+PYEOF
+)" || return 1
+    if [[ "$status" == "no-change" ]]; then
+      warn "Origin already present (no change): ${origin}"; return 1
+    fi
+    ok "Added origin: ${origin}"; return 0
+  fi
+}
+
+# Clear all allowed origins.
+_oc_clear_origins() {
+  if _oc_has_cli; then
+    openclaw config unset gateway.controlUi.allowedOrigins 2>/dev/null \
+      || openclaw config set gateway.controlUi.allowedOrigins '[]' \
+      || return 1
+  else
+    local cfg; cfg="$(_oc_find_config)" || return 1
+    python3 - "$cfg" <<'PYEOF' || return 1
+import sys, json
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+data.setdefault('gateway', {}).setdefault('controlUi', {})['allowedOrigins'] = []
+with open(sys.argv[1], 'w') as f:
+    json.dump(data, f, indent=2)
+PYEOF
+  fi
+  ok "Cleared allowedOrigins."
+}
+
+# Set gateway.controlUi.basePath.
+_oc_set_basepath() {
+  local path="$1"
+  if _oc_has_cli; then
+    openclaw config set gateway.controlUi.basePath "$path" || return 1
+  else
+    local cfg; cfg="$(_oc_find_config)" || return 1
+    python3 - "$cfg" "$path" <<'PYEOF' || return 1
+import sys, json
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+data.setdefault('gateway', {}).setdefault('controlUi', {})['basePath'] = sys.argv[2]
+with open(sys.argv[1], 'w') as f:
+    json.dump(data, f, indent=2)
+PYEOF
+  fi
+  ok "Set basePath: ${path}"
+}
+
+# Emit a JSON object with current gateway.controlUi values.
+_oc_get_status_json() {
+  local origins="" base_path=""
+  if _oc_has_cli; then
+    origins="$(openclaw config get gateway.controlUi.allowedOrigins 2>/dev/null || echo '[]')"
+    base_path="$(openclaw config get gateway.controlUi.basePath 2>/dev/null || echo 'null')"
+  else
+    local cfg
+    if ! cfg="$(_oc_find_config 2>/dev/null)"; then
+      printf '{"status":"error","error":"OpenClaw config not found."}\n'; return 1
+    fi
+    local py_get='
+import sys, json
+with open(sys.argv[1]) as f: data = json.load(f)
+def dg(d, keys):
+    for k in keys:
+        if not isinstance(d, dict) or k not in d: return None
+        d = d[k]
+    return d
+print(json.dumps(dg(data, sys.argv[2].split("."))))
+'
+    origins="$(python3 -c "$py_get" "$cfg" "gateway.controlUi.allowedOrigins" 2>/dev/null || echo '[]')"
+    base_path="$(python3 -c "$py_get" "$cfg" "gateway.controlUi.basePath" 2>/dev/null || echo 'null')"
+  fi
+  python3 -c "
+import json, sys
+try: origins = json.loads(sys.argv[1])
+except Exception: origins = []
+if not isinstance(origins, list): origins = []
+try: base_path = json.loads(sys.argv[2])
+except Exception: base_path = None
+print(json.dumps({'status':'ok','allowedOrigins':origins,'basePath':base_path}))
+" "$origins" "$base_path"
+}
+
+# Configure Tailscale serve/funnel path mapping.
+_oc_setup_tailscale() {
+  local mode="$1" set_path="${2:-/}" target="$3"
+  if ! command -v tailscale >/dev/null 2>&1; then
+    err "Tailscale is not installed. See https://tailscale.com/download"
+    return 1
+  fi
+  case "$mode" in
+    off)
+      log "Removing Tailscale serve configuration…"
+      tailscale serve reset 2>/dev/null || tailscale serve --reset 2>/dev/null || true
+      ok "Tailscale serve disabled."
+      ;;
+    serve|funnel)
+      load_config
+      local port="${APP_PORT:-3000}"
+      local mc_url="${target:-http://localhost:${port}}"
+      log "Configuring Tailscale ${mode}: path=${set_path} → ${mc_url}"
+      if [[ "$mode" == "funnel" ]]; then
+        tailscale funnel --set-path "$set_path" "$mc_url" \
+          || { err "tailscale funnel failed. Ensure Funnel is enabled for your account."; return 1; }
+        ok "Tailscale Funnel active: ${set_path} → ${mc_url}"
+      else
+        tailscale serve --set-path "$set_path" "$mc_url" \
+          || { err "tailscale serve failed. Check Tailscale status."; return 1; }
+        ok "Tailscale Serve active: ${set_path} → ${mc_url}"
+      fi
+      ;;
+  esac
+}
+
+_openclaw_setup() {
+  local origins=() clear_origins=false base_path=""
+  local tailscale_mode="" ts_set_path="" ts_target=""
+  local restart_gw=false non_interactive=false yes_flag=false json_out=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --origin)               origins+=("$2"); shift 2 ;;
+      --origin=*)             origins+=("${1#--origin=}"); shift ;;
+      --clear-origins)        clear_origins=true; shift ;;
+      --base-path)            base_path="$2"; shift 2 ;;
+      --base-path=*)          base_path="${1#--base-path=}"; shift ;;
+      --tailscale)            tailscale_mode="$2"; shift 2 ;;
+      --tailscale=*)          tailscale_mode="${1#--tailscale=}"; shift ;;
+      --tailscale-set-path)   ts_set_path="$2"; shift 2 ;;
+      --tailscale-set-path=*) ts_set_path="${1#--tailscale-set-path=}"; shift ;;
+      --tailscale-target)     ts_target="$2"; shift 2 ;;
+      --tailscale-target=*)   ts_target="${1#--tailscale-target=}"; shift ;;
+      --restart-gateway)      restart_gw=true; shift ;;
+      --non-interactive)      non_interactive=true; shift ;;
+      --yes|-y)               yes_flag=true; shift ;;
+      --json)                 json_out=true; shift ;;
+      *) err "Unknown flag: $1"; exit 1 ;;
+    esac
+  done
+
+  # Validate origins
+  local norm_origins=()
+  for o in "${origins[@]}"; do
+    local norm; norm="$(_oc_validate_origin "$o")" || exit 1
+    norm_origins+=("$norm")
+  done
+
+  # Validate base path
+  if [[ -n "$base_path" ]]; then
+    base_path="$(_oc_validate_path "$base_path")" || exit 1
+  fi
+
+  # Validate tailscale mode
+  if [[ -n "$tailscale_mode" && ! "$tailscale_mode" =~ ^(off|serve|funnel)$ ]]; then
+    err "--tailscale must be one of: off, serve, funnel"
+    exit 1
+  fi
+
+  # Ensure openclaw CLI or config file is accessible
+  _oc_require_access "$json_out" || exit 1
+
+  local changed=false
+
+  # Clear origins
+  if [[ "$clear_origins" == true ]]; then
+    local confirmed=false
+    if [[ "$yes_flag" == true || "$non_interactive" == true ]]; then
+      confirmed=true
+    else
+      read -r -p "$(printf "${BOLD}?${NC} Clear all allowedOrigins? [y/N]: ")" ans
+      [[ "${ans,,}" == "y" || "${ans,,}" == "yes" ]] && confirmed=true
+    fi
+    if [[ "$confirmed" == true ]]; then
+      _oc_clear_origins || exit 1
+      changed=true
+    fi
+  fi
+
+  # Add origins — only mark changed when the origin is actually new
+  for origin in "${norm_origins[@]}"; do
+    if _oc_add_origin "$origin"; then
+      changed=true
+    fi
+  done
+
+  # Set base path
+  if [[ -n "$base_path" ]]; then
+    _oc_set_basepath "$base_path" || exit 1
+    changed=true
+  fi
+
+  # Tailscale setup
+  if [[ -n "$tailscale_mode" ]]; then
+    _oc_setup_tailscale "$tailscale_mode" "${ts_set_path:-/}" "$ts_target"
+    changed=true
+  fi
+
+  # Optionally restart gateway
+  if [[ "$restart_gw" == true && "$changed" == true ]]; then
+    if _oc_has_cli; then
+      log "Restarting OpenClaw Gateway…"
+      openclaw gateway restart 2>/dev/null \
+        || warn "Could not restart gateway; please restart it manually."
+    else
+      warn "openclaw CLI not found; restart the gateway manually to apply changes."
+    fi
+  fi
+
+  if [[ "$json_out" == true ]]; then
+    local changed_bool="False"; [[ $changed == true ]] && changed_bool="True"
+    python3 -c "import json; print(json.dumps({'status':'ok','changed':${changed_bool}}))"
+  else
+    ok "Setup complete."
+    if [[ "$changed" == false ]]; then warn "No changes made (no flags provided)."; fi
+  fi
+}
+
+_openclaw_status() {
+  local json_out=false
+  [[ "${1:-}" == "--json" ]] && json_out=true
+
+  _oc_require_access "$json_out" || return 1
+
+  if [[ "$json_out" == true ]]; then
+    _oc_get_status_json
+    return
+  fi
+
+  # Human-readable output
+  printf "\n${BOLD}OpenClaw Gateway — controlUi config${NC}\n\n"
+  if _oc_has_cli; then
+    local origins base_path
+    origins="$(openclaw config get gateway.controlUi.allowedOrigins 2>/dev/null || echo '[]')"
+    base_path="$(openclaw config get gateway.controlUi.basePath 2>/dev/null || true)"
+    printf "  allowedOrigins : %s\n" "${origins:-[]}"
+    printf "  basePath       : %s\n\n" "${base_path:-(not set)}"
+  else
+    local cfg; cfg="$(_oc_find_config)" || return 1
+    printf "  (reading from %s)\n\n" "$cfg"
+    local py_get='
+import sys, json
+with open(sys.argv[1]) as f: data = json.load(f)
+def dg(d, keys):
+    for k in keys:
+        if not isinstance(d, dict) or k not in d: return None
+        d = d[k]
+    return d
+o = dg(data, ["gateway","controlUi","allowedOrigins"])
+b = dg(data, ["gateway","controlUi","basePath"])
+none_str = "(none)"; notset_str = "(not set)"
+print("  allowedOrigins : " + (str(o) if o else none_str))
+print("  basePath       : " + (str(b) if b else notset_str))
+'
+    python3 -c "$py_get" "$cfg" 2>/dev/null || warn "Could not read config file."
+    printf "\n"
+  fi
+}
+
+_openclaw_doctor() {
+  local fix=false json_out=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --fix)  fix=true; shift ;;
+      --json) json_out=true; shift ;;
+      *) shift ;;
+    esac
+  done
+
+  local ok_count=0 fail_count=0
+  local results_str=""
+
+  _dr_record() {
+    local label="$1" status="$2" detail="$3"
+    results_str="${results_str}${label}|${status}|${detail}"$'\n'
+    if [[ "$status" == "ok" ]]; then
+      ((ok_count++)) || true
+      if [[ "$json_out" == false ]]; then ok "${label}: ${detail}"; fi
+    elif [[ "$status" == "warn" ]]; then
+      if [[ "$json_out" == false ]]; then warn "${label}: ${detail}"; fi
+    else
+      ((fail_count++)) || true
+      if [[ "$json_out" == false ]]; then err "${label}: ${detail}"; fi
+    fi
+  }
+
+  [[ "$json_out" == false ]] && printf "\n${BOLD}OpenClaw doctor${NC}\n\n"
+
+  # openclaw CLI
+  if _oc_has_cli; then
+    _dr_record "openclaw CLI" "ok" "found ($(openclaw --version 2>/dev/null || echo 'version unknown'))"
+  else
+    _dr_record "openclaw CLI" "warn" "not found — install openclaw or set OPENCLAW_CONFIG_PATH"
+  fi
+
+  # Config file (fallback path)
+  local config_file=""
+  if config_file="$(_oc_find_config 2>/dev/null)"; then
+    _dr_record "Config file" "ok" "$config_file"
+  elif _oc_has_cli; then
+    _dr_record "Config file" "warn" "openclaw.json not found in standard paths (CLI available — using openclaw config)"
+  else
+    _dr_record "Config file" "fail" "not found — run 'openclaw' to initialise or set OPENCLAW_CONFIG_PATH"
+  fi
+
+  # Tailscale
+  if command -v tailscale >/dev/null 2>&1; then
+    if tailscale status >/dev/null 2>&1; then
+      _dr_record "Tailscale" "ok" "connected"
+    else
+      _dr_record "Tailscale" "warn" "installed but not connected"
+    fi
+  else
+    _dr_record "Tailscale" "warn" "not installed (optional)"
+  fi
+
+  # python3 (standard library only — no PyYAML needed)
+  if command -v python3 >/dev/null 2>&1; then
+    _dr_record "python3" "ok" "available ($(python3 --version 2>&1))"
+  else
+    _dr_record "python3" "warn" "not found (needed for JSON config fallback)"
+    if [[ "$fix" == true ]]; then
+      warn "Cannot auto-install python3. Please install it via your package manager."
+    fi
+  fi
+
+  unset -f _dr_record
+
+  if [[ "$json_out" == true ]]; then
+    local py_script='
+import sys, json
+checks = []
+for line in sys.stdin:
+    line = line.rstrip("\n")
+    if not line: continue
+    parts = line.split("|", 2)
+    if len(parts) == 3:
+        checks.append({"label": parts[0], "status": parts[1], "detail": parts[2]})
+ok_count   = sum(1 for c in checks if c["status"] == "ok")
+fail_count = sum(1 for c in checks if c["status"] == "fail")
+print(json.dumps({"checks": checks, "ok_count": ok_count, "fail_count": fail_count}))
+'
+    printf '%s' "$results_str" | python3 -c "$py_script" 2>/dev/null \
+      || printf '{"checks":[],"ok_count":0,"fail_count":0}\n'
+  else
+    printf "\nResult: ${GREEN}${ok_count} OK${NC}  ${RED}${fail_count} FAIL${NC}\n\n"
+  fi
+
+  [[ $fail_count -eq 0 ]]
+}
+
+_openclaw_usage() {
+  printf "${BOLD}Usage:${NC} oclawmc openclaw <subcommand> [flags]\n\n"
+  printf "${BOLD}Subcommands:${NC}\n"
+  printf "  setup    Configure gateway.controlUi settings\n"
+  printf "  status   Show current OpenClaw Gateway configuration\n"
+  printf "  doctor   Run health checks (--fix to auto-remediate)\n\n"
+  printf "${BOLD}Setup flags:${NC}\n"
+  printf "  --origin <url>             Add to allowedOrigins (repeatable, deduped)\n"
+  printf "  --clear-origins            Clear all allowedOrigins\n"
+  printf "  --base-path <path>         Set gateway.controlUi.basePath\n"
+  printf "  --tailscale <mode>         Configure Tailscale: off|serve|funnel\n"
+  printf "  --tailscale-set-path <p>   Path prefix for Tailscale mapping\n"
+  printf "  --tailscale-target <url>   Override local target URL\n"
+  printf "  --restart-gateway          Restart gateway after changes\n"
+  printf "  --non-interactive          Disable all interactive prompts\n"
+  printf "  --yes|-y                   Auto-confirm prompts\n"
+  printf "  --json                     Output result as JSON\n\n"
+  printf "${BOLD}Examples:${NC}\n"
+  printf "  oclawmc openclaw setup --origin https://mc.example.com\n"
+  printf "  oclawmc openclaw setup --base-path /mc --tailscale serve --tailscale-set-path /mc\n"
+  printf "  oclawmc openclaw setup --origin https://mc.example.com --non-interactive --yes --json\n"
+  printf "  oclawmc openclaw doctor --fix\n"
+  printf "  oclawmc openclaw status\n\n"
+}
+
+cmd_openclaw() {
+  local subcmd="${1:-help}"
+  shift || true
+  case "$subcmd" in
+    setup)          _openclaw_setup "$@" ;;
+    status)         _openclaw_status "$@" ;;
+    doctor)         _openclaw_doctor "$@" ;;
+    help|-h|--help) _openclaw_usage ;;
+    *)
+      err "Unknown openclaw subcommand: ${subcmd}"
+      _openclaw_usage
+      exit 1
+      ;;
+  esac
+}
+
 cmd_uninstall() {
   load_config
 
@@ -361,8 +910,11 @@ usage() {
   printf "  status                  Show server + Tailscale status\n"
   printf "  logs [lines]            Tail log output (default: 100 lines)\n"
   printf "  update                  Pull latest, rebuild, and restart\n"
+  printf "  self-update             Update the CLI script itself (fast, no rebuild)\n"
   printf "  tailscale <status|up|down>\n"
   printf "                          Manage Tailscale connection\n"
+  printf "  openclaw <setup|status|doctor>\n"
+  printf "                          Configure OpenClaw Gateway integration\n"
   printf "  doctor                  Run preflight health checks\n"
   printf "  uninstall               Remove service, CLI, and optionally data\n"
   printf "  help                    Show this message\n\n"
@@ -380,7 +932,9 @@ case "$CMD" in
   status)    cmd_status ;;
   logs)      cmd_logs "$@" ;;
   update)    cmd_update ;;
+  self-update) cmd_self_update ;;
   tailscale) cmd_tailscale "$@" ;;
+  openclaw)  cmd_openclaw "$@" ;;
   doctor)    cmd_doctor ;;
   uninstall) cmd_uninstall ;;
   help|-h|--help) usage ;;

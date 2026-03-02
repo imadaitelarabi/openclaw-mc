@@ -250,6 +250,62 @@ function Cmd-Update {
   Cmd-Restart
 }
 
+function Cmd-SelfUpdate {
+  $repoUrl  = 'https://github.com/imadaitelarabi/openclaw-mc'
+  $rawBase  = 'https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc'
+  $branch   = 'master'  # matches the default stored by the installer
+
+  # Resolve the real path of this script (follow any shortcuts/symlinks).
+  $scriptReal = $PSCommandPath
+  if (-not $scriptReal) { $scriptReal = $MyInvocation.MyCommand.Path }
+
+  # Prefer update via the install-dir git repo.
+  if (Test-Path $ConfigFile) {
+    Load-Config
+    $installDir   = Get-InstallDir
+    $storedBranch = Get-Branch
+    $branch       = if ($storedBranch) { $storedBranch } else { 'master' }
+    $gitDir       = Join-Path $installDir '.git'
+    if ($installDir -and (Test-Path $gitDir)) {
+      Write-Log "Fetching latest CLI scripts from '$branch'..."
+      $fetchOut = git -C $installDir fetch --all --prune 2>&1
+      if ($LASTEXITCODE -ne 0) {
+        Write-Warn "git fetch failed: $fetchOut"
+        Write-Warn "Falling back to direct download..."
+      } else {
+        $checkoutOut = git -C $installDir checkout "origin/$branch" -- scripts/oclawmc.ps1 scripts/oclawmc 2>&1
+        if ($LASTEXITCODE -ne 0) { Write-Warn "git checkout warning: $checkoutOut" }
+        Write-Ok "CLI self-updated from local repository ($branch)."
+        return
+      }
+    }
+  }
+
+  # Fallback: download both scripts from GitHub.
+  if (-not $scriptReal) {
+    Write-Err "Cannot determine script path. Re-run the full installer: $repoUrl"
+    exit 1
+  }
+  foreach ($scriptName in @('oclawmc.ps1', 'oclawmc')) {
+    $url = "$rawBase/$branch/scripts/$scriptName"
+    $destDir = Split-Path $scriptReal
+    $dest = Join-Path $destDir $scriptName
+    if (-not (Test-Path $dest)) { continue }  # skip if this variant isn't installed here
+    Write-Log "Downloading $scriptName from GitHub ($url)..."
+    try {
+      $tmp = "$dest.tmp"
+      Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
+      Move-Item -Force $tmp $dest
+      Write-Ok "Updated $scriptName."
+    } catch {
+      Write-Err "Download failed for ${scriptName}: $_"
+      Write-Err "Check your internet connection or re-run the installer: $repoUrl"
+      exit 1
+    }
+  }
+  Write-Ok "CLI self-updated to latest ($branch)."
+}
+
 function Cmd-Tailscale {
   $sub = if ($Args.Count -gt 0) { $Args[0] } else { 'status' }
   switch ($sub) {
@@ -378,6 +434,414 @@ function Cmd-Uninstall {
   Write-Ok "Uninstall complete."
 }
 
+# ── openclaw subcommand ────────────────────────────────────────────────────────
+# Config is mutated via `openclaw config get/set/unset` when the CLI is present;
+# otherwise falls back to direct JSON edits of openclaw.json.
+
+function Test-OclawCli { [bool](Get-Command openclaw -ErrorAction SilentlyContinue) }
+
+# Return the python3/python executable name, or $null if neither is available.
+function Get-PythonCommand {
+  if (Get-Command python3 -ErrorAction SilentlyContinue) { return 'python3' }
+  if (Get-Command python  -ErrorAction SilentlyContinue) { return 'python'  }
+  return $null
+}
+
+# Find openclaw.json config file (fallback when CLI is absent).
+function Get-OclawConfigPath {
+  if ($env:OPENCLAW_CONFIG_PATH -and (Test-Path $env:OPENCLAW_CONFIG_PATH)) {
+    return $env:OPENCLAW_CONFIG_PATH
+  }
+  $candidates = @(
+    (Join-Path $env:USERPROFILE '.openclaw\openclaw.json'),
+    (Join-Path ($env:XDG_CONFIG_HOME ?? (Join-Path $env:USERPROFILE '.config')) 'openclaw\openclaw.json'),
+    'C:\ProgramData\openclaw\openclaw.json'
+  )
+  foreach ($c in $candidates) { if (Test-Path $c) { return $c } }
+  return $null
+}
+
+function Assert-OcValidOrigin {
+  param([string]$Origin)
+  $o = $Origin.TrimEnd('/')
+  if ($o -notmatch '^https?://') {
+    Write-Err "Invalid origin '$o': must start with http:// or https://"
+    exit 1
+  }
+  return $o
+}
+
+function Assert-OcValidPath {
+  param([string]$Path)
+  if ($Path -notmatch '^/') {
+    Write-Err "Invalid path '$Path': must start with /"
+    exit 1
+  }
+  if ($Path -ne '/') { $Path = $Path.TrimEnd('/') }
+  return $Path
+}
+
+# Edit openclaw.json directly via Python3 (fallback when CLI absent).
+# Returns the string 'changed' or 'no-change' for add_origin; nothing for others.
+function Invoke-OcJsonEdit {
+  param([string]$ConfigFile, [string]$Op, [string[]]$OpArgs = @())
+  $py = Get-PythonCommand
+  if (-not $py) {
+    Write-Err "python3 is required for JSON config editing."
+    exit 1
+  }
+  $script = @'
+import sys, json, os
+cfg, op = sys.argv[1], sys.argv[2]; args = sys.argv[3:]
+try:
+    with open(cfg) as f: data = json.load(f)
+except FileNotFoundError: data = {}
+def dg(d, keys, default=None):
+    for k in keys:
+        if not isinstance(d, dict) or k not in d: return default
+        d = d[k]
+    return d
+def ds(d, keys, val):
+    for k in keys[:-1]:
+        d = d.setdefault(k, {})
+    d[keys[-1]] = val
+if op == 'add_origin':
+    origin = args[0]
+    origins = dg(data, ['gateway','controlUi','allowedOrigins'], [])
+    if not isinstance(origins, list): origins = []
+    if origin in origins: print('no-change'); sys.exit(0)
+    origins.append(origin); ds(data, ['gateway','controlUi','allowedOrigins'], origins)
+    os.makedirs(os.path.dirname(os.path.abspath(cfg)), exist_ok=True)
+    with open(cfg,'w') as f: json.dump(data, f, indent=2)
+    print('changed')
+elif op == 'clear_origins':
+    ds(data, ['gateway','controlUi','allowedOrigins'], [])
+    with open(cfg,'w') as f: json.dump(data, f, indent=2)
+elif op == 'set_basepath':
+    ds(data, ['gateway','controlUi','basePath'], args[0])
+    with open(cfg,'w') as f: json.dump(data, f, indent=2)
+elif op == 'get_json':
+    o = dg(data, ['gateway','controlUi','allowedOrigins'], [])
+    b = dg(data, ['gateway','controlUi','basePath'])
+    print(json.dumps({'status':'ok','allowedOrigins':o,'basePath':b}))
+else: print(f"Unknown op: {op}", file=sys.stderr); sys.exit(1)
+'@
+  $allArgs = @($ConfigFile, $Op) + $OpArgs
+  & $py -c $script @allArgs
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
+# Get status as structured JSON regardless of CLI/file mode.
+function Get-OcStatusJson {
+  if (Test-OclawCli) {
+    $origins   = openclaw config get gateway.controlUi.allowedOrigins 2>$null
+    $basePath  = openclaw config get gateway.controlUi.basePath 2>$null
+    if (-not $origins)  { $origins  = '[]' }
+    if (-not $basePath) { $basePath = 'null' }
+    $py = Get-PythonCommand
+    $s = @'
+import sys, json
+try: o = json.loads(sys.argv[1])
+except: o = []
+try: b = json.loads(sys.argv[2])
+except: b = sys.argv[2] if sys.argv[2] else None
+print(json.dumps({'status':'ok','allowedOrigins':o if isinstance(o,list) else [],'basePath':b}))
+'@
+    & $py -c $s $origins $basePath
+  } else {
+    $cfg = Get-OclawConfigPath
+    if (-not $cfg) {
+      Write-Host '{"status":"error","error":"OpenClaw config not found."}'
+      return
+    }
+    Invoke-OcJsonEdit $cfg 'get_json'
+  }
+}
+
+function Invoke-OcTailscale {
+  param([string]$Mode, [string]$SetPath = '/', [string]$Target = '')
+  if (-not (Get-Command tailscale -ErrorAction SilentlyContinue)) {
+    Write-Err "Tailscale is not installed. See https://tailscale.com/download"
+    exit 1
+  }
+  switch ($Mode) {
+    'off' {
+      Write-Log "Removing Tailscale serve configuration..."
+      tailscale serve reset 2>$null
+      Write-Ok "Tailscale serve disabled."
+    }
+    { $_ -in 'serve','funnel' } {
+      Load-Config
+      $port   = if (Get-Port) { Get-Port } else { 3000 }
+      $mcUrl  = if ($Target) { $Target } else { "http://localhost:$port" }
+      Write-Log "Configuring Tailscale ${Mode}: path=${SetPath} -> ${mcUrl}"
+      if ($Mode -eq 'funnel') {
+        tailscale funnel --set-path $SetPath $mcUrl
+      } else {
+        tailscale serve --set-path $SetPath $mcUrl
+      }
+      if ($LASTEXITCODE -ne 0) { Write-Err "tailscale $Mode failed."; exit 1 }
+      Write-Ok "Tailscale ${Mode} active: ${SetPath} -> ${mcUrl}"
+    }
+  }
+}
+
+function Show-OclawUsage {
+  Write-Host "Usage: oclawmc openclaw <subcommand> [flags]" -ForegroundColor White
+  Write-Host ""
+  Write-Host "Subcommands:" -ForegroundColor White
+  Write-Host "  setup    Configure gateway.controlUi settings"
+  Write-Host "  status   Show current OpenClaw Gateway configuration"
+  Write-Host "  doctor   Run health checks (--fix to auto-remediate)"
+  Write-Host ""
+  Write-Host "Setup flags:" -ForegroundColor White
+  Write-Host "  --origin <url>             Add to allowedOrigins (repeatable, deduped)"
+  Write-Host "  --clear-origins            Clear all allowedOrigins"
+  Write-Host "  --base-path <path>         Set gateway.controlUi.basePath"
+  Write-Host "  --tailscale <mode>         Configure Tailscale: off|serve|funnel"
+  Write-Host "  --tailscale-set-path <p>   Path prefix for Tailscale mapping"
+  Write-Host "  --tailscale-target <url>   Override local target URL"
+  Write-Host "  --restart-gateway          Restart gateway after changes"
+  Write-Host "  --non-interactive          Disable all interactive prompts"
+  Write-Host "  --yes                      Auto-confirm prompts"
+  Write-Host "  --json                     Output result as JSON"
+  Write-Host ""
+  Write-Host "Examples:" -ForegroundColor White
+  Write-Host "  oclawmc openclaw setup --origin https://mc.example.com"
+  Write-Host "  oclawmc openclaw setup --base-path /mc --tailscale serve --tailscale-set-path /mc"
+  Write-Host "  oclawmc openclaw setup --origin https://mc.example.com --non-interactive --yes --json"
+  Write-Host "  oclawmc openclaw doctor --fix"
+  Write-Host "  oclawmc openclaw status"
+  Write-Host ""
+}
+
+function Cmd-Openclaw {
+  $sub = if ($Args.Count -gt 0) { $Args[0] } else { 'help' }
+  $rest = if ($Args.Count -gt 1) { $Args[1..($Args.Length - 1)] } else { @() }
+
+  switch ($sub) {
+    'setup' {
+      $origins = @(); $clearOrigins = $false; $basePath = ''
+      $tsMode = ''; $tsSetPath = '/'; $tsTarget = ''
+      $restartGw = $false; $nonInteractive = $false; $yesFlag = $false; $jsonOut = $false
+
+      $i = 0
+      while ($i -lt $rest.Count) {
+        switch ($rest[$i]) {
+          '--origin'             { $origins += $rest[$i+1]; $i += 2 }
+          '--clear-origins'      { $clearOrigins = $true; $i++ }
+          '--base-path'          { $basePath = $rest[$i+1]; $i += 2 }
+          '--tailscale'          { $tsMode = $rest[$i+1]; $i += 2 }
+          '--tailscale-set-path' { $tsSetPath = $rest[$i+1]; $i += 2 }
+          '--tailscale-target'   { $tsTarget = $rest[$i+1]; $i += 2 }
+          '--restart-gateway'    { $restartGw = $true; $i++ }
+          '--non-interactive'    { $nonInteractive = $true; $i++ }
+          { $_ -in '--yes','-y' }{ $yesFlag = $true; $i++ }
+          '--json'               { $jsonOut = $true; $i++ }
+          default { Write-Err "Unknown flag: $($rest[$i])"; exit 1 }
+        }
+      }
+
+      # Validate
+      $normOrigins = @()
+      foreach ($o in $origins) { $normOrigins += Assert-OcValidOrigin $o }
+      if ($basePath) { $basePath = Assert-OcValidPath $basePath }
+      if ($tsMode -and $tsMode -notin @('off','serve','funnel')) {
+        Write-Err "--tailscale must be one of: off, serve, funnel"; exit 1
+      }
+
+      # Ensure access
+      if (-not (Test-OclawCli) -and -not (Get-OclawConfigPath)) {
+        if ($jsonOut) {
+          Write-Host '{"status":"error","error":"openclaw CLI not found and no openclaw.json detected. Set OPENCLAW_CONFIG_PATH or install openclaw."}'
+        } else {
+          Write-Err "openclaw CLI not found and no config file detected."
+          Write-Warn "Set `$env:OPENCLAW_CONFIG_PATH or install openclaw."
+        }
+        exit 1
+      }
+
+      $changed = $false
+
+      # Clear origins
+      if ($clearOrigins) {
+        $confirmed = $yesFlag -or $nonInteractive
+        if (-not $confirmed) {
+          $ans = Read-Host "? Clear all allowedOrigins? [y/N]"
+          $confirmed = $ans -match '^[Yy]'
+        }
+        if ($confirmed) {
+          if (Test-OclawCli) {
+            openclaw config unset gateway.controlUi.allowedOrigins 2>$null
+            if ($LASTEXITCODE -ne 0) { openclaw config set gateway.controlUi.allowedOrigins '[]' }
+          } else {
+            Invoke-OcJsonEdit (Get-OclawConfigPath) 'clear_origins'
+          }
+          Write-Ok "Cleared allowedOrigins."
+          $changed = $true
+        }
+      }
+
+      # Add origins — only mark changed if actually new
+      foreach ($origin in $normOrigins) {
+        if (Test-OclawCli) {
+          $currentRaw = openclaw config get gateway.controlUi.allowedOrigins 2>$null
+          if (-not $currentRaw) { $currentRaw = '[]' }
+          $py = Get-PythonCommand
+          $s = @'
+import sys, json
+try: origins = json.loads(sys.argv[1])
+except: origins = []
+if not isinstance(origins, list): origins = []
+o = sys.argv[2]
+if o in origins: print('no-change'); print(json.dumps(origins))
+else: origins.append(o); print('changed'); print(json.dumps(origins))
+'@
+          $out = & $py -c $s $currentRaw $origin
+          $status  = ($out -split "`n")[0].Trim()
+          $newJson = ($out -split "`n")[1].Trim()
+          if ($status -eq 'no-change') {
+            Write-Warn "Origin already present (no change): $origin"
+          } else {
+            openclaw config set gateway.controlUi.allowedOrigins $newJson
+            Write-Ok "Added origin: $origin"
+            $changed = $true
+          }
+        } else {
+          $result = Invoke-OcJsonEdit (Get-OclawConfigPath) 'add_origin' @($origin)
+          if ($result -eq 'changed') { Write-Ok "Added origin: $origin"; $changed = $true }
+          else { Write-Warn "Origin already present (no change): $origin" }
+        }
+      }
+
+      # Set base path
+      if ($basePath) {
+        if (Test-OclawCli) { openclaw config set gateway.controlUi.basePath $basePath }
+        else { Invoke-OcJsonEdit (Get-OclawConfigPath) 'set_basepath' @($basePath) }
+        Write-Ok "Set basePath: $basePath"
+        $changed = $true
+      }
+
+      # Tailscale
+      if ($tsMode) { Invoke-OcTailscale $tsMode $tsSetPath $tsTarget; $changed = $true }
+
+      # Restart gateway
+      if ($restartGw -and $changed) {
+        if (Test-OclawCli) {
+          Write-Log "Restarting OpenClaw Gateway..."
+          openclaw gateway restart 2>$null
+          if ($LASTEXITCODE -ne 0) { Write-Warn "Could not restart gateway; restart it manually." }
+        } else {
+          Write-Warn "openclaw CLI not found; restart the gateway manually to apply changes."
+        }
+      }
+
+      if ($jsonOut) {
+        $out = [ordered]@{status='ok'; changed=$changed}
+        Write-Host ($out | ConvertTo-Json -Compress)
+      } else {
+        Write-Ok "Setup complete."
+        if (-not $changed) { Write-Warn "No changes made (no flags provided)." }
+      }
+    }
+
+    'status' {
+      $jsonOut = $rest -contains '--json'
+      if (-not (Test-OclawCli) -and -not (Get-OclawConfigPath)) {
+        if ($jsonOut) { Write-Host '{"status":"error","error":"OpenClaw config not found."}' }
+        else { Write-Warn "openclaw CLI not found and no openclaw.json config file detected." }
+        return
+      }
+      if ($jsonOut) {
+        Get-OcStatusJson
+      } else {
+        Write-Host "`nOpenClaw Gateway — controlUi config`n" -ForegroundColor White
+        if (Test-OclawCli) {
+          $origins  = openclaw config get gateway.controlUi.allowedOrigins 2>$null
+          $basePath = openclaw config get gateway.controlUi.basePath 2>$null
+          Write-Host "  allowedOrigins : $(if ($origins) { $origins } else { '[]' })"
+          Write-Host "  basePath       : $(if ($basePath) { $basePath } else { '(not set)' })"
+        } else {
+          Invoke-OcJsonEdit (Get-OclawConfigPath) 'get_json' | ForEach-Object {
+            try {
+              $d = $_ | ConvertFrom-Json
+              Write-Host "  allowedOrigins : $($d.allowedOrigins | ConvertTo-Json -Compress)"
+              Write-Host "  basePath       : $(if ($d.basePath) { $d.basePath } else { '(not set)' })"
+            } catch { Write-Host $_ }
+          }
+        }
+        Write-Host ""
+      }
+    }
+
+    'doctor' {
+      $fix     = $rest -contains '--fix'
+      $jsonOut = $rest -contains '--json'
+      $okCount = 0; $failCount = 0
+      $checks  = [System.Collections.Generic.List[hashtable]]::new()
+
+      $addCheck = {
+        param($Label, $Status, $Detail)
+        $checks.Add([ordered]@{label=$Label;status=$Status;detail=$Detail})
+        if ($Status -eq 'ok')     { $script:okCount++;   if (-not $jsonOut) { Write-Ok   "$Label`: $Detail" } }
+        elseif ($Status -eq 'fail') { $script:failCount++; if (-not $jsonOut) { Write-Err  "$Label`: $Detail" } }
+        else { if (-not $jsonOut) { Write-Warn "$Label`: $Detail" } }
+      }
+
+      if (-not $jsonOut) { Write-Host "`nOpenClaw doctor`n" -ForegroundColor White }
+
+      # openclaw CLI
+      if (Test-OclawCli) {
+        $ver = openclaw --version 2>$null
+        & $addCheck 'openclaw CLI' 'ok' "found ($ver)"
+      } else {
+        & $addCheck 'openclaw CLI' 'warn' 'not found — install openclaw or set OPENCLAW_CONFIG_PATH'
+      }
+
+      # Config file (fallback path)
+      $configFile = Get-OclawConfigPath
+      if ($configFile) { & $addCheck 'Config file' 'ok' $configFile }
+      elseif (Test-OclawCli) { & $addCheck 'Config file' 'warn' 'openclaw.json not found in standard paths (CLI available — using openclaw config)' }
+      else { & $addCheck 'Config file' 'fail' 'not found — run openclaw to initialise or set OPENCLAW_CONFIG_PATH' }
+
+      # Tailscale
+      if (Get-Command tailscale -ErrorAction SilentlyContinue) {
+        tailscale status 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) { & $addCheck 'Tailscale' 'ok' 'connected' }
+        else { & $addCheck 'Tailscale' 'warn' 'installed but not connected' }
+      } else { & $addCheck 'Tailscale' 'warn' 'not installed (optional)' }
+
+      # python3
+      $pyCmd = Get-PythonCommand
+      if ($pyCmd) {
+        & $addCheck 'python3' 'ok' "available ($(& $pyCmd --version 2>&1))"
+      } else {
+        & $addCheck 'python3' 'warn' 'not found (needed for JSON config fallback)'
+      }
+
+      if ($jsonOut) {
+        $json = [ordered]@{
+          checks    = @($checks | ForEach-Object { [ordered]@{label=$_.label;status=$_.status;detail=$_.detail} })
+          ok_count  = $okCount
+          fail_count = $failCount
+        }
+        Write-Host ($json | ConvertTo-Json -Compress)
+      } else {
+        Write-Host "`nResult: $okCount OK  $failCount FAIL`n"
+      }
+      if ($failCount -gt 0) { exit 1 }
+    }
+
+    { $_ -in 'help','-h','--help' } { Show-OclawUsage }
+
+    default {
+      Write-Err "Unknown openclaw subcommand: $sub"
+      Show-OclawUsage
+      exit 1
+    }
+  }
+}
+
 function Show-Usage {
   Write-Host "Usage: oclawmc <command> [args]" -ForegroundColor White
   Write-Host ""
@@ -389,8 +853,11 @@ function Show-Usage {
   Write-Host "  status                  Show server + Tailscale status"
   Write-Host "  logs [lines]            Tail log output (default 100 lines)"
   Write-Host "  update                  Pull latest, rebuild, and restart"
+  Write-Host "  self-update             Update the CLI script itself (fast, no rebuild)"
   Write-Host "  tailscale <status|up|down>"
   Write-Host "                          Manage Tailscale connection"
+  Write-Host "  openclaw <setup|status|doctor>"
+  Write-Host "                          Configure OpenClaw Gateway integration"
   Write-Host "  doctor                  Run preflight health checks"
   Write-Host "  uninstall               Remove service, CLI, and optionally data"
   Write-Host "  help                    Show this message"
@@ -405,8 +872,10 @@ switch ($Command) {
   'restart'   { Cmd-Restart }
   'status'    { Cmd-Status }
   'logs'      { Cmd-Logs }
-  'update'    { Cmd-Update }
+  'update'      { Cmd-Update }
+  'self-update' { Cmd-SelfUpdate }
   'tailscale' { Cmd-Tailscale }
+  'openclaw'  { Cmd-Openclaw }
   'doctor'    { Cmd-Doctor }
   'uninstall' { Cmd-Uninstall }
   { $_ -in 'help', '-h', '--help' } { Show-Usage }

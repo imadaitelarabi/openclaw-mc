@@ -56,11 +56,43 @@ After install, use the `oclawmc` command to manage the server:
 | `oclawmc status`                       | Show service + Tailscale status                  |
 | `oclawmc logs [N]`                     | Tail last N log lines (default 100)              |
 | `oclawmc update`                       | Pull latest, rebuild, and restart                |
+| `oclawmc self-update`                  | Update the CLI script itself (fast, no rebuild)  |
 | `oclawmc tailscale <status\|up\|down>` | Manage Tailscale connection                      |
+| `oclawmc openclaw <setup\|status\|doctor>` | Configure OpenClaw Gateway integration       |
 | `oclawmc doctor`                       | Preflight health checks (port, token, Tailscale) |
 | `oclawmc uninstall`                    | Remove service, CLI, and optionally data         |
 
 Config is stored in `~/.oclawmc/config.json` (Unix) or `%USERPROFILE%\.oclawmc\config.json` (Windows).
+
+#### `oclawmc openclaw` — Gateway integration setup
+
+The `openclaw` subcommand configures the OpenClaw **Gateway** (not the MC server itself) for secure Mission Control communication.
+
+```bash
+# Add a trusted origin to gateway.controlUi.allowedOrigins (idempotent)
+oclawmc openclaw setup --origin https://mc.example.com
+
+# Set a custom UI base path
+oclawmc openclaw setup --base-path /mc
+
+# Expose via Tailscale Serve with matching path prefix
+oclawmc openclaw setup --tailscale serve --tailscale-set-path /mc
+
+# Full headless / CI-friendly invocation (no prompts, JSON output)
+oclawmc openclaw setup \
+  --origin https://mc.example.com \
+  --base-path /mc \
+  --restart-gateway \
+  --non-interactive --yes --json
+
+# Show current Gateway configuration
+oclawmc openclaw status
+
+# Run health checks and auto-fix where possible
+oclawmc openclaw doctor --fix
+```
+
+See [`docs/OPENCLAW-SETUP.md`](docs/OPENCLAW-SETUP.md) for full flag reference, Tailscale path-mapping details, and headless automation examples.
 
 > **Legacy installer** (no Tailscale/CLI, runs in foreground):
 >
