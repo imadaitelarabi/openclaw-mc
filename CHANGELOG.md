@@ -136,7 +136,6 @@
 
 - Merge pull request [#152](https://github.com/imadaitelarabi/openclaw-mc/pull/152) from imadaitelarabi/docs/daily-update-2026-02-28 ([3677f46b47c1e00dce3ccde7878a7d80bc984e13](https://github.com/imadaitelarabi/openclaw-mc/commit/3677f46b47c1e00dce3ccde7878a7d80bc984e13))
 
-
 ## [0.7.1] - 2026-02-28
 
 ### Meta
