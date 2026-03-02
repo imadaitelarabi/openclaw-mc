@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.8.0] - 2026-03-02
+### Meta
+- Bump: minor (score: 45)
+- Range: [5e953d1](https://github.com/imadaitelarabi/openclaw-mc.git/commit/5e953d1326b1a6ba232bdeb6f6f1c1a0e91faba1)..[0552f66](https://github.com/imadaitelarabi/openclaw-mc.git/commit/0552f662e5b7a2d9a8e2b2b7d7b7b7b7b7b7b7b7)
+
+### Features
+- add nssm installation check and update Windows service setup process ([bf783a7](https://github.com/imadaitelarabi/openclaw-mc.git/commit/bf783a7))
+- improve process management and error handling in service start command ([7f72331](https://github.com/imadaitelarabi/openclaw-mc.git/commit/7f72331))
+- enhance PR timeline event labels: add support for renaming, ready for review, mentioned, and subscribed events ([f2d4585](https://github.com/imadaitelarabi/openclaw-mc.git/commit/f2d4585))
+- enhance onboarding panel: add token update functionality and improve connection status messaging ([6b148c6](https://github.com/imadaitelarabi/openclaw-mc.git/commit/6b148c6))
+- refactor checks into main polling cycle; add workflow run approval support ([f2af8da](https://github.com/imadaitelarabi/openclaw-mc.git/commit/f2af8da))
+- open cross-reference links in internal MC panels instead of browser tabs ([4165242](https://github.com/imadaitelarabi/openclaw-mc.git/commit/4165242))
+- enhance GitHub details panels with branch display, checks, cross-refs, and reactions ([72d34ee](https://github.com/imadaitelarabi/openclaw-mc.git/commit/72d34ee))
+- implement customizable polling settings for GitHub panels ([cbd9a28](https://github.com/imadaitelarabi/openclaw-mc.git/commit/cbd9a28))
+- enhance polling settings for GitHub panels with customizable intervals ([3858b83](https://github.com/imadaitelarabi/openclaw-mc.git/commit/3858b83))
+- move polling toggle to GitHub extension settings panel ([2be033f](https://github.com/imadaitelarabi/openclaw-mc.git/commit/2be033f))
+- add smart polling and searchable repo dropdown to GitHub panels ([64ffac3](https://github.com/imadaitelarabi/openclaw-mc.git/commit/64ffac3))
+- add icon support for action buttons in ExtensionActionBar and update related components ([7440ff5](https://github.com/imadaitelarabi/openclaw-mc.git/commit/7440ff5))
+- server-side VSCode open service with remote detection, local clone management and HTTP endpoint ([f347848](https://github.com/imadaitelarabi/openclaw-mc.git/commit/f347848))
+- add Open in VSCode action to GitHub PR details panel ([26d84b5](https://github.com/imadaitelarabi/openclaw-mc.git/commit/26d84b5))
+- per-extension status-bar refresh contract + visibility-aware polling ([1780f02](https://github.com/imadaitelarabi/openclaw-mc.git/commit/1780f02))
+
+### Refactors
+- refactor GitHub API interfaces and improve code formatting in PR details and onboarding panels ([231394f](https://github.com/imadaitelarabi/openclaw-mc.git/commit/231394f))
+- streamline conditional rendering and formatting in ActionButton component ([504bc47](https://github.com/imadaitelarabi/openclaw-mc.git/commit/504bc47))
+- fix split-button pattern in ExtensionActionBar so primary onClick fires independently of dropdown ([896c144](https://github.com/imadaitelarabi/openclaw-mc.git/commit/896c144))
+
+### Docs
+- update FEATURES.md with March 1st-2nd updates ([0552f66](https://github.com/imadaitelarabi/openclaw-mc.git/commit/0552f66))
+- update EXTENSIONS.md with new features and event labels ([504bc47](https://github.com/imadaitelarabi/openclaw-mc.git/commit/504bc47))
+
+### Other
+- Merge pull request #179 from imadaitelarabi/copilot/enhance-details-panels-metadata ([d9003ab](https://github.com/imadaitelarabi/openclaw-mc.git/commit/d9003ab))
+- Merge pull request #177 from imadaitelarabi/copilot/enhance-github-panels-realtime-search ([cbd9a28](https://github.com/imadaitelarabi/openclaw-mc.git/commit/cbd9a28))
+- Merge pull request #175 from imadaitelarabi/copilot/add-open-in-vscode-action ([7440ff5](https://github.com/imadaitelarabi/openclaw-mc.git/commit/7440ff5))
+
+---
+
 ## [0.7.0] - 2026-02-27
 ### Meta
 - Bump: minor (score: 26)

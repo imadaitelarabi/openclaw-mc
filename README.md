@@ -118,6 +118,8 @@ OPENCLAW_GATEWAY_ORIGIN=http://localhost:3000
 - Built-in GitHub extension:
   - PR/issue status in status bar
   - `@PR` / `@issue` tagging in chat input
+  - **Open in VSCode**: Open PR branches directly in VSCode from the detail panels.
+  - **Smart Polling**: Customizable refresh intervals and background polling toggles.
 
 ### 8) UX and resilience
 

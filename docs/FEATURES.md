@@ -1,3 +1,23 @@
+# Feature Highlights (March 2, 2026)
+
+## GitHub Extension Enhancements
+- **Advanced PR & Issue Details:** New features in the details panels include branch display, workflow check status, and support for reactions. Timeline events now track renames, "ready for review" status, and user mentions.
+- **Internal Navigation:** GitHub links for cross-referenced issues and PRs now navigate directly within the Mission Control panels instead of opening external browser tabs.
+- **Smart Polling & Customizable Intervals:** Introduced per-extension polling settings. Users can now toggle background polling on/off and customize refresh intervals directly from the extension settings. Smart polling also includes a searchable repository dropdown for faster navigation.
+- **Onboarding & Connection Improvements:** Enhanced the GitHub onboarding flow with support for updating personal access tokens and clearer connection status messaging.
+
+## VSCode Integration
+- **Open in VSCode:** Added a new action to the PR details panel that allows users to open the PR's branch directly in VSCode. This is backed by a new server-side service that handles remote environment detection and local clone management.
+
+## Core UI & Performance
+- **Enhanced Action Bar:** The `ExtensionActionBar` now supports split-button patterns (primary action + dropdown) and icon-based buttons for a cleaner, more intuitive interface.
+- **Visibility-Aware Polling:** Optimized background updates by implementing visibility-aware polling, ensuring extensions only refresh when active or visible in the UI.
+
+## Windows Support
+- **Robust Service Setup:** Improved the Windows installation process with automated `nssm` (Non-Sucking Service Manager) checks and enhanced error handling for the `oclawmc` PowerShell service manager.
+
+---
+
 # Feature Highlights (March 1, 2026)
 
 ## Enhanced GitHub Issue & PR Details UX
