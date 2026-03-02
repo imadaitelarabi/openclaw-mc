@@ -250,6 +250,62 @@ function Cmd-Update {
   Cmd-Restart
 }
 
+function Cmd-SelfUpdate {
+  $repoUrl  = 'https://github.com/imadaitelarabi/openclaw-mc'
+  $rawBase  = 'https://raw.githubusercontent.com/imadaitelarabi/openclaw-mc'
+  $branch   = 'master'  # matches the default stored by the installer
+
+  # Resolve the real path of this script (follow any shortcuts/symlinks).
+  $scriptReal = $PSCommandPath
+  if (-not $scriptReal) { $scriptReal = $MyInvocation.MyCommand.Path }
+
+  # Prefer update via the install-dir git repo.
+  if (Test-Path $ConfigFile) {
+    Load-Config
+    $installDir   = Get-InstallDir
+    $storedBranch = Get-Branch
+    $branch       = if ($storedBranch) { $storedBranch } else { 'master' }
+    $gitDir       = Join-Path $installDir '.git'
+    if ($installDir -and (Test-Path $gitDir)) {
+      Write-Log "Fetching latest CLI scripts from '$branch'..."
+      $fetchOut = git -C $installDir fetch --all --prune 2>&1
+      if ($LASTEXITCODE -ne 0) {
+        Write-Warn "git fetch failed: $fetchOut"
+        Write-Warn "Falling back to direct download..."
+      } else {
+        $checkoutOut = git -C $installDir checkout "origin/$branch" -- scripts/oclawmc.ps1 scripts/oclawmc 2>&1
+        if ($LASTEXITCODE -ne 0) { Write-Warn "git checkout warning: $checkoutOut" }
+        Write-Ok "CLI self-updated from local repository ($branch)."
+        return
+      }
+    }
+  }
+
+  # Fallback: download both scripts from GitHub.
+  if (-not $scriptReal) {
+    Write-Err "Cannot determine script path. Re-run the full installer: $repoUrl"
+    exit 1
+  }
+  foreach ($scriptName in @('oclawmc.ps1', 'oclawmc')) {
+    $url = "$rawBase/$branch/scripts/$scriptName"
+    $destDir = Split-Path $scriptReal
+    $dest = Join-Path $destDir $scriptName
+    if (-not (Test-Path $dest)) { continue }  # skip if this variant isn't installed here
+    Write-Log "Downloading $scriptName from GitHub ($url)..."
+    try {
+      $tmp = "$dest.tmp"
+      Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
+      Move-Item -Force $tmp $dest
+      Write-Ok "Updated $scriptName."
+    } catch {
+      Write-Err "Download failed for ${scriptName}: $_"
+      Write-Err "Check your internet connection or re-run the installer: $repoUrl"
+      exit 1
+    }
+  }
+  Write-Ok "CLI self-updated to latest ($branch)."
+}
+
 function Cmd-Tailscale {
   $sub = if ($Args.Count -gt 0) { $Args[0] } else { 'status' }
   switch ($sub) {
@@ -797,6 +853,7 @@ function Show-Usage {
   Write-Host "  status                  Show server + Tailscale status"
   Write-Host "  logs [lines]            Tail log output (default 100 lines)"
   Write-Host "  update                  Pull latest, rebuild, and restart"
+  Write-Host "  self-update             Update the CLI script itself (fast, no rebuild)"
   Write-Host "  tailscale <status|up|down>"
   Write-Host "                          Manage Tailscale connection"
   Write-Host "  openclaw <setup|status|doctor>"
@@ -815,7 +872,8 @@ switch ($Command) {
   'restart'   { Cmd-Restart }
   'status'    { Cmd-Status }
   'logs'      { Cmd-Logs }
-  'update'    { Cmd-Update }
+  'update'      { Cmd-Update }
+  'self-update' { Cmd-SelfUpdate }
   'tailscale' { Cmd-Tailscale }
   'openclaw'  { Cmd-Openclaw }
   'doctor'    { Cmd-Doctor }

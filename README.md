@@ -56,6 +56,7 @@ After install, use the `oclawmc` command to manage the server:
 | `oclawmc status`                       | Show service + Tailscale status                  |
 | `oclawmc logs [N]`                     | Tail last N log lines (default 100)              |
 | `oclawmc update`                       | Pull latest, rebuild, and restart                |
+| `oclawmc self-update`                  | Update the CLI script itself (fast, no rebuild)  |
 | `oclawmc tailscale <status\|up\|down>` | Manage Tailscale connection                      |
 | `oclawmc openclaw <setup\|status\|doctor>` | Configure OpenClaw Gateway integration       |
 | `oclawmc doctor`                       | Preflight health checks (port, token, Tailscale) |
