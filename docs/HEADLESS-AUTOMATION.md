@@ -23,13 +23,13 @@ All three can be combined. Exit codes follow Unix conventions (`0` = success,
 ### `setup`
 
 ```json
-{ "status": "ok", "config": "/home/user/.openclaw/config.yaml", "changed": true }
+{ "status": "ok", "changed": true }
 ```
 
 On error:
 
 ```json
-{ "status": "error", "error": "OpenClaw Gateway config not found." }
+{ "status": "error", "error": "openclaw CLI not found and no openclaw.json detected. Set OPENCLAW_CONFIG_PATH or install openclaw." }
 ```
 
 ### `status --json`
@@ -37,7 +37,6 @@ On error:
 ```json
 {
   "status": "ok",
-  "config": "/home/user/.openclaw/config.yaml",
   "allowedOrigins": ["https://mc.example.com"],
   "basePath": "/mc"
 }

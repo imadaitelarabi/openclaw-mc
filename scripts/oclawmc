@@ -302,22 +302,21 @@ cmd_doctor() {
 }
 
 # ── openclaw subcommand ───────────────────────────────────────────────────────
+# Config is manipulated via `openclaw config get/set/unset` when the openclaw
+# CLI is available; otherwise falls back to direct JSON edits of openclaw.json.
 
-# Locate the OpenClaw Gateway config file.
-# Checks OPENCLAW_CONFIG_PATH, then 'openclaw config path', then common paths.
+_oc_has_cli() { command -v openclaw >/dev/null 2>&1; }
+
+# Find openclaw.json config file (used only when CLI is absent).
+# Checks OPENCLAW_CONFIG_PATH first, then well-known paths.
 _oc_find_config() {
   if [[ -n "${OPENCLAW_CONFIG_PATH:-}" && -f "${OPENCLAW_CONFIG_PATH}" ]]; then
     echo "${OPENCLAW_CONFIG_PATH}"; return 0
   fi
-  if command -v openclaw >/dev/null 2>&1; then
-    local cfg
-    cfg="$(openclaw config path 2>/dev/null || true)"
-    [[ -n "$cfg" && -f "$cfg" ]] && { echo "$cfg"; return 0; }
-  fi
   local candidates=(
-    "${HOME}/.openclaw/config.yaml"
-    "${XDG_CONFIG_HOME:-${HOME}/.config}/openclaw/config.yaml"
-    "/etc/openclaw/config.yaml"
+    "${HOME}/.openclaw/openclaw.json"
+    "${XDG_CONFIG_HOME:-${HOME}/.config}/openclaw/openclaw.json"
+    "/etc/openclaw/openclaw.json"
   )
   for f in "${candidates[@]}"; do
     [[ -f "$f" ]] && { echo "$f"; return 0; }
@@ -346,85 +345,147 @@ _oc_validate_path() {
   echo "$path"
 }
 
-# Patch the OpenClaw Gateway YAML config via an inline Python3 script.
-# Requires python3 + PyYAML.
-_oc_yaml_patch() {
-  local config_file="$1" op="$2"
-  shift 2
-  if ! command -v python3 >/dev/null 2>&1; then
-    err "python3 is required to modify the OpenClaw config. Install Python 3 and try again."
+# Require either openclaw CLI or a config file; print error and return 1 if neither.
+_oc_require_access() {
+  local json_out="${1:-false}"
+  if ! _oc_has_cli && ! _oc_find_config >/dev/null 2>&1; then
+    if [[ "$json_out" == true ]]; then
+      printf '{"status":"error","error":"openclaw CLI not found and no openclaw.json config file detected. Install openclaw or set OPENCLAW_CONFIG_PATH."}\n'
+    else
+      err "openclaw CLI not found and no config file detected."
+      err "Install openclaw or set OPENCLAW_CONFIG_PATH to your openclaw.json path."
+    fi
     return 1
   fi
-  python3 - "$config_file" "$op" "$@" <<'PYEOF'
-import sys, os
+}
 
-config_file = sys.argv[1]
-op          = sys.argv[2]
-args        = sys.argv[3:]
-
+# Add an origin to allowedOrigins.
+# Returns 0 if the origin was newly added, 1 if it was already present.
+_oc_add_origin() {
+  local origin="$1"
+  if _oc_has_cli; then
+    local current_raw outcome status new_json
+    current_raw="$(openclaw config get gateway.controlUi.allowedOrigins 2>/dev/null || echo '[]')"
+    outcome="$(python3 -c "
+import json, sys
 try:
-    import yaml
-except ImportError:
-    print("Error: PyYAML not installed. Run: pip3 install pyyaml", file=sys.stderr)
-    sys.exit(2)
+    origins = json.loads(sys.argv[1])
+    if not isinstance(origins, list): origins = []
+except Exception:
+    origins = []
+origin = sys.argv[2]
+if origin in origins:
+    print('no-change'); print(json.dumps(origins))
+else:
+    origins.append(origin); print('changed'); print(json.dumps(origins))
+" "$current_raw" "$origin")" || return 1
+    status="$(printf '%s\n' "$outcome" | head -1)"
+    new_json="$(printf '%s\n' "$outcome" | tail -1)"
+    if [[ "$status" == "no-change" ]]; then
+      warn "Origin already present (no change): ${origin}"; return 1
+    fi
+    openclaw config set gateway.controlUi.allowedOrigins "$new_json" || return 1
+    ok "Added origin: ${origin}"; return 0
+  else
+    local cfg; cfg="$(_oc_find_config)" || return 1
+    local status
+    status="$(python3 - "$cfg" "$origin" <<'PYEOF'
+import sys, json
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+gw = data.setdefault('gateway', {})
+cu = gw.setdefault('controlUi', {})
+origins = cu.get('allowedOrigins', [])
+if not isinstance(origins, list): origins = []
+if sys.argv[2] in origins:
+    print('no-change')
+else:
+    origins.append(sys.argv[2])
+    cu['allowedOrigins'] = origins
+    with open(sys.argv[1], 'w') as f:
+        json.dump(data, f, indent=2)
+    print('changed')
+PYEOF
+)" || return 1
+    if [[ "$status" == "no-change" ]]; then
+      warn "Origin already present (no change): ${origin}"; return 1
+    fi
+    ok "Added origin: ${origin}"; return 0
+  fi
+}
 
-try:
-    with open(config_file, 'r') as f:
-        data = yaml.safe_load(f) or {}
-except FileNotFoundError:
-    data = {}
+# Clear all allowed origins.
+_oc_clear_origins() {
+  if _oc_has_cli; then
+    openclaw config unset gateway.controlUi.allowedOrigins 2>/dev/null \
+      || openclaw config set gateway.controlUi.allowedOrigins '[]' \
+      || return 1
+  else
+    local cfg; cfg="$(_oc_find_config)" || return 1
+    python3 - "$cfg" <<'PYEOF' || return 1
+import sys, json
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+data.setdefault('gateway', {}).setdefault('controlUi', {})['allowedOrigins'] = []
+with open(sys.argv[1], 'w') as f:
+    json.dump(data, f, indent=2)
+PYEOF
+  fi
+  ok "Cleared allowedOrigins."
+}
 
-def deep_get(d, keys, default=None):
+# Set gateway.controlUi.basePath.
+_oc_set_basepath() {
+  local path="$1"
+  if _oc_has_cli; then
+    openclaw config set gateway.controlUi.basePath "$path" || return 1
+  else
+    local cfg; cfg="$(_oc_find_config)" || return 1
+    python3 - "$cfg" "$path" <<'PYEOF' || return 1
+import sys, json
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+data.setdefault('gateway', {}).setdefault('controlUi', {})['basePath'] = sys.argv[2]
+with open(sys.argv[1], 'w') as f:
+    json.dump(data, f, indent=2)
+PYEOF
+  fi
+  ok "Set basePath: ${path}"
+}
+
+# Emit a JSON object with current gateway.controlUi values.
+_oc_get_status_json() {
+  local origins="" base_path=""
+  if _oc_has_cli; then
+    origins="$(openclaw config get gateway.controlUi.allowedOrigins 2>/dev/null || echo '[]')"
+    base_path="$(openclaw config get gateway.controlUi.basePath 2>/dev/null || echo 'null')"
+  else
+    local cfg
+    if ! cfg="$(_oc_find_config 2>/dev/null)"; then
+      printf '{"status":"error","error":"OpenClaw config not found."}\n'; return 1
+    fi
+    local py_get='
+import sys, json
+with open(sys.argv[1]) as f: data = json.load(f)
+def dg(d, keys):
     for k in keys:
-        if not isinstance(d, dict) or k not in d:
-            return default
+        if not isinstance(d, dict) or k not in d: return None
         d = d[k]
     return d
-
-def deep_set(d, keys, value):
-    for k in keys[:-1]:
-        if k not in d or not isinstance(d[k], dict):
-            d[k] = {}
-        d = d[k]
-    d[keys[-1]] = value
-
-if op == 'add_origin':
-    origin = args[0]
-    origins = deep_get(data, ['gateway', 'controlUi', 'allowedOrigins'], [])
-    if not isinstance(origins, list):
-        origins = []
-    if origin not in origins:
-        origins.append(origin)
-        deep_set(data, ['gateway', 'controlUi', 'allowedOrigins'], origins)
-        print(f"Added origin: {origin}")
-    else:
-        print(f"Origin already present (no change): {origin}")
-        sys.exit(0)
-
-elif op == 'clear_origins':
-    deep_set(data, ['gateway', 'controlUi', 'allowedOrigins'], [])
-    print("Cleared allowedOrigins.")
-
-elif op == 'set_basepath':
-    path = args[0]
-    deep_set(data, ['gateway', 'controlUi', 'basePath'], path)
-    print(f"Set basePath: {path}")
-
-elif op == 'get_info':
-    origins   = deep_get(data, ['gateway', 'controlUi', 'allowedOrigins'], [])
-    base_path = deep_get(data, ['gateway', 'controlUi', 'basePath'], None)
-    print(f"  allowedOrigins : {origins if origins else '(none)'}")
-    print(f"  basePath       : {base_path if base_path else '(not set)'}")
-    sys.exit(0)
-
-else:
-    print(f"Unknown op: {op}", file=sys.stderr)
-    sys.exit(1)
-
-os.makedirs(os.path.dirname(os.path.abspath(config_file)), exist_ok=True)
-with open(config_file, 'w') as f:
-    yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
-PYEOF
+print(json.dumps(dg(data, sys.argv[2].split("."))))
+'
+    origins="$(python3 -c "$py_get" "$cfg" "gateway.controlUi.allowedOrigins" 2>/dev/null || echo '[]')"
+    base_path="$(python3 -c "$py_get" "$cfg" "gateway.controlUi.basePath" 2>/dev/null || echo 'null')"
+  fi
+  python3 -c "
+import json, sys
+try: origins = json.loads(sys.argv[1])
+except Exception: origins = []
+if not isinstance(origins, list): origins = []
+try: base_path = json.loads(sys.argv[2])
+except Exception: base_path = None
+print(json.dumps({'status':'ok','allowedOrigins':origins,'basePath':base_path}))
+" "$origins" "$base_path"
 }
 
 # Configure Tailscale serve/funnel path mapping.
@@ -502,18 +563,8 @@ _openclaw_setup() {
     exit 1
   fi
 
-  # Find config file
-  local config_file
-  if ! config_file="$(_oc_find_config)"; then
-    if [[ "$json_out" == true ]]; then
-      printf '{"status":"error","error":"OpenClaw Gateway config not found. Set OPENCLAW_CONFIG_PATH or ensure openclaw is installed."}\n'
-    else
-      err "OpenClaw Gateway config not found."
-      err "Searched: \${HOME}/.openclaw/config.yaml, \${XDG_CONFIG_HOME}/openclaw/config.yaml, /etc/openclaw/config.yaml"
-      err "Override with: export OPENCLAW_CONFIG_PATH=/path/to/config.yaml"
-    fi
-    exit 1
-  fi
+  # Ensure openclaw CLI or config file is accessible
+  _oc_require_access "$json_out" || exit 1
 
   local changed=false
 
@@ -523,24 +574,25 @@ _openclaw_setup() {
     if [[ "$yes_flag" == true || "$non_interactive" == true ]]; then
       confirmed=true
     else
-      read -r -p "$(printf "${BOLD}?${NC} Clear all allowedOrigins in ${config_file}? [y/N]: ")" ans
+      read -r -p "$(printf "${BOLD}?${NC} Clear all allowedOrigins? [y/N]: ")" ans
       [[ "${ans,,}" == "y" || "${ans,,}" == "yes" ]] && confirmed=true
     fi
     if [[ "$confirmed" == true ]]; then
-      _oc_yaml_patch "$config_file" clear_origins
+      _oc_clear_origins || exit 1
       changed=true
     fi
   fi
 
-  # Add origins
+  # Add origins — only mark changed when the origin is actually new
   for origin in "${norm_origins[@]}"; do
-    _oc_yaml_patch "$config_file" add_origin "$origin"
-    changed=true
+    if _oc_add_origin "$origin"; then
+      changed=true
+    fi
   done
 
   # Set base path
   if [[ -n "$base_path" ]]; then
-    _oc_yaml_patch "$config_file" set_basepath "$base_path"
+    _oc_set_basepath "$base_path" || exit 1
     changed=true
   fi
 
@@ -552,9 +604,10 @@ _openclaw_setup() {
 
   # Optionally restart gateway
   if [[ "$restart_gw" == true && "$changed" == true ]]; then
-    if command -v openclaw >/dev/null 2>&1; then
+    if _oc_has_cli; then
       log "Restarting OpenClaw Gateway…"
-      openclaw restart 2>/dev/null || warn "Could not restart gateway; please restart it manually."
+      openclaw gateway restart 2>/dev/null \
+        || warn "Could not restart gateway; please restart it manually."
     else
       warn "openclaw CLI not found; restart the gateway manually to apply changes."
     fi
@@ -562,10 +615,10 @@ _openclaw_setup() {
 
   if [[ "$json_out" == true ]]; then
     local changed_bool="False"; [[ $changed == true ]] && changed_bool="True"
-    python3 -c "import json,sys; print(json.dumps({'status':'ok','config':sys.argv[1],'changed':${changed_bool}}))" "$config_file"
+    python3 -c "import json; print(json.dumps({'status':'ok','changed':${changed_bool}}))"
   else
-    ok "Setup complete. Config: ${config_file}"
-    [[ "$changed" == false ]] && warn "No changes made (no flags provided)."
+    ok "Setup complete."
+    if [[ "$changed" == false ]]; then warn "No changes made (no flags provided)."; fi
   fi
 }
 
@@ -573,50 +626,41 @@ _openclaw_status() {
   local json_out=false
   [[ "${1:-}" == "--json" ]] && json_out=true
 
-  local config_file
-  if ! config_file="$(_oc_find_config 2>/dev/null)"; then
-    if [[ "$json_out" == true ]]; then
-      printf '{"status":"error","error":"OpenClaw Gateway config not found."}\n'
-    else
-      warn "OpenClaw Gateway config not found."
-    fi
-    return 1
-  fi
+  _oc_require_access "$json_out" || return 1
 
   if [[ "$json_out" == true ]]; then
-    if command -v python3 >/dev/null 2>&1; then
-      python3 - "$config_file" <<'PYEOF'
-import sys, json
-try:
-    import yaml
-except ImportError:
-    print('{"status":"error","error":"PyYAML not installed"}')
-    sys.exit(0)
-with open(sys.argv[1]) as f:
-    data = yaml.safe_load(f) or {}
-def deep_get(d, keys, default=None):
-    for k in keys:
-        if not isinstance(d, dict) or k not in d:
-            return default
-        d = d[k]
-    return d
-print(json.dumps({
-    "status": "ok",
-    "config": sys.argv[1],
-    "allowedOrigins": deep_get(data, ['gateway','controlUi','allowedOrigins'], []),
-    "basePath": deep_get(data, ['gateway','controlUi','basePath'], None),
-}))
-PYEOF
-    else
-      printf '{"status":"error","error":"python3 not available"}\n'
-    fi
+    _oc_get_status_json
     return
   fi
 
-  printf "\n${BOLD}OpenClaw Gateway config:${NC} %s\n\n" "$config_file"
-  _oc_yaml_patch "$config_file" get_info 2>/dev/null \
-    || { warn "python3/PyYAML unavailable; showing raw file:"; cat "$config_file"; }
-  printf "\n"
+  # Human-readable output
+  printf "\n${BOLD}OpenClaw Gateway — controlUi config${NC}\n\n"
+  if _oc_has_cli; then
+    local origins base_path
+    origins="$(openclaw config get gateway.controlUi.allowedOrigins 2>/dev/null || echo '[]')"
+    base_path="$(openclaw config get gateway.controlUi.basePath 2>/dev/null || true)"
+    printf "  allowedOrigins : %s\n" "${origins:-[]}"
+    printf "  basePath       : %s\n\n" "${base_path:-(not set)}"
+  else
+    local cfg; cfg="$(_oc_find_config)" || return 1
+    printf "  (reading from %s)\n\n" "$cfg"
+    local py_get='
+import sys, json
+with open(sys.argv[1]) as f: data = json.load(f)
+def dg(d, keys):
+    for k in keys:
+        if not isinstance(d, dict) or k not in d: return None
+        d = d[k]
+    return d
+o = dg(data, ["gateway","controlUi","allowedOrigins"])
+b = dg(data, ["gateway","controlUi","basePath"])
+none_str = "(none)"; notset_str = "(not set)"
+print("  allowedOrigins : " + (str(o) if o else none_str))
+print("  basePath       : " + (str(b) if b else notset_str))
+'
+    python3 -c "$py_get" "$cfg" 2>/dev/null || warn "Could not read config file."
+    printf "\n"
+  fi
 }
 
 _openclaw_doctor() {
@@ -630,7 +674,6 @@ _openclaw_doctor() {
   done
 
   local ok_count=0 fail_count=0
-  # Each entry: "label|status|detail"
   local results_str=""
 
   _dr_record() {
@@ -650,22 +693,20 @@ _openclaw_doctor() {
   [[ "$json_out" == false ]] && printf "\n${BOLD}OpenClaw doctor${NC}\n\n"
 
   # openclaw CLI
-  if command -v openclaw >/dev/null 2>&1; then
+  if _oc_has_cli; then
     _dr_record "openclaw CLI" "ok" "found ($(openclaw --version 2>/dev/null || echo 'version unknown'))"
   else
-    _dr_record "openclaw CLI" "warn" "not found (optional)"
+    _dr_record "openclaw CLI" "warn" "not found — install openclaw or set OPENCLAW_CONFIG_PATH"
   fi
 
-  # Config file
+  # Config file (fallback path)
   local config_file=""
   if config_file="$(_oc_find_config 2>/dev/null)"; then
     _dr_record "Config file" "ok" "$config_file"
+  elif _oc_has_cli; then
+    _dr_record "Config file" "warn" "openclaw.json not found in standard paths (CLI available — using openclaw config)"
   else
-    _dr_record "Config file" "fail" "not found"
-    if [[ "$fix" == true ]] && command -v openclaw >/dev/null 2>&1; then
-      log "Attempting to initialise OpenClaw config…"
-      openclaw config init 2>/dev/null && ok "Config initialised." || true
-    fi
+    _dr_record "Config file" "fail" "not found — run 'openclaw' to initialise or set OPENCLAW_CONFIG_PATH"
   fi
 
   # Tailscale
@@ -679,21 +720,14 @@ _openclaw_doctor() {
     _dr_record "Tailscale" "warn" "not installed (optional)"
   fi
 
-  # python3 + PyYAML
+  # python3 (standard library only — no PyYAML needed)
   if command -v python3 >/dev/null 2>&1; then
-    if python3 -c "import yaml" 2>/dev/null; then
-      _dr_record "python3+PyYAML" "ok" "available"
-    else
-      _dr_record "python3+PyYAML" "warn" "python3 found but PyYAML missing (run: pip3 install pyyaml)"
-      if [[ "$fix" == true ]]; then
-        log "Installing PyYAML…"
-        pip3 install --user pyyaml 2>/dev/null \
-          && ok "PyYAML installed." \
-          || warn "Could not install PyYAML. Try: pip3 install pyyaml"
-      fi
-    fi
+    _dr_record "python3" "ok" "available ($(python3 --version 2>&1))"
   else
-    _dr_record "python3+PyYAML" "warn" "python3 not found (needed for config editing)"
+    _dr_record "python3" "warn" "not found (needed for JSON config fallback)"
+    if [[ "$fix" == true ]]; then
+      warn "Cannot auto-install python3. Please install it via your package manager."
+    fi
   fi
 
   unset -f _dr_record
@@ -704,8 +738,7 @@ import sys, json
 checks = []
 for line in sys.stdin:
     line = line.rstrip("\n")
-    if not line:
-        continue
+    if not line: continue
     parts = line.split("|", 2)
     if len(parts) == 3:
         checks.append({"label": parts[0], "status": parts[1], "detail": parts[2]})

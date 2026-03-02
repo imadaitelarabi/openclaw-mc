@@ -3,6 +3,11 @@
 The `oclawmc openclaw` command group configures the **OpenClaw Gateway** for
 Mission Control communication without manual config-file editing.
 
+Config is mutated via `openclaw config get/set/unset` when the `openclaw` CLI
+is available; otherwise the command falls back to direct JSON edits of
+`~/.openclaw/openclaw.json` using Python 3's standard `json` module (no extra
+dependencies required).
+
 ---
 
 ## Subcommands
@@ -69,8 +74,7 @@ See [`TAILSCALE-PATH-MAPPING.md`](TAILSCALE-PATH-MAPPING.md) for full details.
 oclawmc openclaw setup --origin https://mc.example.com --restart-gateway
 ```
 
-If the `openclaw` CLI is on `PATH`, it calls `openclaw restart`; otherwise a
-warning is printed.
+Calls `openclaw gateway restart` when the `openclaw` CLI is on `PATH`.
 
 ### Headless / non-interactive mode
 
@@ -92,7 +96,7 @@ oclawmc openclaw status --json   # machine-readable
 ```
 
 Prints `gateway.controlUi.allowedOrigins` and `gateway.controlUi.basePath`
-from the detected Gateway config file.
+from the Gateway config.
 
 ---
 
@@ -109,26 +113,30 @@ Checks performed:
 | Check | Fix available? |
 | ----- | -------------- |
 | `openclaw` CLI present | No (informational) |
-| Gateway config file found | Runs `openclaw config init` if CLI is available |
+| `openclaw.json` config file found | No (displays guidance) |
 | Tailscale connected | No (informational) |
-| `python3` + PyYAML available | Runs `pip3 install pyyaml` with `--fix` |
+| `python3` available | No (displays guidance) |
 
 ---
 
-## Config file detection
+## Config access order
 
-The command searches for the Gateway config file in this order:
+When mutating or reading config, the command:
+
+1. Calls `openclaw config get/set/unset <key>` if the `openclaw` CLI is available (preferred).
+2. Falls back to direct JSON edits of `openclaw.json` when the CLI is absent.
+
+### Config file detection (fallback only)
 
 1. `$OPENCLAW_CONFIG_PATH` environment variable (override)
-2. `openclaw config path` CLI output
-3. `~/.openclaw/config.yaml`
-4. `$XDG_CONFIG_HOME/openclaw/config.yaml` (or `~/.config/openclaw/config.yaml`)
-5. `/etc/openclaw/config.yaml`
+2. `~/.openclaw/openclaw.json`
+3. `$XDG_CONFIG_HOME/openclaw/openclaw.json` (or `~/.config/openclaw/openclaw.json`)
+4. `/etc/openclaw/openclaw.json`
 
 Set `OPENCLAW_CONFIG_PATH` to point at a non-standard location:
 
 ```bash
-export OPENCLAW_CONFIG_PATH=/opt/myapp/openclaw.yaml
+export OPENCLAW_CONFIG_PATH=/opt/myapp/openclaw.json
 oclawmc openclaw setup --origin https://mc.example.com
 ```
 
@@ -136,6 +144,7 @@ oclawmc openclaw setup --origin https://mc.example.com
 
 ## Requirements
 
-- **python3** with **PyYAML** (`pip3 install pyyaml`) — required for config editing
+- **openclaw CLI** (preferred) — `openclaw config get/set/unset` and `openclaw gateway restart`
+- **python3** (stdlib only, no extra packages) — required for the JSON-file fallback path
 - **tailscale** CLI — only required when using `--tailscale`
-- **openclaw** CLI — optional; used for `doctor --fix` and `--restart-gateway`
+
