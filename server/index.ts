@@ -120,7 +120,9 @@ app.prepare().then(() => {
 
       if (!isAllowedHost || !isAllowedPath) {
         res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Only github.com/user-attachments/assets URLs are allowed" }));
+        res.end(
+          JSON.stringify({ error: "Only github.com/user-attachments/assets URLs are allowed" })
+        );
         return;
       }
 
@@ -200,7 +202,9 @@ app.prepare().then(() => {
           res.writeHead(isAbortError ? 504 : 502, { "Content-Type": "application/json" });
           res.end(
             JSON.stringify({
-              error: isAbortError ? "Timed out while fetching GitHub asset" : "Failed to fetch GitHub asset",
+              error: isAbortError
+                ? "Timed out while fetching GitHub asset"
+                : "Failed to fetch GitHub asset",
             })
           );
         });

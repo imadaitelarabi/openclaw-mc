@@ -41,7 +41,12 @@ import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
 import { ExtensionActionBar } from "@/components/panels/ExtensionActionBar";
 import { useExtensionActionBar } from "@/hooks/useExtensionActionBar";
 import { uiStateStore } from "@/lib/ui-state-db";
-import { fileToAttachment, getFilesFromClipboard, revokePreviewUrls, validateFile } from "@/lib/file-utils";
+import {
+  fileToAttachment,
+  getFilesFromClipboard,
+  revokePreviewUrls,
+  validateFile,
+} from "@/lib/file-utils";
 import { DEFAULT_ATTACHMENT_CONFIG } from "@/types/attachment";
 import { getApiInstance } from "../../api-instance";
 import type {
@@ -951,17 +956,14 @@ export function GitHubPrDetailsPanel({
     });
   }, []);
 
-  const markdownUrlTransform = useCallback(
-    (url: string, key?: string) => {
-      if (key === "src" && /^data:image\//i.test(url)) return url;
-      if (key === "src") {
-        const proxied = toGithubAssetProxyUrl(url);
-        if (proxied) return proxied;
-      }
-      return defaultUrlTransform(url);
-    },
-    []
-  );
+  const markdownUrlTransform = useCallback((url: string, key?: string) => {
+    if (key === "src" && /^data:image\//i.test(url)) return url;
+    if (key === "src") {
+      const proxied = toGithubAssetProxyUrl(url);
+      if (proxied) return proxied;
+    }
+    return defaultUrlTransform(url);
+  }, []);
 
   const handleRequestReviewer = async (login: string) => {
     if (!owner || !repo || !number) return;

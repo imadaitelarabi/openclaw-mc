@@ -37,7 +37,12 @@ import { ExtensionActionBar } from "@/components/panels/ExtensionActionBar";
 import { useExtensionActionBar } from "@/hooks/useExtensionActionBar";
 import { useOptionalExtensionModals } from "@/contexts/ExtensionModalContext";
 import { uiStateStore } from "@/lib/ui-state-db";
-import { fileToAttachment, getFilesFromClipboard, revokePreviewUrls, validateFile } from "@/lib/file-utils";
+import {
+  fileToAttachment,
+  getFilesFromClipboard,
+  revokePreviewUrls,
+  validateFile,
+} from "@/lib/file-utils";
 import { DEFAULT_ATTACHMENT_CONFIG } from "@/types/attachment";
 import { getApiInstance } from "../../api-instance";
 import type {
@@ -763,17 +768,14 @@ export function GitHubIssueDetailsPanel({
     });
   }, []);
 
-  const markdownUrlTransform = useCallback(
-    (url: string, key?: string) => {
-      if (key === "src" && /^data:image\//i.test(url)) return url;
-      if (key === "src") {
-        const proxied = toGithubAssetProxyUrl(url);
-        if (proxied) return proxied;
-      }
-      return defaultUrlTransform(url);
-    },
-    []
-  );
+  const markdownUrlTransform = useCallback((url: string, key?: string) => {
+    if (key === "src" && /^data:image\//i.test(url)) return url;
+    if (key === "src") {
+      const proxied = toGithubAssetProxyUrl(url);
+      if (proxied) return proxied;
+    }
+    return defaultUrlTransform(url);
+  }, []);
 
   // Filtered assignable users for search
   const filteredAssignableUsers = useMemo(() => {
