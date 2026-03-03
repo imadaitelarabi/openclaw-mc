@@ -12,10 +12,10 @@ dependencies required).
 
 ## Subcommands
 
-| Subcommand | Description |
-| ---------- | ----------- |
-| `setup`    | Configure `gateway.controlUi.*` settings |
-| `status`   | Print current Gateway configuration |
+| Subcommand | Description                                             |
+| ---------- | ------------------------------------------------------- |
+| `setup`    | Configure `gateway.controlUi.*` settings                |
+| `status`   | Print current Gateway configuration                     |
 | `doctor`   | Run health checks; `--fix` auto-remediates known issues |
 
 ---
@@ -78,10 +78,10 @@ Calls `openclaw gateway restart` when the `openclaw` CLI is on `PATH`.
 
 ### Headless / non-interactive mode
 
-| Flag                | Effect |
-| ------------------- | ------ |
-| `--non-interactive` | Disable all interactive prompts; use defaults |
-| `--yes` / `-y`      | Auto-confirm any confirmation prompts |
+| Flag                | Effect                                                        |
+| ------------------- | ------------------------------------------------------------- |
+| `--non-interactive` | Disable all interactive prompts; use defaults                 |
+| `--yes` / `-y`      | Auto-confirm any confirmation prompts                         |
 | `--json`            | Emit a JSON object to stdout instead of human-readable output |
 
 See [`HEADLESS-AUTOMATION.md`](HEADLESS-AUTOMATION.md) for complete examples.
@@ -110,12 +110,12 @@ oclawmc openclaw doctor --json   # JSON output
 
 Checks performed:
 
-| Check | Fix available? |
-| ----- | -------------- |
-| `openclaw` CLI present | No (informational) |
+| Check                             | Fix available?         |
+| --------------------------------- | ---------------------- |
+| `openclaw` CLI present            | No (informational)     |
 | `openclaw.json` config file found | No (displays guidance) |
-| Tailscale connected | No (informational) |
-| `python3` available | No (displays guidance) |
+| Tailscale connected               | No (informational)     |
+| `python3` available               | No (displays guidance) |
 
 ---
 
@@ -147,4 +147,3 @@ oclawmc openclaw setup --origin https://mc.example.com
 - **openclaw CLI** (preferred) — `openclaw config get/set/unset` and `openclaw gateway restart`
 - **python3** (stdlib only, no extra packages) — required for the JSON-file fallback path
 - **tailscale** CLI — only required when using `--tailscale`
-

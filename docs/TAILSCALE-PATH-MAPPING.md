@@ -22,11 +22,11 @@ Tailscale path so the Gateway receives requests on the correct root.
 
 ## Modes
 
-| Mode     | Visibility | Command |
-| -------- | ---------- | ------- |
-| `serve`  | Tailnet only (devices logged into your Tailscale network) | `tailscale serve` |
-| `funnel` | Public internet | `tailscale funnel` |
-| `off`    | Remove serve/funnel config | `tailscale serve reset` |
+| Mode     | Visibility                                                | Command                 |
+| -------- | --------------------------------------------------------- | ----------------------- |
+| `serve`  | Tailnet only (devices logged into your Tailscale network) | `tailscale serve`       |
+| `funnel` | Public internet                                           | `tailscale funnel`      |
+| `off`    | Remove serve/funnel config                                | `tailscale serve reset` |
 
 ---
 
@@ -104,9 +104,9 @@ and CORS headers relative to `/mc` externally.
 
 ## Troubleshooting
 
-| Symptom | Likely cause |
-| ------- | ------------ |
-| 404 on all routes | `--set-path` doesn't match `basePath` |
-| CORS errors in browser | Origin not in `gateway.controlUi.allowedOrigins` |
-| Funnel command fails | Funnel not enabled; check `tailscale funnel status` |
-| `tailscale serve` fails on macOS | May need `sudo` or use the Tailscale app |
+| Symptom                          | Likely cause                                        |
+| -------------------------------- | --------------------------------------------------- |
+| 404 on all routes                | `--set-path` doesn't match `basePath`               |
+| CORS errors in browser           | Origin not in `gateway.controlUi.allowedOrigins`    |
+| Funnel command fails             | Funnel not enabled; check `tailscale funnel status` |
+| `tailscale serve` fails on macOS | May need `sudo` or use the Tailscale app            |

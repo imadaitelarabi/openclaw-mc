@@ -7,11 +7,11 @@ AI coding agents (e.g. Copilot, Cursor, Devin) and CI pipelines.
 
 ## Key flags
 
-| Flag | Effect |
-| ---- | ------ |
-| `--non-interactive` | Never prompt for input; use safe defaults |
-| `--yes` / `-y` | Auto-confirm any destructive prompts (e.g. `--clear-origins`) |
-| `--json` | Emit a single JSON object to stdout; suppress human-readable output |
+| Flag                | Effect                                                              |
+| ------------------- | ------------------------------------------------------------------- |
+| `--non-interactive` | Never prompt for input; use safe defaults                           |
+| `--yes` / `-y`      | Auto-confirm any destructive prompts (e.g. `--clear-origins`)       |
+| `--json`            | Emit a single JSON object to stdout; suppress human-readable output |
 
 All three can be combined. Exit codes follow Unix conventions (`0` = success,
 `1` = error).
@@ -29,7 +29,10 @@ All three can be combined. Exit codes follow Unix conventions (`0` = success,
 On error:
 
 ```json
-{ "status": "error", "error": "openclaw CLI not found and no openclaw.json detected. Set OPENCLAW_CONFIG_PATH or install openclaw." }
+{
+  "status": "error",
+  "error": "openclaw CLI not found and no openclaw.json detected. Set OPENCLAW_CONFIG_PATH or install openclaw."
+}
 ```
 
 ### `status --json`
@@ -48,9 +51,9 @@ On error:
 {
   "checks": [
     { "label": "openclaw CLI", "status": "warn", "detail": "not found (optional)" },
-    { "label": "Config file",  "status": "ok",   "detail": "/home/user/.openclaw/config.yaml" },
-    { "label": "Tailscale",    "status": "ok",   "detail": "connected" },
-    { "label": "python3+PyYAML","status": "ok",  "detail": "available" }
+    { "label": "Config file", "status": "ok", "detail": "/home/user/.openclaw/config.yaml" },
+    { "label": "Tailscale", "status": "ok", "detail": "connected" },
+    { "label": "python3+PyYAML", "status": "ok", "detail": "available" }
   ],
   "ok_count": 3,
   "fail_count": 0
@@ -123,16 +126,16 @@ if ($result.status -ne 'ok') {
 
 ## Environment variables
 
-| Variable | Purpose |
-| -------- | ------- |
+| Variable               | Purpose                           |
+| ---------------------- | --------------------------------- |
 | `OPENCLAW_CONFIG_PATH` | Override Gateway config file path |
 
 ---
 
 ## Deterministic exit codes
 
-| Code | Meaning |
-| ---- | ------- |
-| `0`  | Success (or `status` check passed) |
+| Code | Meaning                                                      |
+| ---- | ------------------------------------------------------------ |
+| `0`  | Success (or `status` check passed)                           |
 | `1`  | General error (invalid flag, config not found, patch failed) |
-| `2`  | PyYAML not installed |
+| `2`  | PyYAML not installed                                         |
