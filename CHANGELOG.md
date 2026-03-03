@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.7.3] - 2026-03-03
+
+### Meta
+
+- Bump: patch (score: 6)
+
+- Range: [bf783a700eb3b9b662a51f1b7c8a5e9de1f8eaf1](https://github.com/imadaitelarabi/openclaw-mc/commit/bf783a700eb3b9b662a51f1b7c8a5e9de1f8eaf1)..[4207dac](https://github.com/imadaitelarabi/openclaw-mc/commit/4207dac)
+
+### Added
+
+- feat(install.sh): extend Tailscale setup flow with base path and set-path support ([9ba2e75](https://github.com/imadaitelarabi/openclaw-mc/commit/9ba2e75))
+
+- feat(oclawmc): add self-update command to update the CLI script without a full rebuild ([6981e51](https://github.com/imadaitelarabi/openclaw-mc/commit/6981e51))
+
+- feat(oclawmc): add self-update command to update the CLI script without a full rebuild ([708c037](https://github.com/imadaitelarabi/openclaw-mc/commit/708c037))
+
+- feat(oclawmc): add openclaw setup/status/doctor command with allowed origins, base path, tailscale, and headless mode ([1263d7f](https://github.com/imadaitelarabi/openclaw-mc/commit/1263d7f))
+
+### Fixed
+
+- fix(oclawmc/openclaw): use openclaw config CLI + openclaw.json, fix status --json and changed accuracy ([4d80789](https://github.com/imadaitelarabi/openclaw-mc/commit/4d80789))
+
+- fix: apply prettier formatting to CHANGELOG.md ([b5989a4](https://github.com/imadaitelarabi/openclaw-mc/commit/b5989a4))
+
 ## [0.7.2] - 2026-03-02
 
 ### Meta
@@ -102,7 +126,7 @@
 
 - Merge pull request [#175](https://github.com/imadaitelarabi/openclaw-mc/pull/175) from imadaitelarabi/copilot/add-open-in-vscode-action ([4c14eb4e70f11cbf71318f07ee13bba39d793631](https://github.com/imadaitelarabi/openclaw-mc/commit/4c14eb4e70f11cbf71318f07ee13bba39d793631))
 
-- fix: split-button pattern in ExtensionActionBar so primary onClick fires independently of dropdown ([896c14450f2afbe98f2d5b5fb839947e30517e8e](https://github.com/imadaitelarabi/openclaw-mc/commit/896c14450f2afbe98f2d5b5fb839947e30517e8e))
+- fix: split-button pattern in ExtensionActionBar so primary onClick fires independently of dropdown ([896c14450f2afbe98f5d5b5fb839947e30517e8e](https://github.com/imadaitelarabi/openclaw-mc/commit/896c14450f2afbe98f5d5b5fb839947e30517e8e))
 
 - Initial plan ([44687f9ba92b90df8b48ffde00d0747137b866a6](https://github.com/imadaitelarabi/openclaw-mc/commit/44687f9ba92b90df8b48ffde00d0747137b866a6))
 
@@ -188,7 +212,7 @@
 - resolve all formatting and lint issues ([345aa74](https://github.com/imadaitelarabi/openclaw-mc.git/commit/345aa740362deacc71d79ec68b705e4b2a75d216))
 - load-more history - slice gateway history locally when client provides before anchor ([e4faf38](https://github.com/imadaitelarabi/openclaw-mc.git/commit/e4faf38e1f8e3bc40ff01bac4be4ad31f1a6fdab))
 - enhance chat history loading - improve message normalization and anchor indexing ([cbea3ea](https://github.com/imadaitelarabi/openclaw-mc.git/commit/cbea3eae36a00968204c1636b891366f94d8cf25))
-- clean up code formatting and improve readability in various files ([42e1997](https://github.com/imadaitelarabi/openclaw-mc.git/commit/42e19970ef755021d21e16eaeb1db9456ba63179))
+- clean up code formatting and improve readability in various files ([42e1997](https://github.com/imadaitelarabi/openclaw-mc.git/commit/42e19970ef755021d21e16eae1db9456ba63179))
 
 ### Refactors
 
@@ -295,12 +319,12 @@
 - Initial plan ([bef6789](https://github.com/imadaitelarabi/openclaw-mc/commit/bef6789))
 - Add Edit Agent Files tab + AgentFilePanel for workspace file editing ([4dd3a4c](https://github.com/imadaitelarabi/openclaw-mc/commit/4dd3a4c))
 - Refactor handleAgentFilesGet to improve content and existence checks for response objects ([d51dc09](https://github.com/imadaitelarabi/openclaw-mc/commit/d51dc09))
-- Refactor message handling imports for improved readability ([2c4d0e2](https://github.com/imadaitelarabi/openclaw-mc/commit/2c4d0e2))
+- Refactor message handling imports for improved readability ([2d3c0e2](https://github.com/imadaitelarabi/openclaw-mc/commit/2d3c0e2))
 - Merge pull request [#112](https://github.com/imadaitelarabi/openclaw-mc/pull/112) from imadaitelarabi/docs/daily-update-2026-02-22 ([46c1ccb](https://github.com/imadaitelarabi/openclaw-mc/commit/46c1ccb))
 - Merge pull request [#113](https://github.com/imadaitelarabi/openclaw-mc/pull/113) from imadaitelarabi/changelog/daily-2026-02-22 ([df03528](https://github.com/imadaitelarabi/openclaw-mc/commit/df03528))
 - Merge branch 'master' of https://github.com/imadaitelarabi/openclaw-mc into copilot/edit-agent-files-tab ([10f55f8](https://github.com/imadaitelarabi/openclaw-mc/commit/10f55f8))
 - Refactor AgentFilePanel to improve WebSocket handling and cleanup logic; update Notes feature documentation for deleteTag method signature ([823d066](https://github.com/imadaitelarabi/openclaw-mc/commit/823d066))
-- Merge pull request [#111](https://github.com/imadaitelarabi/openclaw-mc/pull/111) from imadaitelarabi/copilot/edit-agent-files-tab ([ae8c69c](https://github.com/imadaitelarabi/openclaw-mc/commit/ae8c69c))
+- Merge pull request [#114](https://github.com/imadaitelarabi/openclaw-mc/pull/114) from imadaitelarabi/copilot/edit-agent-files-tab ([ae8c69c](https://github.com/imadaitelarabi/openclaw-mc/commit/ae8c69c))
 - Initial plan ([779e064](https://github.com/imadaitelarabi/openclaw-mc/commit/779e064))
 - Add Settings option in agent panel header dropdown to open Edit Agent panel ([c3143c3](https://github.com/imadaitelarabi/openclaw-mc/commit/c3143c3))
 - Merge pull request [#116](https://github.com/imadaitelarabi/openclaw-mc/pull/116) from imadaitelarabi/copilot/add-settings-option-dropdown ([b4a2489](https://github.com/imadaitelarabi/openclaw-mc/commit/b4a2489))
@@ -374,7 +398,7 @@
 - Merge pull request [#105](https://github.com/imadaitelarabi/openclaw-mc/pull/105) from imadaitelarabi/copilot/update-readme-and-tag-settings ([b90b447](https://github.com/imadaitelarabi/openclaw-mc/commit/b90b447))
 - Initial plan ([68afa99](https://github.com/imadaitelarabi/openclaw-mc/commit/68afa99))
 - Add oxlint + prettier formatting and CI quality workflow ([f270cf8](https://github.com/imadaitelarabi/openclaw-mc/commit/f270cf8))
-- Merge pull request [#107](https://github.com/imadaitelarabi/openclaw-mc/pull/107) from imadaitelarabi/copilot/add-oxlint-prettier-formatting ([572b012](https://github.com/imadaitelarabi/openclaw-mc/commit/572b012))
+- Merge pull request [#107](https://github.com/imadaitelarabi/openclaw-mc/commit/f270cf8))
 - Initial plan ([221fbb2](https://github.com/imadaitelarabi/openclaw-mc/commit/221fbb2))
 - Merge pull request [#109](https://github.com/imadaitelarabi/openclaw-mc/pull/109) from imadaitelarabi/copilot/require-model-selection-cron ([174a561](https://github.com/imadaitelarabi/openclaw-mc/commit/174a561))
 
@@ -418,8 +442,6 @@
 - Merge pull request [#93](https://github.com/imadaitelarabi/openclaw-mc/pull/93) from imadaitelarabi/copilot/fix-panel-header-session-update ([4af12a5](https://github.com/imadaitelarabi/openclaw-mc/commit/4af12a5))
 - Fix panel header model/thinking dropdown updating the wrong session ([f91d24e](https://github.com/imadaitelarabi/openclaw-mc/commit/f91d24e))
 - Merge pull request [#90](https://github.com/imadaitelarabi/openclaw-mc/pull/90) from imadaitelarabi/docs/daily-readme-update-2026-02-21 ([1bd4a22](https://github.com/imadaitelarabi/openclaw-mc/commit/1bd4a22))
-- Initial plan ([f75f366](https://github.com/imadaitelarabi/openclaw-mc/commit/f75f366))
-- Merge pull request [#91](https://github.com/imadaitelarabi/openclaw-mc/pull/91) from imadaitelarabi/feat/red-stop-run-button ([a6cd545](https://github.com/imadaitelarabi/openclaw-mc/commit/a6cd545))
 - Merge pull request [#89](https://github.com/imadaitelarabi/openclaw-mc/pull/89) from imadaitelarabi/copilot/add-token-usage-indicator ([146cb26](https://github.com/imadaitelarabi/openclaw-mc/commit/146cb26))
 - Improve useSessionUsage: protocol, session matching, error handling, unlimited context, UI polish ([0a3c9e9](https://github.com/imadaitelarabi/openclaw-mc/commit/0a3c9e9))
 - Add token usage indicator above chat input ([0d24a1f](https://github.com/imadaitelarabi/openclaw-mc/commit/0d24a1f))
