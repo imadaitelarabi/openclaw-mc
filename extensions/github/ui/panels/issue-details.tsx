@@ -72,6 +72,23 @@ function parsePollingIntervalMs(value?: string): number {
   return parsed;
 }
 
+function toGithubAssetProxyUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const isAsset =
+      parsed.hostname === "github.com" && parsed.pathname.startsWith("/user-attachments/assets/");
+    if (!isAsset) return null;
+
+    const basePath = window.location.pathname.startsWith("/mission-controle")
+      ? "/mission-controle/api/github/asset"
+      : "/api/github/asset";
+
+    return `${basePath}?url=${encodeURIComponent(parsed.toString())}`;
+  } catch {
+    return null;
+  }
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
     year: "numeric",
@@ -519,6 +536,14 @@ export function GitHubIssueDetailsPanel({
   }, []);
 
   useEffect(() => {
+    const token = getApiInstance()?.getToken();
+    if (!token) return;
+
+    const secureAttr = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `ocmc_github_token=${encodeURIComponent(token)}; Path=/; Max-Age=3600; SameSite=Lax${secureAttr}`;
+  }, [isGitHubEnabled, fetchTick]);
+
+  useEffect(() => {
     return () => {
       revokePreviewUrls(commentAttachments);
     };
@@ -741,6 +766,10 @@ export function GitHubIssueDetailsPanel({
   const markdownUrlTransform = useCallback(
     (url: string, key?: string) => {
       if (key === "src" && /^data:image\//i.test(url)) return url;
+      if (key === "src") {
+        const proxied = toGithubAssetProxyUrl(url);
+        if (proxied) return proxied;
+      }
       return defaultUrlTransform(url);
     },
     []

@@ -254,6 +254,10 @@ export class GitHubAPI {
     this.config = config;
   }
 
+  getToken(): string | undefined {
+    return this.config.token;
+  }
+
   private withDetailsCacheVersion(endpoint: string): string {
     const separator = endpoint.includes("?") ? "&" : "?";
     return `${endpoint}${separator}_ocmc_details_v=${this.detailsCacheVersion}`;

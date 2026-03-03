@@ -9,6 +9,7 @@ import { createServer } from "http";
 import { parse } from "url";
 import * as path from "path";
 import fs from "fs";
+import { pipeline } from "stream";
 import next from "next";
 import { GatewayClient } from "./core/GatewayClient";
 import { WebSocketServer } from "./core/WebSocketServer";
@@ -87,6 +88,123 @@ app.prepare().then(() => {
       });
 
       fs.createReadStream(imagePath).pipe(res);
+      return;
+    }
+
+    if (
+      req.method === "GET" &&
+      (parsedUrl.pathname === "/api/github/asset" ||
+        parsedUrl.pathname === "/mission-controle/api/github/asset")
+    ) {
+      const targetUrlRaw = Array.isArray(parsedUrl.query.url)
+        ? parsedUrl.query.url[0]
+        : parsedUrl.query.url;
+
+      if (!targetUrlRaw) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing required query parameter: url" }));
+        return;
+      }
+
+      let targetUrl: URL;
+      try {
+        targetUrl = new URL(targetUrlRaw);
+      } catch {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid url parameter" }));
+        return;
+      }
+
+      const isAllowedHost = targetUrl.hostname === "github.com";
+      const isAllowedPath = targetUrl.pathname.startsWith("/user-attachments/assets/");
+
+      if (!isAllowedHost || !isAllowedPath) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Only github.com/user-attachments/assets URLs are allowed" }));
+        return;
+      }
+
+      const cookies = Object.fromEntries(
+        (req.headers.cookie || "")
+          .split(";")
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .map((part) => {
+            const idx = part.indexOf("=");
+            if (idx === -1) return [part, ""] as const;
+            return [part.slice(0, idx), part.slice(idx + 1)] as const;
+          })
+      );
+
+      const authHeader = req.headers.authorization;
+      const tokenFromAuth =
+        authHeader && authHeader.toLowerCase().startsWith("bearer ")
+          ? authHeader.slice(7).trim()
+          : undefined;
+      const tokenFromCookie = cookies.ocmc_github_token
+        ? decodeURIComponent(cookies.ocmc_github_token)
+        : undefined;
+      const githubToken = tokenFromAuth || tokenFromCookie;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+
+      fetch(targetUrl.toString(), {
+        method: "GET",
+        redirect: "follow",
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "openclaw-mc/asset-proxy",
+          Accept: "image/*,*/*;q=0.8",
+          ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
+        },
+      })
+        .then((upstream) => {
+          clearTimeout(timeout);
+
+          if (!upstream.ok || !upstream.body) {
+            res.writeHead(upstream.status || 502, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                error:
+                  upstream.status === 401 || upstream.status === 403
+                    ? "GitHub denied access to this asset"
+                    : "Failed to fetch GitHub asset",
+              })
+            );
+            return;
+          }
+
+          const contentType = upstream.headers.get("content-type") || "application/octet-stream";
+          const cacheControl = upstream.headers.get("cache-control") || "public, max-age=3600";
+
+          res.writeHead(200, {
+            "Content-Type": contentType,
+            "Cache-Control": cacheControl,
+          });
+
+          pipeline(upstream.body as unknown as NodeJS.ReadableStream, res, (err) => {
+            if (err) {
+              if (!res.headersSent) {
+                res.writeHead(502, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "Failed to stream GitHub asset" }));
+              } else {
+                res.end();
+              }
+            }
+          });
+        })
+        .catch((err) => {
+          clearTimeout(timeout);
+          const isAbortError = err instanceof Error && err.name === "AbortError";
+          res.writeHead(isAbortError ? 504 : 502, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              error: isAbortError ? "Timed out while fetching GitHub asset" : "Failed to fetch GitHub asset",
+            })
+          );
+        });
+
       return;
     }
 
