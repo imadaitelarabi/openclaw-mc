@@ -763,23 +763,56 @@ export function GitHubPrDetailsPanel({
     setActionLoading("open-vscode");
     setActionError(null);
     try {
-      const apiBase = window.location.pathname.startsWith("/mission-controle")
+      const missionControle = window.location.pathname.startsWith("/mission-controle");
+      const openApiBase = missionControle
         ? "/mission-controle/api/vscode/open"
         : "/api/vscode/open";
-      const response = await fetch(apiBase, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cloneUrl, fullName, branch }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || `Server error ${response.status}`);
+      const selectFolderApiBase = missionControle
+        ? "/mission-controle/api/vscode/select-folder"
+        : "/api/vscode/select-folder";
+
+      const callOpen = async (selectedPath?: string) => {
+        const response = await fetch(openApiBase, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cloneUrl, fullName, branch, selectedPath }),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || `Server error ${response.status}`);
+        }
+        return result as { mode: string; webUrl: string; message?: string };
+      };
+
+      const askFolderSelection = async () => {
+        const response = await fetch(selectFolderApiBase, { method: "POST" });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || `Server error ${response.status}`);
+        }
+        return result as { canceled?: boolean; path?: string; error?: string };
+      };
+
+      let result = await callOpen();
+
+      if (result.mode === "needs-folder") {
+        const selection = await askFolderSelection();
+        if (selection.error) {
+          throw new Error(selection.error);
+        }
+        if (selection.canceled || !selection.path) {
+          setActionError("Open in VSCode canceled.");
+          return;
+        }
+        result = await callOpen(selection.path);
       }
+
       if (result.mode === "web") {
         window.open(result.webUrl, "_blank", "noopener,noreferrer");
-        if (result.message) {
-          setActionError(result.message);
-        }
+      }
+
+      if (result.message) {
+        setActionError(result.message);
       }
       // For desktop mode, VS Code opens locally – no further client action needed.
     } catch (err) {

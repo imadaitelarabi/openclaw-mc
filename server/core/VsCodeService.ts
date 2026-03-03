@@ -24,6 +24,7 @@ import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import type { ConfigManager } from "./ConfigManager";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ export function isRemoteEnvironment(): boolean {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type VsCodeOpenMode = "desktop" | "web";
+export type VsCodeOpenMode = "desktop" | "web" | "needs-folder";
 
 export interface VsCodeOpenResult {
   mode: VsCodeOpenMode;
@@ -73,6 +74,17 @@ export interface VsCodeOpenResult {
   webUrl: string;
   /** Non-fatal information message */
   message?: string;
+}
+
+export interface FolderSelectionResult {
+  canceled: boolean;
+  path?: string;
+  error?: string;
+}
+
+interface OpenOptions {
+  selectedPath?: string;
+  configManager?: ConfigManager;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -86,11 +98,56 @@ const SEARCH_ROOTS = [
   os.homedir(),
 ];
 
-/** Directory used when no existing clone is found. */
-const DEFAULT_CLONE_ROOT = path.join(os.homedir(), "Projects");
-
 /** Validate that fullName matches the expected `owner/repo` GitHub pattern. */
 const FULL_NAME_RE = /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/;
+
+function expandHomePath(inputPath: string): string {
+  if (inputPath === "~") return os.homedir();
+  if (inputPath.startsWith("~/")) {
+    return path.join(os.homedir(), inputPath.slice(2));
+  }
+  return inputPath;
+}
+
+function toAbsolutePath(inputPath: string): string {
+  return path.resolve(expandHomePath(inputPath.trim()));
+}
+
+async function repoHasMatchingRemote(repoPath: string, cloneUrl: string): Promise<boolean> {
+  if (!fs.existsSync(repoPath)) return false;
+  const remoteUrl = await getGitRemoteUrl(repoPath);
+  if (!remoteUrl) return false;
+  return normaliseRemoteUrl(remoteUrl) === normaliseRemoteUrl(cloneUrl);
+}
+
+async function ensureBranchCheckedOut(localPath: string, branch: string): Promise<void> {
+  await spawnAsync("git", ["fetch", "origin"], { cwd: localPath });
+  try {
+    await spawnAsync("git", ["checkout", branch], { cwd: localPath });
+  } catch {
+    await spawnAsync("git", ["checkout", "-b", branch, `origin/${branch}`], {
+      cwd: localPath,
+    });
+  }
+}
+
+function resolveCloneTarget(selectedPath: string, repoName: string): string {
+  const absoluteSelected = toAbsolutePath(selectedPath);
+  if (!fs.existsSync(absoluteSelected)) {
+    throw new Error("Selected folder does not exist");
+  }
+
+  const stat = fs.statSync(absoluteSelected);
+  if (!stat.isDirectory()) {
+    throw new Error("Selected path must be a directory");
+  }
+
+  if (path.basename(absoluteSelected).toLowerCase() === repoName.toLowerCase()) {
+    return absoluteSelected;
+  }
+
+  return path.join(absoluteSelected, repoName);
+}
 
 // ── Internals ─────────────────────────────────────────────────────────────────
 
@@ -158,7 +215,8 @@ async function findLocalClone(cloneUrl: string, fullName: string): Promise<strin
 export async function open(
   cloneUrl: string,
   fullName: string,
-  branch: string
+  branch: string,
+  options: OpenOptions = {}
 ): Promise<VsCodeOpenResult> {
   // Validate fullName to prevent path traversal.
   if (!FULL_NAME_RE.test(fullName)) {
@@ -166,52 +224,85 @@ export async function open(
   }
 
   const webUrl = buildWebUrl(fullName, branch);
+  const repoName = path.basename(fullName);
+  const selectedPath = options.selectedPath?.trim();
 
   if (isRemoteEnvironment()) {
     return { mode: "web", webUrl, message: "Remote environment detected – opening vscode.dev" };
   }
 
-  let localPath = await findLocalClone(cloneUrl, fullName);
+  let localPath: string | null = null;
 
-  if (localPath) {
+  if (options.configManager) {
+    const savedPath = options.configManager.getRepoLocalPath(fullName);
+    if (savedPath) {
+      const absoluteSaved = toAbsolutePath(savedPath);
+      if (await repoHasMatchingRemote(absoluteSaved, cloneUrl)) {
+        localPath = absoluteSaved;
+      } else {
+        options.configManager.removeRepoLocalPath(fullName);
+      }
+    }
+  }
+
+  if (!localPath && selectedPath) {
+    const absoluteSelected = toAbsolutePath(selectedPath);
+
+    if (await repoHasMatchingRemote(absoluteSelected, cloneUrl)) {
+      localPath = absoluteSelected;
+    } else {
+      const nestedCandidate = path.join(absoluteSelected, repoName);
+      if (await repoHasMatchingRemote(nestedCandidate, cloneUrl)) {
+        localPath = nestedCandidate;
+      } else {
+        localPath = resolveCloneTarget(absoluteSelected, repoName);
+      }
+    }
+  }
+
+  if (!localPath) {
+    const discoveredPath = await findLocalClone(cloneUrl, fullName);
+    if (discoveredPath) {
+      localPath = discoveredPath;
+    }
+  }
+
+  if (!localPath) {
+    return {
+      mode: "needs-folder",
+      webUrl,
+      message: "Select a folder to open an existing clone or clone this repository.",
+    };
+  }
+
+  if (await repoHasMatchingRemote(localPath, cloneUrl)) {
     // Existing clone found – sync it.
     try {
-      await spawnAsync("git", ["fetch", "origin"], { cwd: localPath });
-      try {
-        await spawnAsync("git", ["checkout", branch], { cwd: localPath });
-      } catch {
-        await spawnAsync("git", ["checkout", "-b", branch, `origin/${branch}`], {
-          cwd: localPath,
-        });
-      }
+      await ensureBranchCheckedOut(localPath, branch);
     } catch (err) {
       console.warn("[VsCodeService] git ops failed:", (err as Error).message);
     }
   } else {
-    // No existing clone – create one.
-    if (!fs.existsSync(DEFAULT_CLONE_ROOT)) {
-      fs.mkdirSync(DEFAULT_CLONE_ROOT, { recursive: true });
+    // No matching clone – create one at the selected/discovered location.
+    if (!selectedPath) {
+      return {
+        mode: "needs-folder",
+        webUrl,
+        message: "Select a folder to clone this repository.",
+      };
     }
-    const repoName = path.basename(fullName);
-    localPath = path.join(DEFAULT_CLONE_ROOT, repoName);
 
     try {
       await spawnAsync("git", ["clone", cloneUrl, localPath]);
-      try {
-        await spawnAsync("git", ["checkout", branch], { cwd: localPath });
-      } catch {
-        await spawnAsync("git", ["checkout", "-b", branch, `origin/${branch}`], {
-          cwd: localPath,
-        });
-      }
+      await ensureBranchCheckedOut(localPath, branch);
     } catch (err) {
       console.error("[VsCodeService] git clone failed:", (err as Error).message);
-      return {
-        mode: "web",
-        webUrl,
-        message: `Clone failed – opening vscode.dev instead: ${(err as Error).message}`,
-      };
+      throw new Error(`Clone failed: ${(err as Error).message}`);
     }
+  }
+
+  if (options.configManager) {
+    options.configManager.setRepoLocalPath(fullName, localPath);
   }
 
   // Launch VS Code.
@@ -228,4 +319,35 @@ export async function open(
   }
 
   return { mode: "desktop", localPath, webUrl };
+}
+
+export async function selectFolder(): Promise<FolderSelectionResult> {
+  if (isRemoteEnvironment()) {
+    return {
+      canceled: true,
+      error: "Folder picker is unavailable in remote SSH environments",
+    };
+  }
+
+  if (process.platform !== "darwin") {
+    return {
+      canceled: true,
+      error: "Folder picker is currently supported on macOS only",
+    };
+  }
+
+  try {
+    const script = 'POSIX path of (choose folder with prompt "Select folder for this repository")';
+    const output = await spawnAsync("osascript", ["-e", script]);
+    const selected = output.trim();
+    if (!selected) return { canceled: true };
+    return { canceled: false, path: selected };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Folder selection canceled";
+    const lower = message.toLowerCase();
+    if (lower.includes("user canceled") || lower.includes("cancel")) {
+      return { canceled: true };
+    }
+    return { canceled: true, error: `Failed to select folder: ${message}` };
+  }
 }

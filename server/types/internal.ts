@@ -29,6 +29,7 @@ export interface GatewayConfig {
 export interface ServerConfig {
   gateways: GatewayConfig[];
   activeGatewayId: string | null;
+  repoLocalPaths?: Record<string, string>;
 }
 
 // Client WebSocket Messages

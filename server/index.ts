@@ -94,6 +94,25 @@ app.prepare().then(() => {
     // locally (desktop) or fall back to vscode.dev (remote/CI environments).
     if (
       req.method === "POST" &&
+      (parsedUrl.pathname === "/api/vscode/select-folder" ||
+        parsedUrl.pathname === "/mission-controle/api/vscode/select-folder")
+    ) {
+      VsCodeService.selectFolder()
+        .then((result) => {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(result));
+        })
+        .catch((err) => {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: (err as Error).message || "Internal server error" }));
+        });
+      return;
+    }
+
+    // VSCode open endpoint – used by extension panels to open a PR branch
+    // locally (desktop) or fall back to vscode.dev (remote/CI environments).
+    if (
+      req.method === "POST" &&
       (parsedUrl.pathname === "/api/vscode/open" ||
         parsedUrl.pathname === "/mission-controle/api/vscode/open")
     ) {
@@ -115,13 +134,16 @@ app.prepare().then(() => {
       req.on("end", async () => {
         if (aborted) return;
         try {
-          const { cloneUrl, fullName, branch } = JSON.parse(body);
+          const { cloneUrl, fullName, branch, selectedPath } = JSON.parse(body);
           if (!cloneUrl || !fullName || !branch) {
             res.writeHead(400, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: "cloneUrl, fullName, and branch are required" }));
             return;
           }
-          const result = await VsCodeService.open(cloneUrl, fullName, branch);
+          const result = await VsCodeService.open(cloneUrl, fullName, branch, {
+            selectedPath: typeof selectedPath === "string" ? selectedPath : undefined,
+            configManager,
+          });
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(result));
         } catch (err) {

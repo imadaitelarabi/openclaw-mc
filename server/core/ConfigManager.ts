@@ -15,7 +15,7 @@ export class ConfigManager {
   private config: ServerConfig;
 
   constructor() {
-    this.config = { gateways: [], activeGatewayId: null };
+    this.config = { gateways: [], activeGatewayId: null, repoLocalPaths: {} };
     this.ensureConfigDir();
     this.load();
   }
@@ -30,7 +30,15 @@ export class ConfigManager {
     try {
       if (fs.existsSync(CONFIG_PATH)) {
         const data = fs.readFileSync(CONFIG_PATH, "utf8");
-        this.config = JSON.parse(data);
+        const parsed = JSON.parse(data) as Partial<ServerConfig>;
+        this.config = {
+          gateways: Array.isArray(parsed.gateways) ? parsed.gateways : [],
+          activeGatewayId: parsed.activeGatewayId ?? null,
+          repoLocalPaths:
+            parsed.repoLocalPaths && typeof parsed.repoLocalPaths === "object"
+              ? parsed.repoLocalPaths
+              : {},
+        };
       } else {
         // Migration/Initial setup from ENV
         const envUrl = process.env.OPENCLAW_GATEWAY_URL || "http://127.0.0.1:18789";
@@ -102,6 +110,24 @@ export class ConfigManager {
     if (this.config.activeGatewayId === id) {
       this.config.activeGatewayId = this.config.gateways[0]?.id || null;
     }
+    this.save();
+  }
+
+  getRepoLocalPath(fullName: string): string | null {
+    const key = fullName.toLowerCase();
+    return this.config.repoLocalPaths?.[key] ?? null;
+  }
+
+  setRepoLocalPath(fullName: string, localPath: string): void {
+    if (!this.config.repoLocalPaths) this.config.repoLocalPaths = {};
+    this.config.repoLocalPaths[fullName.toLowerCase()] = localPath;
+    this.save();
+  }
+
+  removeRepoLocalPath(fullName: string): void {
+    const key = fullName.toLowerCase();
+    if (!this.config.repoLocalPaths?.[key]) return;
+    delete this.config.repoLocalPaths[key];
     this.save();
   }
 }
