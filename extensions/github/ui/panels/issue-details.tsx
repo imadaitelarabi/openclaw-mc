@@ -22,11 +22,14 @@ import {
   X,
   RefreshCw,
   Link,
+  ImagePlus,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AttachmentPreview } from "@/components/chat/AttachmentPreview";
 import type { ExtensionPanelProps } from "@/types/extension";
 import type { PanelBackNavigation } from "@/types";
+import type { ChatAttachment } from "@/types";
 import { useOptionalExtensions } from "@/contexts/ExtensionContext";
 import { usePanels } from "@/contexts/PanelContext";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
@@ -34,6 +37,8 @@ import { ExtensionActionBar } from "@/components/panels/ExtensionActionBar";
 import { useExtensionActionBar } from "@/hooks/useExtensionActionBar";
 import { useOptionalExtensionModals } from "@/contexts/ExtensionModalContext";
 import { uiStateStore } from "@/lib/ui-state-db";
+import { fileToAttachment, getFilesFromClipboard, revokePreviewUrls, validateFile } from "@/lib/file-utils";
+import { DEFAULT_ATTACHMENT_CONFIG } from "@/types/attachment";
 import { getApiInstance } from "../../api-instance";
 import type {
   GitHubIssue,
@@ -44,6 +49,7 @@ import type {
   GitHubReactions,
 } from "../../api";
 import type { AssignCopilotModalPayload, AssignCopilotModalResult } from "../modals/assign-copilot";
+import rehypeRaw from "rehype-raw";
 
 const ACTIVITY_PAGE_SIZE = 10;
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
@@ -223,6 +229,9 @@ export function GitHubIssueDetailsPanel({
   const [showReopenConfirm, setShowReopenConfirm] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [commentAttachments, setCommentAttachments] = useState<ChatAttachment[]>([]);
+  const [commentAttachmentLoading, setCommentAttachmentLoading] = useState(false);
+  const commentImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const [pollingEnabled, setPollingEnabled] = useState(false);
   const [pollingIntervalMs, setPollingIntervalMs] = useState(DEFAULT_POLL_INTERVAL_MS);
@@ -509,6 +518,12 @@ export function GitHubIssueDetailsPanel({
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      revokePreviewUrls(commentAttachments);
+    };
+  }, [commentAttachments]);
+
   const fallbackUrl =
     htmlUrl ||
     (owner && repo && number ? `https://github.com/${owner}/${repo}/issues/${number}` : undefined);
@@ -643,13 +658,25 @@ export function GitHubIssueDetailsPanel({
   };
 
   const handleAddComment = async () => {
-    if (!owner || !repo || !number || !commentText.trim()) return;
+    if (!owner || !repo || !number) return;
+    const trimmedText = commentText.trim();
+    const attachmentMarkdown = commentAttachments
+      .map((attachment) => {
+        const safeName = (attachment.name || "image").replaceAll("[", "").replaceAll("]", "");
+        return `![${safeName}](${attachment.media})`;
+      })
+      .join("\n");
+    const body = [trimmedText, attachmentMarkdown].filter(Boolean).join("\n\n");
+    if (!body) return;
+
     setActionLoading("comment");
     setActionError(null);
     try {
       const api = getApiInstance();
       if (!api) throw new Error("GitHub API not initialized");
-      await api.addComment(owner, repo, number, commentText.trim());
+      await api.addComment(owner, repo, number, body);
+      revokePreviewUrls(commentAttachments);
+      setCommentAttachments([]);
       setCommentText("");
       refreshAfterAction();
     } catch (e) {
@@ -658,6 +685,66 @@ export function GitHubIssueDetailsPanel({
       setActionLoading(null);
     }
   };
+
+  const processCommentFiles = useCallback(async (files: File[]) => {
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+
+    setCommentAttachmentLoading(true);
+    setActionError(null);
+
+    try {
+      const nextAttachments: ChatAttachment[] = [];
+
+      for (const image of imageFiles) {
+        const validation = validateFile(image, DEFAULT_ATTACHMENT_CONFIG);
+        if (!validation.valid) {
+          throw new Error(validation.error ?? `Invalid image: ${image.name}`);
+        }
+
+        const attachment = await fileToAttachment(image);
+        nextAttachments.push(attachment);
+      }
+
+      if (nextAttachments.length > 0) {
+        setCommentAttachments((prev) => [...prev, ...nextAttachments]);
+      }
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Failed to attach image");
+    } finally {
+      setCommentAttachmentLoading(false);
+    }
+  }, []);
+
+  const handleCommentPaste = useCallback(
+    (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const files = getFilesFromClipboard(event.clipboardData);
+      const hasImage = files.some((file) => file.type.startsWith("image/"));
+      if (!hasImage) return;
+
+      event.preventDefault();
+      void processCommentFiles(files);
+    },
+    [processCommentFiles]
+  );
+
+  const handleRemoveCommentAttachment = useCallback((index: number) => {
+    setCommentAttachments((prev) => {
+      const removed = prev[index];
+      if (removed?.previewUrl) {
+        URL.revokeObjectURL(removed.previewUrl);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
+  const markdownUrlTransform = useCallback(
+    (url: string, key?: string) => {
+      if (key === "src" && /^data:image\//i.test(url)) return url;
+      return defaultUrlTransform(url);
+    },
+    []
+  );
 
   // Filtered assignable users for search
   const filteredAssignableUsers = useMemo(() => {
@@ -894,7 +981,13 @@ export function GitHubIssueDetailsPanel({
             {bodyExpanded && (
               <div className="px-3 pb-3 max-h-96 overflow-auto border-t border-border">
                 <div className="markdown-content break-words select-text max-w-none text-xs pt-2">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{issue.body}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeRaw]}
+                    urlTransform={markdownUrlTransform}
+                  >
+                    {issue.body}
+                  </ReactMarkdown>
                 </div>
               </div>
             )}
@@ -1040,7 +1133,13 @@ export function GitHubIssueDetailsPanel({
                       </span>
                     </div>
                     <div className="markdown-content break-words select-text max-w-none text-xs">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.body}</ReactMarkdown>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw]}
+                        urlTransform={markdownUrlTransform}
+                      >
+                        {comment.body}
+                      </ReactMarkdown>
                     </div>
                     {comment.reactions && comment.reactions.total_count > 0 && (
                       <div className="flex flex-wrap gap-1 pt-0.5">
@@ -1107,9 +1206,28 @@ export function GitHubIssueDetailsPanel({
 
           {/* Add comment form */}
           <div className="border border-border rounded p-2.5 space-y-2 bg-muted/10">
+            <AttachmentPreview
+              attachments={commentAttachments}
+              onRemove={handleRemoveCommentAttachment}
+            />
+            <input
+              ref={commentImageInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                if (files.length > 0) {
+                  void processCommentFiles(files);
+                }
+                event.target.value = "";
+              }}
+            />
             <textarea
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
+              onPaste={handleCommentPaste}
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                   e.preventDefault();
@@ -1120,10 +1238,26 @@ export function GitHubIssueDetailsPanel({
               aria-label="Comment text"
               className="w-full px-2 py-1.5 text-xs bg-background border border-border rounded resize-none h-28 focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => commentImageInputRef.current?.click()}
+                disabled={commentAttachmentLoading || actionLoading === "comment"}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium border border-border rounded hover:bg-accent disabled:opacity-50"
+              >
+                {commentAttachmentLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <ImagePlus className="w-3 h-3" />
+                )}
+                Attach image
+              </button>
               <button
                 onClick={handleAddComment}
-                disabled={!commentText.trim() || actionLoading === "comment"}
+                disabled={
+                  (!commentText.trim() && commentAttachments.length === 0) ||
+                  actionLoading === "comment"
+                }
                 aria-label="Post comment"
                 className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-primary text-primary-foreground rounded disabled:opacity-50 transition-colors hover:opacity-90"
               >

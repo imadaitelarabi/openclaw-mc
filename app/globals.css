@@ -280,3 +280,7 @@
 .markdown-content em {
   @apply italic;
 }
+
+.markdown-content img {
+  @apply max-w-full h-auto my-2 rounded border border-border;
+}
