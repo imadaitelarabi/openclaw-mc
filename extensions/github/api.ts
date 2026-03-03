@@ -636,6 +636,16 @@ export class GitHubAPI {
     });
   }
 
+  /**
+   * Re-run an existing workflow run.
+   * Requires Actions write permission.
+   */
+  async rerunWorkflowRun(owner: string, repo: string, runId: number): Promise<void> {
+    await this.request(`/repos/${owner}/${repo}/actions/runs/${runId}/rerun`, {
+      method: "POST",
+    });
+  }
+
   // ── Write actions ────────────────────────────────────────────────────────
 
   /**

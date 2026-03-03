@@ -218,6 +218,7 @@ export function GitHubPrDetailsPanel({
   const [showApproveConfirm, setShowApproveConfirm] = useState<number | null>(null);
   const [approveLoading, setApproveLoading] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
+  const [approveMessage, setApproveMessage] = useState<string | null>(null);
 
   // Reviewer dropdown state
   const [reviewableUsers, setReviewableUsers] = useState<GitHubAssignableUser[]>([]);
@@ -870,14 +871,31 @@ export function GitHubPrDetailsPanel({
     );
   }, [reviewableUsers, reviewSearch]);
 
+  const isForkPR = useMemo(() => {
+    const headFullName = pr?.head?.repo?.full_name;
+    const baseFullName = pr?.base?.repo?.full_name;
+    if (!headFullName || !baseFullName) return false;
+    return headFullName.toLowerCase() !== baseFullName.toLowerCase();
+  }, [pr]);
+
   const handleApproveRun = async (runId: number) => {
     if (!owner || !repo) return;
+    if (!isForkPR) {
+      setApproveError(
+        "This run is not from a fork pull request. 'Approve & run' is only supported for fork PR workflow approvals."
+      );
+      setApproveMessage(null);
+      setShowApproveConfirm(null);
+      return;
+    }
     setApproveLoading(true);
     setApproveError(null);
+    setApproveMessage(null);
     try {
       const api = getApiInstance();
       if (!api) throw new Error("GitHub API not initialized");
       await api.approveWorkflowRun(owner, repo, runId);
+      setApproveMessage("Approval sent. The workflow should start shortly.");
       setShowApproveConfirm(null);
       refreshSilently();
     } catch (e) {
@@ -892,7 +910,44 @@ export function GitHubPrDetailsPanel({
           ? "Cannot approve: your token is missing Actions write permission or you don't have admin access to this repository."
           : msg
       );
+      setApproveMessage(null);
       setShowApproveConfirm(null);
+    } finally {
+      setApproveLoading(false);
+    }
+  };
+
+  const handleRerunRun = async (runId: number) => {
+    if (!owner || !repo) return;
+    setApproveLoading(true);
+    setApproveError(null);
+    setApproveMessage(null);
+    try {
+      const api = getApiInstance();
+      if (!api) throw new Error("GitHub API not initialized");
+      await api.rerunWorkflowRun(owner, repo, runId);
+      setApproveMessage("Re-run requested. GitHub is scheduling the new run.");
+      refreshSilently();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to re-run workflow run";
+      const msgLower = msg.toLowerCase();
+      if (msgLower.includes("already running")) {
+        setApproveError(null);
+        setApproveMessage("This workflow is already running.");
+        refreshSilently();
+        return;
+      }
+      const isPermissionError =
+        msg.includes("403") ||
+        msg.includes("401") ||
+        msg.includes("Must have admin rights") ||
+        msg.includes("Resource not accessible");
+      setApproveError(
+        isPermissionError
+          ? "Cannot re-run: your token is missing Actions write permission or you don't have sufficient access to this repository."
+          : msg
+      );
+      setApproveMessage(null);
     } finally {
       setApproveLoading(false);
     }
@@ -1205,6 +1260,7 @@ export function GitHubPrDetailsPanel({
             (r) => r.status === "completed" && r.conclusion === "action_required"
           );
           const approvalRuns = [...awaitingApprovalRuns, ...actionRequiredRuns];
+          const approvableRuns = isForkPR ? approvalRuns : [];
           const hasChecks = checkRuns.length > 0 || approvalRuns.length > 0;
           if (!hasChecks) return null;
           const failed = checkRuns.filter(
@@ -1226,7 +1282,9 @@ export function GitHubPrDetailsPanel({
                 Checks ({checkRuns.length + approvalRuns.length})
                 {approvalRuns.length > 0 && (
                   <span className="ml-auto text-[10px] text-amber-500 font-medium">
-                    {approvalRuns.length} needs approval
+                    {approvableRuns.length > 0
+                      ? `${approvableRuns.length} needs approval`
+                      : `${approvalRuns.length} needs attention`}
                   </span>
                 )}
                 {approvalRuns.length === 0 && failed > 0 && (
@@ -1314,13 +1372,23 @@ export function GitHubPrDetailsPanel({
                           >
                             <ExternalLink className="w-3 h-3" />
                           </a>
-                          <button
-                            onClick={() => setShowApproveConfirm(run.id)}
-                            disabled={approveLoading}
-                            className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Approve & run
-                          </button>
+                          {isForkPR ? (
+                            <button
+                              onClick={() => setShowApproveConfirm(run.id)}
+                              disabled={approveLoading}
+                              className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Approve & run
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleRerunRun(run.id)}
+                              disabled={approveLoading}
+                              className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Re-run
+                            </button>
+                          )}
                         </div>
                       ))}
                     </>
@@ -1330,6 +1398,17 @@ export function GitHubPrDetailsPanel({
                       {approveError}
                       <button
                         onClick={() => setApproveError(null)}
+                        className="ml-2 underline text-muted-foreground hover:text-foreground"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
+                  {approveMessage && (
+                    <div className="px-3 py-2 text-[10px] text-green-500 bg-green-500/5 border-t border-border">
+                      {approveMessage}
+                      <button
+                        onClick={() => setApproveMessage(null)}
                         className="ml-2 underline text-muted-foreground hover:text-foreground"
                       >
                         Dismiss
