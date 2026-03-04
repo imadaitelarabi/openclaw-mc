@@ -218,17 +218,45 @@ setup_tailscale() {
   if prompt_yn "Configure Tailscale Serve to expose Mission Control on this tailnet?" "y"; then
     local ts_port="${APP_PORT:-3000}"
     local ts_target="http://localhost:${ts_port}"
-    if [[ -n "$TAILSCALE_BASE_PATH" ]]; then
-      log "Running: tailscale serve --set-path ${TAILSCALE_BASE_PATH} ${ts_target}"
-      run_with_sudo tailscale serve --set-path "$TAILSCALE_BASE_PATH" "$ts_target" \
-        || warn "tailscale serve failed. You can run it manually later."
+    local serve_ok=false
+    local ts_path="${TAILSCALE_BASE_PATH:-}"
+    local ts_err_file; ts_err_file="$(mktemp)"
+
+    if [[ -n "$ts_path" ]]; then
+      # Attempt 1: serve with the requested path
+      log "Running: tailscale serve --set-path ${ts_path} ${ts_target}"
+      if run_with_sudo tailscale serve --set-path "$ts_path" "$ts_target" 2>"$ts_err_file"; then
+        serve_ok=true
+      elif grep -q "listener already exists" "$ts_err_file" 2>/dev/null; then
+        # A listener already exists on that path — prompt the user to try a different one
+        warn "A Tailscale Serve listener already exists for path '${ts_path}'."
+        local alt_path
+        prompt alt_path "Enter a different base path to try (e.g. /app), or leave blank to skip" ""
+        if [[ -n "$alt_path" ]]; then
+          log "Running: tailscale serve --set-path ${alt_path} ${ts_target}"
+          if run_with_sudo tailscale serve --set-path "$alt_path" "$ts_target" 2>/dev/null; then
+            serve_ok=true
+            ts_path="$alt_path"
+          fi
+        fi
+      fi
     else
+      # Serve at root
       log "Running: tailscale serve ${ts_target}"
-      run_with_sudo tailscale serve "$ts_target" \
-        || warn "tailscale serve failed. You can run it manually later."
+      if run_with_sudo tailscale serve "$ts_target" 2>"$ts_err_file"; then
+        serve_ok=true
+      fi
     fi
-    ok "Tailscale Serve configured.${TAILSCALE_BASE_PATH:+ Path: ${TAILSCALE_BASE_PATH}}"
-    log "Tip: run 'tailscale serve status' to verify the mapping."
+
+    rm -f "$ts_err_file"
+
+    if [[ "$serve_ok" == true ]]; then
+      ok "Tailscale Serve configured.${ts_path:+ Path: ${ts_path}}"
+      log "Tip: run 'tailscale serve status' to verify the mapping."
+    else
+      warn "Tailscale Serve could not be configured automatically."
+      warn "You can set it up manually with: tailscale serve${ts_path:+ --set-path ${ts_path}} ${ts_target}"
+    fi
   fi
 }
 

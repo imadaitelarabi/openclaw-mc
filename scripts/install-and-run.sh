@@ -240,11 +240,34 @@ setup_tailscale() {
     log "Configuring Tailscale Serve with base path: ${TAILSCALE_BASE_PATH}"
     local ts_port="3000"
     local ts_target="http://localhost:${ts_port}"
+    local serve_ok=false
+    local ts_err_file; ts_err_file="$(mktemp)"
 
-    if run_with_sudo tailscale serve --set-path "$TAILSCALE_BASE_PATH" "$ts_target" 2>/dev/null; then
+    # Attempt 1: serve with the requested path
+    if run_with_sudo tailscale serve --set-path "$TAILSCALE_BASE_PATH" "$ts_target" 2>"$ts_err_file"; then
+      serve_ok=true
+    elif grep -q "listener already exists" "$ts_err_file" 2>/dev/null; then
+      # A listener already exists on that path — prompt the user to try a different one
+      warn "A Tailscale Serve listener already exists for path '${TAILSCALE_BASE_PATH}'."
+      local alt_path=""
+      if [[ -r /dev/tty ]]; then
+        printf "\033[1;34m[openclaw-mc]\033[0m Enter a different base path to try (e.g. /app), or leave blank to skip: " >/dev/tty
+        IFS= read -r alt_path </dev/tty || alt_path=""
+      fi
+      if [[ -n "$alt_path" ]]; then
+        if run_with_sudo tailscale serve --set-path "$alt_path" "$ts_target" 2>/dev/null; then
+          serve_ok=true
+          TAILSCALE_BASE_PATH="$alt_path"
+        fi
+      fi
+    fi
+
+    rm -f "$ts_err_file"
+
+    if [[ "$serve_ok" == true ]]; then
       log "Tailscale Serve configured with base path ${TAILSCALE_BASE_PATH}"
     else
-      warn "Failed to configure Tailscale Serve. You can configure it manually later."
+      warn "Failed to configure Tailscale Serve. You can configure it manually with: tailscale serve --set-path ${TAILSCALE_BASE_PATH} ${ts_target}"
     fi
   fi
 }
