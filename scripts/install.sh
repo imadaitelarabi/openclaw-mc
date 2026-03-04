@@ -218,17 +218,59 @@ setup_tailscale() {
   if prompt_yn "Configure Tailscale Serve to expose Mission Control on this tailnet?" "y"; then
     local ts_port="${APP_PORT:-3000}"
     local ts_target="http://localhost:${ts_port}"
+    local serve_ok=false
+    local ts_err_file; ts_err_file="$(mktemp)"
+
     if [[ -n "$TAILSCALE_BASE_PATH" ]]; then
+      # Attempt 1: serve with the requested path
       log "Running: tailscale serve --set-path ${TAILSCALE_BASE_PATH} ${ts_target}"
-      run_with_sudo tailscale serve --set-path "$TAILSCALE_BASE_PATH" "$ts_target" \
-        || warn "tailscale serve failed. You can run it manually later."
+      if run_with_sudo tailscale serve --set-path "$TAILSCALE_BASE_PATH" "$ts_target" 2>"$ts_err_file"; then
+        serve_ok=true
+      elif grep -q "listener already exists" "$ts_err_file" 2>/dev/null; then
+        # Attempt 2: reset existing listener, then retry
+        warn "Port 443 listener already exists. Resetting Tailscale Serve config and retrying…"
+        if run_with_sudo tailscale serve reset 2>/dev/null; then
+          log "Running: tailscale serve --set-path ${TAILSCALE_BASE_PATH} ${ts_target}"
+          if run_with_sudo tailscale serve --set-path "$TAILSCALE_BASE_PATH" "$ts_target" 2>/dev/null; then
+            serve_ok=true
+          fi
+        fi
+        # Attempt 3: fall back to serving at the root path
+        if [[ "$serve_ok" != true ]]; then
+          warn "Path-based serve still failed. Falling back to serving at root (/)…"
+          log "Running: tailscale serve ${ts_target}"
+          if run_with_sudo tailscale serve "$ts_target" 2>/dev/null; then
+            serve_ok=true
+            warn "App is served at the tailnet root instead of ${TAILSCALE_BASE_PATH}."
+          fi
+        fi
+      fi
     else
+      # Attempt 1: serve at root
       log "Running: tailscale serve ${ts_target}"
-      run_with_sudo tailscale serve "$ts_target" \
-        || warn "tailscale serve failed. You can run it manually later."
+      if run_with_sudo tailscale serve "$ts_target" 2>"$ts_err_file"; then
+        serve_ok=true
+      elif grep -q "listener already exists" "$ts_err_file" 2>/dev/null; then
+        # Attempt 2: reset and retry
+        warn "Port 443 listener already exists. Resetting Tailscale Serve config and retrying…"
+        if run_with_sudo tailscale serve reset 2>/dev/null; then
+          log "Running: tailscale serve ${ts_target}"
+          if run_with_sudo tailscale serve "$ts_target" 2>/dev/null; then
+            serve_ok=true
+          fi
+        fi
+      fi
     fi
-    ok "Tailscale Serve configured.${TAILSCALE_BASE_PATH:+ Path: ${TAILSCALE_BASE_PATH}}"
-    log "Tip: run 'tailscale serve status' to verify the mapping."
+
+    rm -f "$ts_err_file"
+
+    if [[ "$serve_ok" == true ]]; then
+      ok "Tailscale Serve configured.${TAILSCALE_BASE_PATH:+ Path: ${TAILSCALE_BASE_PATH}}"
+      log "Tip: run 'tailscale serve status' to verify the mapping."
+    else
+      warn "Tailscale Serve could not be configured automatically."
+      warn "You can set it up manually with: tailscale serve${TAILSCALE_BASE_PATH:+ --set-path ${TAILSCALE_BASE_PATH}} ${ts_target}"
+    fi
   fi
 }
 
