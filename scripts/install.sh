@@ -224,8 +224,8 @@ setup_tailscale() {
 
     if [[ -n "$ts_path" ]]; then
       # Attempt 1: serve with the requested path
-      log "Running: tailscale serve --set-path ${ts_path} ${ts_target}"
-      if run_with_sudo tailscale serve --set-path "$ts_path" "$ts_target" 2>"$ts_err_file"; then
+      log "Running: tailscale serve --bg --set-path ${ts_path} ${ts_target}"
+      if run_with_sudo tailscale serve --bg --set-path "$ts_path" "$ts_target" 2>"$ts_err_file"; then
         serve_ok=true
       elif grep -q "listener already exists" "$ts_err_file" 2>/dev/null; then
         # A listener already exists on that path — prompt the user to try a different one
@@ -233,8 +233,8 @@ setup_tailscale() {
         local alt_path
         prompt alt_path "Enter a different base path to try (e.g. /app), or leave blank to skip" ""
         if [[ -n "$alt_path" ]]; then
-          log "Running: tailscale serve --set-path ${alt_path} ${ts_target}"
-          if run_with_sudo tailscale serve --set-path "$alt_path" "$ts_target" 2>/dev/null; then
+          log "Running: tailscale serve --bg --set-path ${alt_path} ${ts_target}"
+          if run_with_sudo tailscale serve --bg --set-path "$alt_path" "$ts_target" 2>/dev/null; then
             serve_ok=true
             ts_path="$alt_path"
           fi
@@ -242,8 +242,8 @@ setup_tailscale() {
       fi
     else
       # Serve at root
-      log "Running: tailscale serve ${ts_target}"
-      if run_with_sudo tailscale serve "$ts_target" 2>"$ts_err_file"; then
+      log "Running: tailscale serve --bg ${ts_target}"
+      if run_with_sudo tailscale serve --bg "$ts_target" 2>"$ts_err_file"; then
         serve_ok=true
       fi
     fi
@@ -255,7 +255,7 @@ setup_tailscale() {
       log "Tip: run 'tailscale serve status' to verify the mapping."
     else
       warn "Tailscale Serve could not be configured automatically."
-      warn "You can set it up manually with: tailscale serve${ts_path:+ --set-path ${ts_path}} ${ts_target}"
+      warn "You can set it up manually with: tailscale serve --bg${ts_path:+ --set-path ${ts_path}} ${ts_target}"
     fi
   fi
 }

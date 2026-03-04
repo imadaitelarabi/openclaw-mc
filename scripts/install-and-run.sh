@@ -244,7 +244,7 @@ setup_tailscale() {
     local ts_err_file; ts_err_file="$(mktemp)"
 
     # Attempt 1: serve with the requested path
-    if run_with_sudo tailscale serve --set-path "$TAILSCALE_BASE_PATH" "$ts_target" 2>"$ts_err_file"; then
+    if run_with_sudo tailscale serve --bg --set-path "$TAILSCALE_BASE_PATH" "$ts_target" 2>"$ts_err_file"; then
       serve_ok=true
     elif grep -q "listener already exists" "$ts_err_file" 2>/dev/null; then
       # A listener already exists on that path — prompt the user to try a different one
@@ -255,7 +255,7 @@ setup_tailscale() {
         IFS= read -r alt_path </dev/tty || alt_path=""
       fi
       if [[ -n "$alt_path" ]]; then
-        if run_with_sudo tailscale serve --set-path "$alt_path" "$ts_target" 2>/dev/null; then
+        if run_with_sudo tailscale serve --bg --set-path "$alt_path" "$ts_target" 2>/dev/null; then
           serve_ok=true
           TAILSCALE_BASE_PATH="$alt_path"
         fi
@@ -267,7 +267,7 @@ setup_tailscale() {
     if [[ "$serve_ok" == true ]]; then
       log "Tailscale Serve configured with base path ${TAILSCALE_BASE_PATH}"
     else
-      warn "Failed to configure Tailscale Serve. You can configure it manually with: tailscale serve --set-path ${TAILSCALE_BASE_PATH} ${ts_target}"
+      warn "Failed to configure Tailscale Serve. You can configure it manually with: tailscale serve --bg --set-path ${TAILSCALE_BASE_PATH} ${ts_target}"
     fi
   fi
 }
