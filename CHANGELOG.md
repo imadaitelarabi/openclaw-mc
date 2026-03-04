@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.8.0] - 2026-03-04
+
+### Meta
+
+- Bump: minor (score: 39)
+
+- Range: [4207dac78778416d899889f9ba0a4fd6c17fdc5a](https://github.com/imadaitelarabi/openclaw-mc/commit/4207dac78778416d899889f9ba0a4fd6c17fdc5a)..[6a8c910608bbbcb1723e31482a223d1e7ee66268](https://github.com/imadaitelarabi/openclaw-mc/commit/6a8c910608bbbcb1723e31482a223d1e7ee66268)
+
+### Added
+
+- feat: implement GitHub asset proxy for secure asset fetching and token management ([e45b9fd33a12f151265b19cc3554f5dd6be028b8](https://github.com/imadaitelarabi/openclaw-mc/commit/e45b9fd33a12f151265b19cc3554f5dd6be028b8))
+
+- feat: add image attachment support for comments in GitHub issue and PR panels ([42d02c94b8af3b831e0c6602be2f3af816cd6b4d](https://github.com/imadaitelarabi/openclaw-mc/commit/42d02c94b8af3b831e0c6602be2f3af816cd6b4d))
+
+- feat: enhance VSCode integration with folder selection and local path management ([56776e8a692c826c163d7b9d11a01455b0b823af](https://github.com/imadaitelarabi/openclaw-mc/commit/56776e8a692c826c163d7b9d11a01455b0b823af))
+
+- feat(pr-details): add rerun functionality for workflow runs and approval message handling ([caf96e9eacd9c077cd698218af0f702610153dd7](https://github.com/imadaitelarabi/openclaw-mc/commit/caf96e9eacd9c077cd698218af0f702610153dd7))
+
+### Chore
+
+- chore: update changelog and improve documentation formatting ([4491da26337e4c5517d508efcc4f3a8f541e8564](https://github.com/imadaitelarabi/openclaw-mc/commit/4491da26337e4c5517d508efcc4f3a8f541e8564))
+
+- chore(release): daily changelog 2026-03-03 ([3c57850df977521bfbc7f7bec9de7fd3445326ac](https://github.com/imadaitelarabi/openclaw-mc/commit/3c57850df977521bfbc7f7bec9de7fd3445326ac))
+
+### Other
+
+- style: format code for improved readability in issue and PR details panels ([6a8c910608bbbcb1723e31482a223d1e7ee66268](https://github.com/imadaitelarabi/openclaw-mc/commit/6a8c910608bbbcb1723e31482a223d1e7ee66268))
+
+- Merge pull request [#185](https://github.com/imadaitelarabi/openclaw-mc/pull/185) from imadaitelarabi/changelog/daily-2026-03-03 ([a93e830c89d3fba8216af7c8c293fc594dc62a2f](https://github.com/imadaitelarabi/openclaw-mc/commit/a93e830c89d3fba8216af7c8c293fc594dc62a2f))
+
 ## [0.7.3] - 2026-03-03
 
 ### Meta
