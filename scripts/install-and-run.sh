@@ -6,6 +6,7 @@ BRANCH="${BRANCH:-master}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/share/openclaw-mc}"
 MIN_NODE_MAJOR="18"
 TARGET_NODE_MAJOR="20"
+TAILSCALE_BASE_PATH="${TAILSCALE_BASE_PATH:-}"   # may be set by env for CI/headless installs
 
 # Common locations to search for an existing installation (in priority order).
 # The default INSTALL_DIR is always included first.
@@ -215,6 +216,14 @@ fetch_repo() {
 build_and_run() {
   cd "$INSTALL_DIR"
 
+  # Write NEXT_PUBLIC_BASE_PATH to .env.local if TAILSCALE_BASE_PATH is set
+  if [[ -n "$TAILSCALE_BASE_PATH" ]]; then
+    local env_file="${INSTALL_DIR}/.env.local"
+    log "Setting NEXT_PUBLIC_BASE_PATH=${TAILSCALE_BASE_PATH} in ${env_file}"
+    # Append to .env.local if it exists, or create it
+    echo "NEXT_PUBLIC_BASE_PATH=${TAILSCALE_BASE_PATH}" >> "$env_file"
+  fi
+
   log "Installing dependencies..."
   npm install --legacy-peer-deps
 
@@ -225,10 +234,29 @@ build_and_run() {
   exec npm start
 }
 
+setup_tailscale() {
+  # If TAILSCALE_BASE_PATH is set via environment, configure Tailscale Serve
+  if [[ -n "$TAILSCALE_BASE_PATH" ]] && command -v tailscale >/dev/null 2>&1; then
+    log "Configuring Tailscale Serve with base path: ${TAILSCALE_BASE_PATH}"
+    local ts_port="3000"
+    local ts_target="http://localhost:${ts_port}"
+
+    if run_with_sudo tailscale serve --set-path "$TAILSCALE_BASE_PATH" "$ts_target" 2>/dev/null; then
+      log "Tailscale Serve configured with base path ${TAILSCALE_BASE_PATH}"
+    else
+      warn "Failed to configure Tailscale Serve. You can configure it manually later."
+    fi
+  fi
+}
+
 main() {
   log "Preparing OpenClaw MC installer"
   ensure_cmds
   fetch_repo
+
+  # Setup Tailscale if configured via environment variable
+  setup_tailscale
+
   build_and_run
 }
 
