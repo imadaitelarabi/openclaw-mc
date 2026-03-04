@@ -247,11 +247,18 @@ setup_tailscale() {
     if run_with_sudo tailscale serve --set-path "$TAILSCALE_BASE_PATH" "$ts_target" 2>"$ts_err_file"; then
       serve_ok=true
     elif grep -q "listener already exists" "$ts_err_file" 2>/dev/null; then
-      # Attempt 2: fall back to serving at the root path
-      warn "Path-based serve failed (port 443 listener conflict). Falling back to serving at root (/)…"
-      if run_with_sudo tailscale serve "$ts_target" 2>/dev/null; then
-        serve_ok=true
-        warn "App is served at the tailnet root instead of ${TAILSCALE_BASE_PATH}."
+      # A listener already exists on that path — prompt the user to try a different one
+      warn "A Tailscale Serve listener already exists for path '${TAILSCALE_BASE_PATH}'."
+      local alt_path=""
+      if [[ -r /dev/tty ]]; then
+        printf "\033[1;34m[openclaw-mc]\033[0m Enter a different base path to try (e.g. /app), or leave blank to skip: " >/dev/tty
+        IFS= read -r alt_path </dev/tty || alt_path=""
+      fi
+      if [[ -n "$alt_path" ]]; then
+        if run_with_sudo tailscale serve --set-path "$alt_path" "$ts_target" 2>/dev/null; then
+          serve_ok=true
+          TAILSCALE_BASE_PATH="$alt_path"
+        fi
       fi
     fi
 
