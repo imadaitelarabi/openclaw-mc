@@ -1,3 +1,19 @@
+# Feature Highlights (March 3, 2026)
+
+## GitHub Extension Enhancements
+- **GitHub Asset Proxy:** Implemented a secure proxy for fetching GitHub assets (images, attachments) using server-side token management. This protects personal access tokens by keeping them off the client side while enabling authenticated asset retrieval.
+- **Rich Comment Support:** Users can now view and attach images in comments within the GitHub issue and PR details panels, supporting a more visual and expressive communication workflow.
+- **Workflow Reruns:** Added direct support for rerunning GitHub Actions workflow runs from the PR details panel, streamlining the iteration loop between development and CI.
+
+## VSCode Integration
+- **Enhanced Path & Folder Management:** Improved the "Open in VSCode" service with better folder selection and local path management for repository clones, particularly useful in multi-project or remote development setups.
+
+## UI Polish & Documentation
+- **Readability Enhancements:** Improved code formatting and visual presentation in the issue and PR detail panels for better readability and a more native GitHub feel.
+- **Daily Documentation Sync:** Updated the changelog and supporting documentation to match the latest platform capabilities.
+
+---
+
 # Feature Highlights (March 2, 2026)
 
 ## GitHub Extension Enhancements
