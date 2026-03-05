@@ -1,4 +1,30 @@
 # Changelog
+## [0.8.1] - 2026-03-05
+
+### Meta
+
+- Bump: patch (score: 13)
+
+- Range: [34423d3e94a3d1a2b2a7d5e6b8c6b0e6f6e8a9e](https://github.com/imadaitelarabi/openclaw-mc/commit/34423d3e94a3d1a2b2a7d5e6b8c6b0e6f6e8a9e)..[7478c44c32ac49779622fc700028d412a6b3b88b](https://github.com/imadaitelarabi/openclaw-mc/commit/7478c44c32ac49779622fc700028d412a6b3b88b)
+
+### Added
+
+- feat: add --bg flag to tailscale serve commands in installer scripts ([5892310](https://github.com/imadaitelarabi/openclaw-mc/commit/5892310))
+
+### Fixed
+
+- fix: tailscale serve prompt on path conflict and suppress false success on failure ([c48d57c](https://github.com/imadaitelarabi/openclaw-mc/commit/c48d57c))
+
+- fix: tailscale base path handling across install scripts and Next.js config ([228e675](https://github.com/imadaitelarabi/openclaw-mc/commit/228e675))
+
+### Chore
+
+- chore: initial plan ([ac57202](https://github.com/imadaitelarabi/openclaw-mc/commit/ac57202))
+
+### Other
+
+- Merge pull request [#190](https://github.com/imadaitelarabi/openclaw-mc/pull/190) from imadaitelarabi/copilot/add-bg-flag-to-tailscale-setup ([7478c44](https://github.com/imadaitelarabi/openclaw-mc/commit/7478c44))
+
 
 ## [0.8.0] - 2026-03-04
 
