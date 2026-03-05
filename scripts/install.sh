@@ -383,6 +383,7 @@ Type=simple
 User=$(id -un)
 WorkingDirectory=${INSTALL_DIR}
 EnvironmentFile=-${INSTALL_DIR}/.env.local
+Environment=NODE_ENV=production
 ExecStart=$(command -v node) dist/server/index.js
 Restart=on-failure
 RestartSec=5

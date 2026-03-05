@@ -25,11 +25,34 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 // Cache package version for health checks
-// Use path.join to resolve package.json location properly in both dev and production
-const packageJsonPath = dev
-  ? path.join(__dirname, "../package.json")
-  : path.join(__dirname, "../../package.json");
-const packageVersion = require(packageJsonPath).version;
+// Resolve package.json robustly regardless of NODE_ENV or working directory.
+// Candidates (in priority order):
+//   1. dist/package.json  – copied there by the build step
+//   2. project root       – two levels up from dist/server/ (or one level up from server/ in dev)
+//   3. process.cwd()      – fallback for any other working-directory layout
+function resolvePackageVersion(): string {
+  const candidates = [
+    path.join(__dirname, "../package.json"), // dist/package.json (build output copy)
+    path.join(__dirname, "../../package.json"), // project root (two levels up from dist/server/)
+    path.join(process.cwd(), "package.json"), // working-directory fallback
+  ];
+  for (const p of candidates) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const version = (require(p) as { version: string }).version;
+      return version;
+    } catch {
+      // try next candidate
+    }
+  }
+  console.warn(
+    "[server] Warning: could not locate package.json in any of:",
+    candidates,
+    "— version reported as 'unknown'"
+  );
+  return "unknown";
+}
+const packageVersion = resolvePackageVersion();
 const notesManager = new NotesManager();
 
 const imageContentTypes: Record<string, string> = {

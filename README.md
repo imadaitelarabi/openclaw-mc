@@ -115,6 +115,8 @@ npm run build
 npm start
 ```
 
+> **Note:** `npm run build` copies `package.json` into `dist/` as part of the server build step. The server reads its own version from `dist/package.json` at startup — no manual copy or specific `NODE_ENV` value is required as long as you run the build first.
+
 Run in development:
 
 ```bash
@@ -246,6 +248,29 @@ No active gateway is configured.
   npm install --legacy-peer-deps
   npm run build
   ```
+
+### systemd service fails to start (`Cannot find module … dist/package.json`)
+
+This happens when `NODE_ENV` is not set to `"production"` and the server cannot locate `package.json`.
+
+**Fix:** The build step (`npm run build` / `npm run build:server`) automatically copies `package.json` into `dist/`. Make sure you run the build after each update.
+
+If you created a custom systemd unit before this fix, add `Environment=NODE_ENV=production` to the `[Service]` section:
+
+```ini
+[Service]
+Environment=NODE_ENV=production
+EnvironmentFile=-/path/to/openclaw-mc/.env.local
+ExecStart=/usr/bin/node dist/server/index.js
+WorkingDirectory=/path/to/openclaw-mc
+```
+
+Then reload and restart:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart oclawmc
+```
 
 ### Port 3000 already in use
 

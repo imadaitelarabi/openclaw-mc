@@ -26,3 +26,9 @@ jobs:
 
       - name: Check formatting
         run: npm run format:check
+
+      - name: Build server
+        run: npm run build:server
+
+      - name: Validate dist/package.json exists and is readable
+        run: node scripts/validate-dist-pkg.js

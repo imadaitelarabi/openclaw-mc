@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch server/index.ts",
-    "build": "tsc -p tsconfig.server.json && next build",
+    "build": "npm run build:server && next build",
     "build:server": "tsc -p tsconfig.server.json",
+    "postbuild:server": "node scripts/copy-pkg-to-dist.js",
     "start": "NODE_ENV=production node dist/server/index.js",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
