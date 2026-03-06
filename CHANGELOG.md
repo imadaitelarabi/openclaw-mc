@@ -1,4 +1,17 @@
 # Changelog
+## [0.8.2] - 2026-03-06
+
+### Meta
+
+- Bump: patch (score: 11)
+
+- Range: [7478c44c32ac49779622fc700028d412a6b3b88b](https://github.com/imadaitelarabi/openclaw-mc/commit/7478c44c32ac49779622fc700028d412a6b3b88b)..[9a55a5fe56e504912d55728650d8ba178f0a939d](https://github.com/imadaitelarabi/openclaw-mc/commit/9a55a5fe56e504912d55728650d8ba178f0a939d)
+
+### Fixed
+
+- fix: resolve dist/package.json MODULE_NOT_FOUND crash on Ubuntu/systemd ([9a55a5f](https://github.com/imadaitelarabi/openclaw-mc/commit/9a55a5f))
+
+
 ## [0.8.1] - 2026-03-05
 
 ### Meta
