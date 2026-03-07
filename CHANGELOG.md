@@ -1,4 +1,17 @@
 # Changelog
+## [0.8.3] - 2026-03-07
+
+### Meta
+
+- Bump: patch (score: 113)
+
+- Range: [9a55a5fe56e504912d55728650d8ba178f0a939d](https://github.com/imadaitelarabi/openclaw-mc/commit/9a55a5fe56e504912d55728650d8ba178f0a939d)..[2847333ee86d33bc4daecba2c6ee39869ecfb9d4](https://github.com/imadaitelarabi/openclaw-mc/commit/2847333ee86d33bc4daecba2c6ee39869ecfb9d4)
+
+### Other
+
+- chore(release): daily changelog 2026-03-06 ([2847333](https://github.com/imadaitelarabi/openclaw-mc/commit/2847333))
+
+
 ## [0.8.2] - 2026-03-06
 
 ### Meta
