@@ -1,4 +1,61 @@
 # Changelog
+## [0.9.0] - 2026-03-08
+
+### Meta
+
+- Bump: minor (score: 113)
+
+- Range: [9a55a5fe56e504912d55728650d8ba178f0a939d](https://github.com/imadaitelarabi/openclaw-mc/commit/9a55a5fe56e504912d55728650d8ba178f0a939d)..[c0a501f](https://github.com/imadaitelarabi/openclaw-mc/commit/c0a501fcd23a4a01c8eb1726ef14b9127128b136)
+
+### Added
+
+- feat: add per-extension status-bar refresh contract to reduce GitHub API load ([d3fc3b2](https://github.com/imadaitelarabi/openclaw-mc/commit/d3fc3b2))
+
+### Fixed
+
+- fix: resolve dist/package.json crash on Ubuntu/systemd startup ([cd498de](https://github.com/imadaitelarabi/openclaw-mc/commit/cd498de))
+
+- fix: improve handling of review comments panel navigation ([6d243ee](https://github.com/imadaitelarabi/openclaw-mc/commit/6d243ee))
+
+- fix: apply prettier formatting to CHANGELOG.md ([0e719d2](https://github.com/imadaitelarabi/openclaw-mc/commit/0e719d2))
+
+### Refactored
+
+- refactor: remove review comments handling from PR details panel ([12c86f5](https://github.com/imadaitelarabi/openclaw-mc/commit/12c86f5))
+
+- refactor: rename review comments panel to changes panel and update related logic ([a50cb5d](https://github.com/imadaitelarabi/openclaw-mc/commit/a50cb5d))
+
+- refactor: streamline formatting and improve readability in PR review comments panel ([f53e47d](https://github.com/imadaitelarabi/openclaw-mc/commit/f53e47d))
+
+- refactor: clean up whitespace and simplify JSX in DiffHunk rendering ([cb109f2](https://github.com/imadaitelarabi/openclaw-mc/commit/cb109f2))
+
+- refactor: replace patch preview with DiffHunk component for better rendering ([56945b1](https://github.com/imadaitelarabi/openclaw-mc/commit/56945b1))
+
+### Documentation
+
+- docs: update FEATURES.md with March 1st updates ([36efbcb](https://github.com/imadaitelarabi/openclaw-mc/commit/36efbcb))
+
+- docs: update FEATURES, CHANGELOG, and README with March 2nd changes ([6a24f47](https://github.com/imadaitelarabi/openclaw-mc/commit/6a24f47))
+
+### Other
+
+- Add github-pr-review-comments panel with threading, filters, and write actions ([eb7e720](https://github.com/imadaitelarabi/openclaw-mc/commit/eb7e720))
+
+- Add fallback strategies for Tailscale Serve and fix false success message ([f08e083](https://github.com/imadaitelarabi/openclaw-mc/commit/f08e083))
+
+- Remove tailscale serve reset to avoid disrupting other served apps ([ad64f98](https://github.com/imadaitelarabi/openclaw-mc/commit/ad64f98))
+
+- Prompt user for alternative path on Tailscale Serve listener conflict ([48dba7c](https://github.com/imadaitelarabi/openclaw-mc/commit/48dba7c))
+
+- Fix dropdown selection reset during async options reload for same query ([9161e27](https://github.com/imadaitelarabi/openclaw-mc/commit/9161e27))
+
+- Fix reply endpoint, reactions accept header, and add diff coloring ([6759242](https://github.com/imadaitelarabi/openclaw-mc/commit/6759242))
+
+- Fix formatting in next.config.mjs ([5c55fa7](https://github.com/imadaitelarabi/openclaw-mc/commit/5c55fa7))
+
+- Address code review: remove dead while loop, add reaction error feedback ([4fb8bb0](https://github.com/imadaitelarabi/openclaw-mc/commit/4fb8bb0))
+
+
 ## [0.8.2] - 2026-03-06
 
 ### Meta
